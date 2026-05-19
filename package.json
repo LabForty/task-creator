@@ -1,0 +1,50 @@
+{
+  "name": "task-creator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone + embeddable webapp that turns a vague feature idea into a Jira-ready user story with diagrams, driven by Claude.",
+  "license": "MIT",
+  "author": "Erkan Rasim",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "finalize:demo": "tsx scripts/run-once.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.140",
+    "@dagrejs/dagre": "^3.0.0",
+    "@xyflow/react": "^12.4.4",
+    "mermaid": "^11.15.0",
+    "nanoid": "^5.1.5",
+    "next": "^16.2.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "@vitest/coverage-v8": "^4.1.6",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.15.0",
+    "eslint-config-next": "^16.2.6",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.6"
+  }
+}

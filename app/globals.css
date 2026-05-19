@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* HIG global polish */
+@layer base {
+  html {
+    /* Smooth font rendering, like macOS / iOS */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply text-ink bg-surface-subtle text-hig-body;
+  }
+  /* Strip the default Tailwind h1..h6 margin reset for prose-style usage. */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-ink;
+  }
+  /* Default focus ring in HIG blue */
+  :focus-visible {
+    outline: 2px solid rgb(0 122 255 / 0.6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Reduce motion respects user preference (HIG mandate) */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .hig-card {
+    @apply bg-surface rounded-lg shadow-card;
+  }
+  .hig-section-label {
+    @apply text-hig-caption uppercase tracking-wider text-ink-tertiary font-semibold;
+  }
+}
+
+/* Help-panel "Discuss" → flash the targeted form field so the user knows
+   where to focus. Pulse runs ~2.5s, then fades out. */
+@keyframes task-field-highlight {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.55); border-color: rgb(0 122 255 / 0.9); }
+  35%  { box-shadow: 0 0 0 6px rgba(0, 122, 255, 0.15); border-color: rgb(0 122 255 / 0.9); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); border-color: rgb(0 122 255 / 0.0); }
+}
+.task-highlight-field [data-input] {
+  animation: task-field-highlight 2.5s ease-out 1;
+  border-color: rgb(0 122 255 / 0.9) !important;
+}
+.task-highlight-field [data-label] {
+  color: rgb(0 122 255);
+  text-decoration: underline;
+  text-decoration-color: rgb(0 122 255 / 0.7);
+  text-underline-offset: 3px;
+}

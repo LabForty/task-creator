@@ -1,0 +1,496 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+import type { JobEvent, RoleName, Diagrams, MermaidFormat } from "@/lib/jobs/types";
+import {
+  parseRequirement,
+  parseStory,
+  buildAnalystInput,
+  buildPlannerInput,
+  type Requirement,
+  type Story,
+  type DraftInput,
+} from "@/lib/pipeline";
+import type { Draft } from "@/lib/draft/autosave";
+import type { AgentEvent, AgentTransport, RunArgs } from "./types";
+
+// Webapp-owned Claude Skills. Loaded from skills/<name>/SKILL.md at invocation
+// time — never bundled, so prompt changes don't require rebuild.
+const SKILLS_ROOT = path.resolve(process.cwd(), "skills");
+const PROMPTS_ROOT = path.resolve(process.cwd(), "prompts");
+
+async function loadSkillPrompt(skillName: string): Promise<string> {
+  return readFile(path.join(SKILLS_ROOT, skillName, "SKILL.md"), "utf8");
+}
+
+async function loadRolePrompt(role: RoleName): Promise<string> {
+  return readFile(path.join(PROMPTS_ROOT, `${role}.md`), "utf8");
+}
+
+// ---------------------------------------------------------------------------
+// Generic helper: drive a Skill / role to a single JSON-object reply.
+// ---------------------------------------------------------------------------
+
+type RunSkillArgs = {
+  role: string;
+  systemPrompt: string;
+  userMessage: string;
+  transport: AgentTransport;
+  onProgress?: (message: string) => void;
+  onError?: (e: { code: string; message: string; retriable: boolean }) => void;
+  signal?: AbortSignal;
+};
+
+async function runSkillToText(args: RunSkillArgs): Promise<string> {
+  let buffer = "";
+  let pending: Error | null = null;
+  await args.transport.runRole({
+    role: args.role,
+    systemPrompt: args.systemPrompt,
+    userMessage: args.userMessage,
+    cwd: process.cwd(),
+    signal: args.signal,
+    onEvent: (e: AgentEvent) => {
+      if (e.type === "token") buffer += e.text;
+      else if (e.type === "progress") args.onProgress?.(e.message);
+      else if (e.type === "error") {
+        args.onError?.({ code: e.code, message: e.message, retriable: e.retriable });
+        pending = new Error(`${e.code}: ${e.message}`);
+      }
+    },
+  });
+  if (pending) throw pending;
+  return buffer;
+}
+
+function extractJsonObject(raw: string): string | null {
+  const text = raw.trim();
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function parseSkillJson<T>(buffer: string, skillName: string): T {
+  const candidate = extractJsonObject(buffer);
+  if (!candidate) {
+    throw new Error(
+      `${skillName}: model output was not valid JSON (no object found). First 200 chars: ${buffer.slice(0, 200)}`,
+    );
+  }
+  try {
+    return JSON.parse(candidate) as T;
+  } catch {
+    throw new Error(
+      `${skillName}: model output was not valid JSON. First 200 chars: ${candidate.slice(0, 200)}`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline roles (analyst, planner). Both produce JSON in-memory now — no
+// workspace, no file IO. The orchestrator validates with Zod and decides
+// whether to retry.
+// ---------------------------------------------------------------------------
+
+export async function runAnalyst(
+  args: RunArgs & { draft: DraftInput; retryHint?: string[] },
+): Promise<{ requirement: Requirement }> {
+  args.publish({ type: "role_started", role: "analyst" });
+
+  const systemPrompt = await loadRolePrompt("analyst");
+  const baseMessage = buildAnalystInput(args.draft);
+  const userMessage = args.retryHint?.length
+    ? buildRetryMessage("analyst", baseMessage, args.retryHint)
+    : baseMessage;
+
+  const buffer = await runSkillToText({
+    role: "analyst",
+    systemPrompt,
+    userMessage,
+    transport: args.transport,
+    signal: args.signal,
+    onProgress: (m) => args.publish({ type: "role_progress", role: "analyst", message: m }),
+    onError: (e) => args.publish({ type: "error", ...e }),
+  });
+
+  // Tokens are streamed to the UI for live preview.
+  args.publish({ type: "role_token", role: "analyst", token: buffer });
+
+  const result = parseRequirement(buffer);
+  if (!result.ok) {
+    const err = new Error(`analyst: ${result.errors.join("; ")}`);
+    (err as Error & { gateErrors?: string[] }).gateErrors = result.errors;
+    throw err;
+  }
+
+  args.publish({ type: "role_finished", role: "analyst", artifactId: result.value.title });
+  return { requirement: result.value };
+}
+
+export async function runPlanner(
+  args: RunArgs & {
+    requirement: Requirement;
+    draft: DraftInput;
+    retryHint?: string[];
+  },
+): Promise<{ story: Story }> {
+  args.publish({ type: "role_started", role: "planner" });
+
+  const systemPrompt = await loadRolePrompt("planner");
+  const baseMessage = buildPlannerInput(args.requirement, args.draft);
+  const userMessage = args.retryHint?.length
+    ? buildRetryMessage("planner", baseMessage, args.retryHint)
+    : baseMessage;
+
+  const buffer = await runSkillToText({
+    role: "planner",
+    systemPrompt,
+    userMessage,
+    transport: args.transport,
+    signal: args.signal,
+    onProgress: (m) => args.publish({ type: "role_progress", role: "planner", message: m }),
+    onError: (e) => args.publish({ type: "error", ...e }),
+  });
+
+  args.publish({ type: "role_token", role: "planner", token: buffer });
+
+  const result = parseStory(buffer);
+  if (!result.ok) {
+    const err = new Error(`planner: ${result.errors.join("; ")}`);
+    (err as Error & { gateErrors?: string[] }).gateErrors = result.errors;
+    throw err;
+  }
+
+  args.publish({ type: "role_finished", role: "planner", artifactId: result.value.title });
+  return { story: result.value };
+}
+
+function buildRetryMessage(role: RoleName, baseMessage: string, errors: string[]): string {
+  const bullets = errors.map((e) => `  - ${e}`).join("\n");
+  return [
+    `RETRY — the previous ${role} output failed validation.`,
+    "",
+    `Errors:`,
+    bullets,
+    "",
+    `Re-emit the JSON object, correcting ONLY the fields above. Keep everything else identical.`,
+    `Do not include preamble, fences, or trailing prose. One JSON object, nothing else.`,
+    "",
+    `Original input:`,
+    baseMessage,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Webapp Skills — operate on in-memory artifacts, output JSON.
+// ---------------------------------------------------------------------------
+
+export async function runCreateDiagrams(args: {
+  requirement: Requirement;
+  story: Story;
+  draft: Draft;
+  formats?: MermaidFormat[];
+  transport: AgentTransport;
+  publish: (e: JobEvent) => void;
+  signal?: AbortSignal;
+}): Promise<Diagrams> {
+  const formats: MermaidFormat[] = args.formats ?? ["flow", "sequence", "interaction"];
+  const systemPrompt = await loadSkillPrompt("task-create-diagrams");
+  const userMessage = JSON.stringify({
+    requirement: args.requirement,
+    story: args.story,
+    draft: args.draft,
+    formats,
+  });
+
+  const buffer = await runSkillToText({
+    role: "create-diagrams",
+    systemPrompt,
+    userMessage,
+    transport: args.transport,
+    signal: args.signal,
+    onProgress: (m) => args.publish({ type: "help_progress", message: m }),
+    onError: (e) => args.publish({ type: "error", ...e }),
+  });
+
+  const diagrams = parseSkillJson<Diagrams>(buffer, "task-create-diagrams");
+  args.publish({ type: "diagrams_created", payload: diagrams });
+  return diagrams;
+}
+
+export async function runAnalyzeDiagrams(args: {
+  requirement: Requirement;
+  story: Story;
+  mermaid: Diagrams;
+  transport: AgentTransport;
+  publish: (e: JobEvent) => void;
+  signal?: AbortSignal;
+}): Promise<import("@/lib/jobs/types").AnalyzeFinding[]> {
+  const systemPrompt = await loadSkillPrompt("task-analyze-diagrams");
+  const userMessage = JSON.stringify({
+    requirement: args.requirement,
+    story: args.story,
+    mermaid: args.mermaid,
+  });
+
+  const buffer = await runSkillToText({
+    role: "analyze-diagrams",
+    systemPrompt,
+    userMessage,
+    transport: args.transport,
+    signal: args.signal,
+    onError: (e) => args.publish({ type: "error", ...e }),
+  });
+
+  const parsed = parseSkillJson<{ findings: import("@/lib/jobs/types").AnalyzeFinding[] }>(
+    buffer,
+    "task-analyze-diagrams",
+  );
+  const findings = Array.isArray(parsed.findings) ? parsed.findings : [];
+  args.publish({ type: "diagrams_analyzed", payload: { findings } });
+  return findings;
+}
+
+export async function runTitleSuggest(args: {
+  draft: { title?: string; description?: string; acceptanceCriteria?: string[]; constraints?: string };
+  transport: AgentTransport;
+  signal?: AbortSignal;
+}): Promise<{ title: string }> {
+  const systemPrompt = await loadSkillPrompt("task-title-suggest");
+  const userMessage = JSON.stringify({ draft: args.draft });
+
+  let buffer = "";
+  let pending: Error | null = null;
+  await args.transport.runRole({
+    role: "title-suggest",
+    systemPrompt,
+    userMessage,
+    cwd: process.cwd(),
+    signal: args.signal,
+    onEvent: (e) => {
+      if (e.type === "token") buffer += e.text;
+      else if (e.type === "error") {
+        pending = new Error(`${e.code}: ${e.message}`);
+      }
+    },
+  });
+
+  if (pending) throw pending;
+
+  try {
+    const parsed = parseSkillJson<{ title?: unknown }>(buffer, "task-title-suggest");
+    const title = typeof parsed.title === "string" ? parsed.title.trim() : "";
+    return { title };
+  } catch {
+    return { title: "" };
+  }
+}
+
+export async function runHelp(args: {
+  surface: "editor" | "diagrams";
+  state: { draft: Draft; diagrams?: Diagrams };
+  conversation: import("@/lib/jobs/types").HelpMessage[];
+  transport: AgentTransport;
+  publish: (e: JobEvent) => void;
+  signal?: AbortSignal;
+}): Promise<{ text: string; done: boolean; suggestions?: import("@/lib/jobs/types").HelpSuggestion[] }> {
+  const systemPrompt = await loadSkillPrompt("task-help");
+  const userMessage = JSON.stringify({
+    surface: args.surface,
+    state: args.state,
+    conversation: args.conversation,
+  });
+
+  const buffer = await runSkillToText({
+    role: "help",
+    systemPrompt,
+    userMessage,
+    transport: args.transport,
+    signal: args.signal,
+    onError: (e) => args.publish({ type: "error", ...e }),
+  });
+
+  // Help Skill output: tolerate either {text, done, suggestions?} JSON or bare
+  // text from stub. Drop malformed suggestions silently so the chat still
+  // works even when only `text` is returned.
+  type RawReply = {
+    text: string;
+    done: boolean;
+    suggestions?: import("@/lib/jobs/types").HelpSuggestion[];
+  };
+  let reply: RawReply;
+  try {
+    reply = parseSkillJson<RawReply>(buffer, "task-help");
+  } catch {
+    reply = { text: buffer.trim(), done: false };
+  }
+  args.publish({ type: "help_message", text: reply.text });
+  if (reply.done) args.publish({ type: "help_done", reason: "ended" });
+  return reply;
+}
+
+// ---------------------------------------------------------------------------
+// Default transport — drives the Anthropic Claude Agent SDK.
+// JSON-only skills/roles get no tools (text-only output).
+// ---------------------------------------------------------------------------
+
+export function makeDefaultTransport(): AgentTransport {
+  return {
+    async runRole({ systemPrompt, userMessage, cwd, onEvent, signal }) {
+      try {
+        const abortController = signal ? wrapSignal(signal) : new AbortController();
+
+        const iter = query({
+          prompt: userMessage,
+          options: {
+            systemPrompt,
+            cwd,
+            abortController,
+            tools: [],
+            permissionMode: "bypassPermissions",
+            allowDangerouslySkipPermissions: true,
+          },
+        });
+
+        for await (const msg of iter) {
+          if (msg.type === "system" && msg.subtype === "init") {
+            onEvent({ type: "progress", message: "session started" });
+          } else if (msg.type === "assistant") {
+            const content = (msg as { message?: { content?: unknown[] } }).message?.content;
+            if (Array.isArray(content)) {
+              for (const block of content) {
+                if (block && typeof block === "object") {
+                  const b = block as { type?: string; text?: string; name?: string };
+                  if (b.type === "text" && b.text) {
+                    onEvent({ type: "token", text: b.text });
+                  } else if (b.type === "tool_use" && b.name) {
+                    onEvent({ type: "progress", message: `using ${b.name}` });
+                  }
+                }
+              }
+            }
+          } else if (msg.type === "result") {
+            // terminal — iterator will exit on its own
+          }
+        }
+      } catch (e) {
+        const err = e as { message?: string };
+        const text = String(err.message ?? e);
+        const retriable = !/401|403|invalid_api_key|unauthorized/i.test(text);
+        onEvent({
+          type: "error",
+          code: retriable ? "E_AGENT" : "E_AUTH",
+          message: text,
+          retriable,
+        });
+        throw e;
+      }
+    },
+  };
+}
+
+function wrapSignal(signal: AbortSignal): AbortController {
+  const ac = new AbortController();
+  if (signal.aborted) ac.abort();
+  else signal.addEventListener("abort", () => ac.abort(), { once: true });
+  return ac;
+}
+
+// Stub transport for E2E + dev without a Claude token. Returns deterministic
+// JSON for every role / skill. Selected when TASK_AGENT_MODE=stub. Never used
+// in production.
+export function makeStubTransport(): AgentTransport {
+  return {
+    async runRole({ role, onEvent }) {
+      onEvent({ type: "progress", message: `${role} (stub) running` });
+
+      if (role === "create-diagrams") {
+        const stubDiagrams = {
+          flow: "flowchart TD\n  A[Caller] --> B[Validate]\n  B --> C[Stream CSV]\n  B -->|invalid| D[401]",
+          sequence:
+            "sequenceDiagram\n  participant U as Operator\n  participant S as Server\n  U->>S: GET /export/users\n  S-->>U: 200 + CSV body",
+          interaction:
+            "graph LR\n  Operator --> ExportUsers\n  ExportUsers --> ViewReconciliation\n  ExportUsers --> RetryOnFail",
+        };
+        onEvent({ type: "token", text: JSON.stringify(stubDiagrams) });
+      } else if (role === "analyze-diagrams") {
+        onEvent({ type: "token", text: JSON.stringify({ findings: [] }) });
+      } else if (role === "help") {
+        onEvent({ type: "token", text: "Stub-help reply: nothing missing." });
+      } else if (role === "title-suggest") {
+        onEvent({ type: "token", text: JSON.stringify({ title: "Suggested task title (stub)" }) });
+      } else if (role === "analyst") {
+        const req = {
+          title: "Stub requirement authored by TASK_AGENT_MODE=stub",
+          summary: "Stub-mode E2E run — proves the full UI/API/orchestrator pipeline without hitting Claude.",
+          problem: "Without a stub mode, every UI test would burn Claude tokens and require network egress.",
+          value: "Lets us run Playwright + integration tests deterministically and offline.",
+          acceptanceCriteria: [
+            "Endpoint returns 200 with a CSV body.",
+            "Unauthenticated requests return 401.",
+          ],
+          outOfScope: [],
+          dependencies: [],
+          risks: [],
+        };
+        onEvent({ type: "token", text: JSON.stringify(req) });
+      } else if (role === "planner") {
+        const story = {
+          title: "Stub story authored by TASK_AGENT_MODE=stub",
+          userStory: {
+            asA: "developer",
+            iWant: "to run the full pipeline without hitting Claude",
+            soThat: "tests stay deterministic and offline-friendly",
+          },
+          description:
+            "Primary flow: the stub orchestrator wrote this story directly without calling Claude.\n\n" +
+            "Alternative flow: none in stub mode.\n\n" +
+            "Edge case: none in stub mode.\n\n" +
+            "Testing notes: cover the stub round-trip with the existing finalize integration test.",
+          acceptanceCriteria: [
+            {
+              title: "Stub run finalizes without Claude",
+              given: ["TASK_AGENT_MODE is set to stub"],
+              when: ["the orchestrator runs the analyst and planner phases"],
+              then: ["both phases complete", "a finalized payload is published"],
+            },
+          ],
+          definitionOfDone: [
+            "Stub round-trip covered by an integration test",
+            "No Claude tokens consumed in stub mode",
+          ],
+          notes: "",
+        };
+        onEvent({ type: "token", text: JSON.stringify(story) });
+      }
+
+      onEvent({ type: "progress", message: `${role} (stub) complete` });
+    },
+  };
+}
+
+// Single entry point the orchestrator uses. Switches on TASK_AGENT_MODE so
+// the same code path drives both real Claude and the stub.
+export function makeTransport(): AgentTransport {
+  return process.env.TASK_AGENT_MODE === "stub" ? makeStubTransport() : makeDefaultTransport();
+}
+
+export type { AgentTransport, AgentEvent } from "./types";

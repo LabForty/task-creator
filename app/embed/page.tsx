@@ -1,0 +1,94 @@
+"use client";
+
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Editor } from "@/components/Editor";
+import { RunSheet } from "@/components/RunSheet";
+import type { Draft } from "@/lib/draft/autosave";
+import type { FinalizedPayload } from "@/lib/jobs/types";
+
+type Mode =
+  | { kind: "idle" }
+  | { kind: "running"; jobId: string; lastDraft: Draft };
+
+function EmbedInner() {
+  const params = useSearchParams();
+  const returnOrigin = params.get("returnOrigin");
+  const [mode, setMode] = useState<Mode>({ kind: "idle" });
+  const [submitErr, setSubmitErr] = useState<string | null>(null);
+
+  // namespace draft per embed origin so two embedders on the same browser
+  // don't collide on localStorage.
+  const namespace = `embed:${returnOrigin ?? "default"}`;
+
+  const urlErr = !returnOrigin
+    ? "Embed requires ?returnOrigin=<host-page-origin> so we know where to postMessage results."
+    : null;
+  const err = submitErr ?? urlErr;
+
+  async function submit(draft: Draft) {
+    setSubmitErr(null);
+    try {
+      const res = await fetch("/api/finalize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ draft }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.jobId) {
+        setSubmitErr(
+          typeof json.error === "string" ? json.error : `Request failed (${res.status}).`,
+        );
+        return;
+      }
+      setMode({ kind: "running", jobId: json.jobId, lastDraft: draft });
+    } catch (e) {
+      setSubmitErr(e instanceof Error ? e.message : "Network error");
+    }
+  }
+
+  function postToParent(type: "task:finalized" | "task:gates_failed", payload: FinalizedPayload) {
+    if (!returnOrigin) return;
+    try {
+      window.parent.postMessage({ type, payload }, returnOrigin);
+    } catch {
+      /* parent gone */
+    }
+  }
+
+  return (
+    <main className="min-h-screen p-6 bg-surface-subtle">
+      {err && (
+        <div className="mb-4 rounded-md bg-danger/5 border border-danger/30 px-4 py-3" role="alert">
+          <p className="text-hig-footnote text-danger">{err}</p>
+        </div>
+      )}
+      <Editor namespace={namespace} onFinalize={submit} disabled={mode.kind === "running"} />
+      {mode.kind === "running" && (
+        <RunSheet
+          jobId={mode.jobId}
+          onFinalized={(p) => {
+            postToParent("task:finalized", p);
+            setMode({ kind: "idle" });
+          }}
+          onGatesFailed={(p) => {
+            postToParent("task:gates_failed", p);
+            setMode({ kind: "idle" });
+          }}
+          onError={() => {
+            /* shown inline by RunSheet */
+          }}
+          onRetry={() => submit(mode.lastDraft)}
+        />
+      )}
+    </main>
+  );
+}
+
+export default function EmbedPage() {
+  return (
+    <Suspense fallback={null}>
+      <EmbedInner />
+    </Suspense>
+  );
+}
