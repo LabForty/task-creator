@@ -2,10 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ───────────────────────── Theme tokens ─────────────────────────
+   The tailwind config maps semantic class names (bg-surface, text-ink,
+   border-rule, etc.) to the CSS variables defined here. The same class
+   resolves to different values when html.classList contains 'dark'.
+*/
+:root {
+  /* SF system blues — iOS/macOS light */
+  --color-accent:         #007aff;
+  --color-accent-hover:   #0064d6;
+  --color-accent-pressed: #0050a8;
+  --color-accent-tint:    #e9f1ff;
+
+  --color-danger:         #ff3b30;
+  --color-danger-tint:    #ffe7e6;
+  --color-warning:        #ff9500;
+  --color-warning-tint:   #fff3df;
+  --color-success:        #34c759;
+  --color-success-tint:   #e2f7e8;
+
+  /* HIG background hierarchy + content neutrals (light) */
+  --color-surface:        #ffffff;
+  --color-surface-muted:  #f5f5f7;
+  --color-surface-subtle: #fafafc;
+  --color-surface-inset:  #eeeef1;
+
+  --color-ink:            #1d1d1f;
+  --color-ink-secondary:  #6e6e73;
+  --color-ink-tertiary:   #86868b;
+  --color-ink-quaternary: #c7c7cc;
+
+  --color-rule:           rgba(0,0,0,0.10);
+  --color-rule-strong:    rgba(0,0,0,0.18);
+
+  --shadow-card:          0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-elevated:      0 2px 4px rgba(0,0,0,0.04), 0 12px 28px rgba(0,0,0,0.10);
+  --shadow-focus:         0 0 0 3px rgba(0,122,255,0.30);
+
+  color-scheme: light;
+}
+
+html.dark {
+  /* iOS/macOS dark accent ramp */
+  --color-accent:         #0a84ff;
+  --color-accent-hover:   #409cff;
+  --color-accent-pressed: #1f6feb;
+  --color-accent-tint:    rgba(10,132,255,0.18);
+
+  --color-danger:         #ff453a;
+  --color-danger-tint:    rgba(255,69,58,0.18);
+  --color-warning:        #ff9f0a;
+  --color-warning-tint:   rgba(255,159,10,0.18);
+  --color-success:        #30d158;
+  --color-success-tint:   rgba(48,209,88,0.18);
+
+  /* HIG dark surfaces */
+  --color-surface:        #1c1c1e;
+  --color-surface-muted:  #2c2c2e;
+  --color-surface-subtle: #0a0a0c;
+  --color-surface-inset:  #3a3a3c;
+
+  --color-ink:            #f5f5f7;
+  --color-ink-secondary:  #aeaeb2;
+  --color-ink-tertiary:   #8e8e93;
+  --color-ink-quaternary: #545458;
+
+  --color-rule:           rgba(255,255,255,0.12);
+  --color-rule-strong:    rgba(255,255,255,0.22);
+
+  --shadow-card:          0 1px 2px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.45);
+  --shadow-elevated:      0 2px 4px rgba(0,0,0,0.35), 0 12px 28px rgba(0,0,0,0.55);
+  --shadow-focus:         0 0 0 3px rgba(10,132,255,0.40);
+
+  color-scheme: dark;
+}
+
 /* HIG global polish */
 @layer base {
   html {
-    /* Smooth font rendering, like macOS / iOS */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -13,17 +87,14 @@
   body {
     @apply text-ink bg-surface-subtle text-hig-body;
   }
-  /* Strip the default Tailwind h1..h6 margin reset for prose-style usage. */
   h1, h2, h3, h4, h5, h6 {
     @apply text-ink;
   }
-  /* Default focus ring in HIG blue */
   :focus-visible {
-    outline: 2px solid rgb(0 122 255 / 0.6);
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
     border-radius: 4px;
   }
-  /* Reduce motion respects user preference (HIG mandate) */
   @media (prefers-reduced-motion: reduce) {
     *, ::before, ::after {
       animation-duration: 0.01ms !important;
@@ -44,17 +115,160 @@
 /* Help-panel "Discuss" → flash the targeted form field so the user knows
    where to focus. Pulse runs ~2.5s, then fades out. */
 @keyframes task-field-highlight {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.55); border-color: rgb(0 122 255 / 0.9); }
-  35%  { box-shadow: 0 0 0 6px rgba(0, 122, 255, 0.15); border-color: rgb(0 122 255 / 0.9); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); border-color: rgb(0 122 255 / 0.0); }
+  0%   { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.55); border-color: var(--color-accent); }
+  35%  { box-shadow: 0 0 0 6px rgba(0, 122, 255, 0.15); border-color: var(--color-accent); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); border-color: transparent; }
 }
 .task-highlight-field [data-input] {
   animation: task-field-highlight 2.5s ease-out 1;
-  border-color: rgb(0 122 255 / 0.9) !important;
+  border-color: var(--color-accent) !important;
 }
 .task-highlight-field [data-label] {
-  color: rgb(0 122 255);
+  color: var(--color-accent);
   text-decoration: underline;
-  text-decoration-color: rgb(0 122 255 / 0.7);
+  text-decoration-color: var(--color-accent);
   text-underline-offset: 3px;
 }
+
+/* ───────────────────────── React Flow — dark theme ─────────────────────────
+   FlowGraphEditor.tsx sets node fills and borders inline (background: '#fff',
+   border: '1.5px solid #cbd5e1') and the diamond uses SVG attributes
+   (fill="#fff" stroke="#cbd5e1"). Rather than refactor every callsite into
+   theme-aware styles, override them here with CSS — !important on the inline
+   style declarations, and plain rules on the SVG attribute presentations
+   (CSS beats SVG presentation attributes).
+*/
+html.dark .react-flow__node-default,
+html.dark .react-flow__node-input,
+html.dark .react-flow__node-output {
+  background: var(--color-surface-muted) !important;
+  border-color: var(--color-rule-strong) !important;
+  color: var(--color-ink);
+}
+html.dark .react-flow__node svg polygon {
+  fill: var(--color-surface-muted);
+  stroke: var(--color-rule-strong);
+}
+html.dark .react-flow__node.selected .react-flow__node-default,
+html.dark .react-flow__node-default.selected {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+html.dark .react-flow__edge-path,
+html.dark .react-flow__connection-path {
+  stroke: var(--color-ink-secondary);
+}
+html.dark .react-flow__edge-text {
+  fill: var(--color-ink);
+}
+html.dark .react-flow__edge-textbg {
+  fill: var(--color-surface);
+}
+html.dark .react-flow__arrowhead {
+  fill: var(--color-ink-secondary);
+}
+html.dark .react-flow__background {
+  background-color: var(--color-surface-subtle);
+}
+html.dark .react-flow__background pattern circle,
+html.dark .react-flow__background pattern path {
+  fill: var(--color-ink-quaternary);
+  stroke: var(--color-ink-quaternary);
+}
+html.dark .react-flow__controls {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-rule);
+}
+html.dark .react-flow__controls-button {
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-rule);
+  color: var(--color-ink);
+  fill: var(--color-ink);
+}
+html.dark .react-flow__controls-button:hover {
+  background: var(--color-surface-inset);
+}
+html.dark .react-flow__minimap {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-rule);
+}
+html.dark .react-flow__minimap-node {
+  fill: var(--color-surface-inset);
+  stroke: var(--color-rule-strong);
+}
+html.dark .react-flow__minimap-mask {
+  fill: rgba(255, 255, 255, 0.05);
+}
+html.dark .react-flow__attribution {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-tertiary);
+}
+html.dark .react-flow__attribution a {
+  color: var(--color-ink-secondary);
+}
+
+/* ───────────────────────── Mermaid host — readable container ───────────── */
+.mermaid-host svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ───────────────────────── TipTap prose — Description editor ───────────── */
+.tiptap-prose .ProseMirror,
+.tiptap-prose {
+  outline: none;
+}
+.tiptap-prose p {
+  margin: 0 0 0.75em;
+}
+.tiptap-prose p:last-child { margin-bottom: 0; }
+.tiptap-prose h1 { font-size: 22px; font-weight: 600; margin: 1em 0 0.4em; }
+.tiptap-prose h2 { font-size: 20px; font-weight: 600; margin: 0.9em 0 0.35em; }
+.tiptap-prose h3 { font-size: 17px; font-weight: 600; margin: 0.8em 0 0.3em; }
+.tiptap-prose h1:first-child,
+.tiptap-prose h2:first-child,
+.tiptap-prose h3:first-child { margin-top: 0; }
+.tiptap-prose ul,
+.tiptap-prose ol { margin: 0 0 0.75em 1.25em; padding: 0; }
+.tiptap-prose ul { list-style: disc; }
+.tiptap-prose ol { list-style: decimal; }
+.tiptap-prose li { margin: 0.15em 0; }
+.tiptap-prose li > p { margin: 0; }
+.tiptap-prose blockquote {
+  border-left: 3px solid var(--color-rule-strong);
+  margin: 0 0 0.75em;
+  padding: 0.1em 0 0.1em 0.9em;
+  color: var(--color-ink-secondary);
+}
+.tiptap-prose code {
+  font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 0.92em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+}
+.tiptap-prose pre {
+  font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 13px;
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+  padding: 0.7em 0.9em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0 0 0.75em;
+}
+.tiptap-prose pre code {
+  background: transparent;
+  padding: 0;
+}
+.tiptap-prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tiptap-prose hr {
+  border: 0;
+  border-top: 1px solid var(--color-rule);
+  margin: 1em 0;
+}
+

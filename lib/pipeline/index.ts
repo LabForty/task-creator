@@ -88,7 +88,7 @@ export function parseStory(raw: string): ParseResult<Story> {
 // Consistency check between the analyst's analysis and the planner's story.
 // Cheap, deterministic, and runs in-process — no external CLI. The goal is
 // catching obvious mismatches (planner ignored an out-of-scope item, or
-// invented a story title that diverges wildly from the requirement title).
+// emitted an empty story).
 export function checkConsistency(req: Requirement, story: Story): GateResult {
   const errors: string[] = [];
 
@@ -96,22 +96,27 @@ export function checkConsistency(req: Requirement, story: Story): GateResult {
     errors.push("story.title is empty");
   }
 
-  // If the planner ignored every analyst AC, that's almost certainly a regression.
   if (story.acceptanceCriteria.length === 0) {
     errors.push("story has no acceptance criteria");
   }
 
-  // Out-of-scope leak detection: if an out-of-scope item shows up nearly verbatim
-  // in a Gherkin Then clause, flag it. Soft check — case-insensitive substring.
+  if (story.requirements.length === 0) {
+    errors.push("story has no requirement groups");
+  }
+
+  // Out-of-scope leak detection: if an analyst-flagged out-of-scope item shows up
+  // verbatim in an acceptance criterion or requirement bullet, flag it.
+  // Soft check — case-insensitive substring, ignore short tokens.
   if (req.outOfScope.length) {
-    const allThens = story.acceptanceCriteria
-      .flatMap((s) => s.then)
-      .map((t) => t.toLowerCase());
+    const haystack = [
+      ...story.acceptanceCriteria,
+      ...story.requirements.flatMap((g) => g.items),
+    ].map((s) => s.toLowerCase());
     for (const item of req.outOfScope) {
       const needle = item.toLowerCase().trim();
       if (needle.length < 6) continue;
-      if (allThens.some((t) => t.includes(needle))) {
-        errors.push(`out-of-scope item appears in acceptance criteria: "${item}"`);
+      if (haystack.some((t) => t.includes(needle))) {
+        errors.push(`out-of-scope item appears in story: "${item}"`);
       }
     }
   }
@@ -131,10 +136,10 @@ export function buildAnalystInput(draft: DraftInput): string {
   return JSON.stringify({ draft });
 }
 
-export type { Requirement, Story, GateResult, DraftInput, GherkinScenario } from "./types";
+export type { Requirement, Story, GateResult, DraftInput, RequirementGroup } from "./types";
 export {
   RequirementSchema,
   StorySchema,
-  GherkinScenarioSchema,
+  RequirementGroupSchema,
   UserStoryFormSchema,
 } from "./types";

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderFinalized } from "@/lib/render";
 import type { Requirement, Story } from "@/lib/pipeline";
+import type { Diagrams } from "@/lib/jobs/types";
 
 const req: Requirement = {
   title: "Export users CSV",
@@ -17,34 +18,29 @@ const story: Story = {
   title: "Implement /export endpoint",
   userStory: {
     asA: "platform operator",
-    iWant: "to download the user table as a CSV",
-    soThat: "I can hand it to auditors without writing SQL",
+    iWant: "download the user table as a CSV",
+    soThat: "hand it to auditors without writing SQL",
   },
-  description:
-    "Primary flow: caller posts auth token, server streams CSV.\n\n" +
-    "Alternative flow: invalid token returns 401.\n\n" +
-    "Edge case: empty result set returns header row only.\n\n" +
-    "Testing notes: integration tests with 0, 1, and N>1000 rows.",
+  scope: ["Users page", "GET /api/users/export"],
+  requirements: [
+    {
+      category: "Endpoint",
+      items: [
+        "Add GET /api/users/export returning text/csv",
+        "Stream the body for tables larger than 10k rows",
+      ],
+    },
+    {
+      category: "UI",
+      items: ["Add an Export button on the Users page that triggers a download"],
+    },
+  ],
   acceptanceCriteria: [
-    {
-      title: "Valid token streams CSV",
-      given: ["a valid auth token"],
-      when: ["the client GETs /export"],
-      then: ["the response is 200", "the body is a CSV"],
-    },
-    {
-      title: "Invalid token rejected",
-      given: ["an invalid auth token"],
-      when: ["the client GETs /export"],
-      then: ["the response is 401"],
-    },
+    "Valid session returns 200 with a CSV body",
+    "Missing or invalid session returns 401",
+    "100k-row table downloads without timing out",
   ],
-  definitionOfDone: [
-    "Code merged to main",
-    "Tests passing in CI",
-    "Telemetry added",
-  ],
-  notes: "",
+  outOfScope: [],
 };
 
 describe("lib/render.renderFinalized", () => {
@@ -53,52 +49,77 @@ describe("lib/render.renderFinalized", () => {
     expect(md.startsWith("# Implement /export endpoint")).toBe(true);
   });
 
-  it("emits the As-a / I-want / So-that user-story line", () => {
+  it("emits the As-a / I-want-to / So-I-can user-story line", () => {
     const md = renderFinalized(req, story, {});
     expect(md).toContain("**As a** platform operator");
-    expect(md).toContain("**I want** to download the user table as a CSV");
-    expect(md).toContain("**so that** I can hand it to auditors without writing SQL");
+    expect(md).toContain("**I want to** download the user table as a CSV");
+    expect(md).toContain("**so I can** hand it to auditors without writing SQL");
   });
 
-  it("emits Description / Acceptance Criteria / Definition of Done in order", () => {
+  it("emits Scope / Requirements / Acceptance criteria in order", () => {
     const md = renderFinalized(req, story, {});
-    const desc = md.indexOf("## Description");
-    const ac = md.indexOf("## Acceptance Criteria");
-    const dod = md.indexOf("## Definition of Done");
-    expect(desc).toBeGreaterThan(-1);
-    expect(ac).toBeGreaterThan(desc);
-    expect(dod).toBeGreaterThan(ac);
+    const scope = md.indexOf("## Scope");
+    const reqs = md.indexOf("## Requirements");
+    const ac = md.indexOf("## Acceptance criteria");
+    expect(scope).toBeGreaterThan(-1);
+    expect(reqs).toBeGreaterThan(scope);
+    expect(ac).toBeGreaterThan(reqs);
   });
 
-  it("renders each acceptance criterion as a Gherkin scenario with Given/When/Then", () => {
+  it("renders requirements as grouped nested bullets", () => {
     const md = renderFinalized(req, story, {});
-    expect(md).toContain("### Valid token streams CSV");
-    expect(md).toContain("**Given** a valid auth token");
-    expect(md).toContain("**When** the client GETs /export");
-    expect(md).toContain("**Then** the response is 200");
-    expect(md).toContain("**And** the body is a CSV");
+    expect(md).toContain("- Endpoint:");
+    expect(md).toContain("  - Add GET /api/users/export returning text/csv");
+    expect(md).toContain("  - Stream the body for tables larger than 10k rows");
+    expect(md).toContain("- UI:");
   });
 
-  it("renders the Definition of Done as a bulleted list", () => {
+  it("renders acceptance criteria as flat bullets, not Gherkin", () => {
     const md = renderFinalized(req, story, {});
-    expect(md).toContain("- Code merged to main");
-    expect(md).toContain("- Tests passing in CI");
-    expect(md).toContain("- Telemetry added");
+    expect(md).toContain("- Valid session returns 200 with a CSV body");
+    expect(md).toContain("- Missing or invalid session returns 401");
+    expect(md).not.toContain("**Given**");
+    expect(md).not.toContain("**When**");
+    expect(md).not.toContain("**Then**");
   });
 
-  it("includes the draft constraints verbatim under ## Constraints", () => {
-    const md = renderFinalized(req, story, { constraints: "Use the existing auth middleware." });
-    expect(md).toContain("## Constraints");
-    expect(md).toContain("Use the existing auth middleware.");
+  it("omits ## Scope when the story has none", () => {
+    const md = renderFinalized(req, { ...story, scope: [] }, {});
+    expect(md).not.toMatch(/^## Scope$/m);
   });
 
-  it("omits ## Constraints when the draft supplies none", () => {
+  it("omits ## Out of scope when the story has none", () => {
     const md = renderFinalized(req, story, {});
-    expect(md).not.toMatch(/^## Constraints$/m);
+    expect(md).not.toMatch(/^## Out of scope$/m);
   });
 
-  it("omits ## Notes when the story has none", () => {
+  it("includes ## Out of scope when populated", () => {
+    const md = renderFinalized(
+      req,
+      { ...story, outOfScope: ["Scheduled exports", "Non-CSV formats"] },
+      {},
+    );
+    expect(md).toContain("## Out of scope");
+    expect(md).toContain("- Scheduled exports");
+    expect(md).toContain("- Non-CSV formats");
+  });
+
+  it("omits ## Diagrams when no diagrams are passed", () => {
     const md = renderFinalized(req, story, {});
-    expect(md).not.toMatch(/^## Notes$/m);
+    expect(md).not.toMatch(/^## Diagrams$/m);
+  });
+
+  it("embeds available diagrams as fenced mermaid blocks", () => {
+    const diagrams: Diagrams = {
+      flow: "flowchart TD\nA-->B",
+      sequence: "sequenceDiagram\nA->>B: hello",
+    };
+    const md = renderFinalized(req, story, {}, diagrams);
+    expect(md).toContain("## Diagrams");
+    expect(md).toContain("### Flow");
+    expect(md).toContain("```mermaid\nflowchart TD\nA-->B\n```");
+    expect(md).toContain("### Sequence");
+    expect(md).toContain("```mermaid\nsequenceDiagram\nA->>B: hello\n```");
+    expect(md).not.toContain("### Interaction");
   });
 });

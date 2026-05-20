@@ -8,8 +8,10 @@ import { HelpPanel } from "@/components/HelpPanel";
 import { Button } from "@/components/ui/Button";
 import { JiraChip, type JiraSessionInfo } from "@/components/JiraChip";
 import { JiraExport } from "@/components/JiraExport";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { subscribeToJob } from "@/lib/sse/client";
 import { loadDraft, saveDraft } from "@/lib/draft/autosave";
+import { renderFinalized } from "@/lib/render";
 import type { Draft } from "@/lib/draft/autosave";
 import type {
   AnalyzeFinding,
@@ -18,6 +20,15 @@ import type {
   HelpMessage,
   MermaidFormat,
 } from "@/lib/jobs/types";
+
+// Re-render the markdown for the left pane so it reflects the current story
+// + diagrams. Called whenever diagrams arrive/regenerate or the story changes
+// via the analyzer. The user's manual textarea edits go straight into
+// payload.markdown without touching this path, so they are not clobbered.
+function rebuiltPayloadMarkdown(payload: FinalizedPayload, draft: Draft, diagrams?: Diagrams): FinalizedPayload {
+  const markdown = renderFinalized(payload.requirement, payload.story, { constraints: draft.constraints }, diagrams);
+  return { ...payload, markdown };
+}
 
 type Mode =
   | { kind: "idle" }
@@ -164,23 +175,21 @@ export default function StandalonePage() {
       for (const id of acceptedIds) {
         const f = analysis.find((x) => x.id === id);
         if (!f?.proposedSync) continue;
-        if (f.proposedSync.storyDescription) nextStory = { ...nextStory, description: f.proposedSync.storyDescription };
         if (f.proposedSync.acceptanceCriteria) {
-          // Analyzer returns flat strings; wrap each as a single-clause Gherkin scenario.
           nextStory = {
             ...nextStory,
-            acceptanceCriteria: f.proposedSync.acceptanceCriteria.map((line, i) => ({
-              title: `Scenario ${i + 1}`,
-              given: ["the system is in its baseline state"],
-              when: ["the relevant interaction occurs"],
-              then: [line],
-            })),
+            acceptanceCriteria: f.proposedSync.acceptanceCriteria.map((s) => s.trim()).filter(Boolean),
           };
         }
         if (f.proposedSync.mermaid) nextDiagrams = { ...nextDiagrams, ...f.proposedSync.mermaid };
       }
       persistDiagrams(nextDiagrams);
-      setMode({ ...mode, payload: { ...mode.payload, story: nextStory } });
+      const nextPayload = rebuiltPayloadMarkdown(
+        { ...mode.payload, story: nextStory },
+        mode.lastDraft,
+        nextDiagrams,
+      );
+      setMode({ ...mode, payload: nextPayload });
       setAnalysis(null);
     } finally {
       setApplyingAnalysis(false);
@@ -212,6 +221,10 @@ export default function StandalonePage() {
         if (e.type === "diagrams_created") {
           const next: Diagrams = { ...(diagrams ?? {}), ...e.payload };
           persistDiagrams(next);
+          setMode((prev) => {
+            if (prev.kind !== "done" && prev.kind !== "gates_failed") return prev;
+            return { ...prev, payload: rebuiltPayloadMarkdown(prev.payload, prev.lastDraft, next) };
+          });
           setRegeneratingFormat(null);
           unsub();
         } else if (e.type === "error") {
@@ -273,6 +286,10 @@ export default function StandalonePage() {
       const unsub = subscribeToJob(json.jobId, (e) => {
         if (e.type === "diagrams_created") {
           persistDiagrams(e.payload);
+          setMode((prev) => {
+            if (prev.kind !== "done" && prev.kind !== "gates_failed") return prev;
+            return { ...prev, payload: rebuiltPayloadMarkdown(prev.payload, prev.lastDraft, e.payload) };
+          });
           setCreatingDiagrams(false);
           unsub();
         } else if (e.type === "error") {
@@ -305,6 +322,7 @@ export default function StandalonePage() {
             </p>
           </div>
           <span className="flex-1" />
+          <ThemeToggle />
           <JiraChip session={jiraSession} onSessionChange={setJiraSession} />
           {(mode.kind === "done" || mode.kind === "gates_failed") && (
             <Button variant="secondary" onClick={reset}>

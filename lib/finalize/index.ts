@@ -115,6 +115,8 @@ export async function runFinalize(opts: {
     });
 
     // --- Render markdown ---
+    // Diagrams are embedded later (client-side) once they exist; the initial
+    // finalize render produces the body only.
     const markdown = renderFinalized(requirement, story, { constraints: opts.draft.constraints });
 
     const payload = {

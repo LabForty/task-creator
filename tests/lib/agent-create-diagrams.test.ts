@@ -19,20 +19,13 @@ const story: Story = {
   title: "Implement /export/users",
   userStory: {
     asA: "operator",
-    iWant: "to download the user table",
-    soThat: "I can hand it to auditors",
+    iWant: "download the user table",
+    soThat: "hand it to auditors",
   },
-  description: "Primary flow: caller streams CSV.",
-  acceptanceCriteria: [
-    {
-      title: "Happy path",
-      given: ["a valid session"],
-      when: ["GET /export/users"],
-      then: ["the response is 200"],
-    },
-  ],
-  definitionOfDone: ["Code merged"],
-  notes: "",
+  scope: ["GET /export/users"],
+  requirements: [{ category: "Endpoint", items: ["Add GET /export/users returning CSV"] }],
+  acceptanceCriteria: ["Returns 200 with CSV body"],
+  outOfScope: [],
 };
 
 const draft: Draft = {

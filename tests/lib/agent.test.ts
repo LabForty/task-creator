@@ -34,19 +34,15 @@ const validStoryJson = JSON.stringify({
   title: "Export users as CSV",
   userStory: {
     asA: "operator",
-    iWant: "to download the user table as a CSV",
-    soThat: "I can hand it to auditors",
+    iWant: "download the user table as a CSV",
+    soThat: "hand it to auditors",
   },
-  description: "Primary flow: operator clicks Export.",
-  acceptanceCriteria: [
-    {
-      title: "Happy path",
-      given: ["a valid session"],
-      when: ["the operator GETs /export"],
-      then: ["the response is 200"],
-    },
+  scope: ["GET /api/users/export"],
+  requirements: [
+    { category: "Endpoint", items: ["Add GET /api/users/export returning CSV"] },
   ],
-  definitionOfDone: ["Code merged"],
+  acceptanceCriteria: ["Returns 200 with a CSV body", "Returns 401 with no session"],
+  outOfScope: [],
 });
 
 describe("lib/agent", () => {
@@ -85,7 +81,8 @@ describe("lib/agent", () => {
       publish,
     });
     expect(result.story.title).toBe("Export users as CSV");
-    expect(result.story.acceptanceCriteria[0].given[0]).toBe("a valid session");
+    expect(result.story.acceptanceCriteria[0]).toBe("Returns 200 with a CSV body");
+    expect(result.story.requirements[0].category).toBe("Endpoint");
   });
 
   it("an error event from the transport publishes an error JobEvent and rejects", async () => {

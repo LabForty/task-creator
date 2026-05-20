@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useIsDark } from "@/lib/useIsDark";
 
 type Props = {
   source: string;
@@ -18,6 +19,7 @@ export function MermaidDiagram({ source, onError }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
   const [renderError, setRenderError] = useState<string | null>(null);
+  const isDark = useIsDark();
 
   useEffect(() => {
     let cancelled = false;
@@ -25,8 +27,13 @@ export function MermaidDiagram({ source, onError }: Props) {
       try {
         const mod = await import("mermaid");
         const mermaid = mod.default;
-        // Initialize once per module load. Calling repeatedly is safe.
-        mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "strict" });
+        // Re-initialize on every render so a theme flip is picked up. mermaid
+        // treats initialize() as idempotent — repeated calls just update opts.
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: isDark ? "dark" : "default",
+          securityLevel: "strict",
+        });
         // Validate first so we report syntax errors clearly.
         await mermaid.parse(source);
         const result = await mermaid.render(`md-${id}`, source);
@@ -51,13 +58,13 @@ export function MermaidDiagram({ source, onError }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [source, id, onError]);
+  }, [source, id, onError, isDark]);
 
   if (renderError) {
     return (
       <div className="rounded-lg border border-danger bg-surface-muted p-4" role="alert">
         <p className="text-danger text-[13px] font-medium mb-1">Mermaid syntax error</p>
-        <pre className="text-[12px] whitespace-pre-wrap text-neutral-700">{renderError}</pre>
+        <pre className="text-[12px] whitespace-pre-wrap text-ink-secondary">{renderError}</pre>
       </div>
     );
   }

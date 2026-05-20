@@ -1,4 +1,4 @@
-import { buildIssueDescriptionAdf, inline } from "./adf";
+import { buildIssueDescriptionAdf } from "./adf";
 import {
   createIssue,
   listCreateFields,
@@ -7,7 +7,7 @@ import {
 } from "./client";
 import { listAccessibleResources } from "./oauth";
 import type { ExportBody } from "./schemas";
-import type { GherkinScenario, Story } from "@/lib/pipeline";
+import type { Story } from "@/lib/pipeline";
 import type { MermaidFormat } from "@/lib/jobs/types";
 
 export type ExportResult = {
@@ -19,41 +19,28 @@ export type ExportResult = {
   missingRequiredFields: string[];
 };
 
-// Plain-text rendering of Gherkin scenarios for custom fields with type:string.
-function acAsPlainText(scenarios: GherkinScenario[]): string {
-  return scenarios
-    .map((s) => {
-      const lines = [`Scenario: ${s.title}`];
-      s.given.forEach((g, i) => lines.push(`  ${i === 0 ? "Given" : "And"} ${g}`));
-      s.when.forEach((w, i) => lines.push(`  ${i === 0 ? "When" : "And"} ${w}`));
-      s.then.forEach((t, i) => lines.push(`  ${i === 0 ? "Then" : "And"} ${t}`));
-      return lines.join("\n");
-    })
-    .join("\n\n");
+// Plain-text rendering of acceptance criteria for custom fields with type:string.
+function acAsPlainText(items: string[]): string {
+  return items.map((s) => `- ${s.trim()}`).join("\n");
 }
 
-// ADF rendering of Gherkin scenarios for custom fields with type:doc.
-function acAsAdf(scenarios: GherkinScenario[]) {
-  const content: unknown[] = [];
-  for (const s of scenarios) {
-    content.push({
-      type: "heading",
-      attrs: { level: 4 },
-      content: [{ type: "text", text: s.title }],
-    });
-    const lines: string[] = [];
-    s.given.forEach((g, i) => lines.push(`${i === 0 ? "**Given**" : "**And**"} ${g}`));
-    s.when.forEach((w, i) => lines.push(`${i === 0 ? "**When**" : "**And**"} ${w}`));
-    s.then.forEach((t, i) => lines.push(`${i === 0 ? "**Then**" : "**And**"} ${t}`));
-    content.push({
-      type: "bulletList",
-      content: lines.map((l) => ({
-        type: "listItem",
-        content: [{ type: "paragraph", content: inline(l) }],
-      })),
-    });
-  }
-  return { version: 1, type: "doc", content };
+// ADF rendering of acceptance criteria for custom fields with type:doc.
+function acAsAdf(items: string[]) {
+  return {
+    version: 1,
+    type: "doc",
+    content: [
+      {
+        type: "bulletList",
+        content: items.map((item) => ({
+          type: "listItem",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: item.trim() }] },
+          ],
+        })),
+      },
+    ],
+  };
 }
 
 function fieldExpectsAdf(meta: JiraFieldMeta): boolean {

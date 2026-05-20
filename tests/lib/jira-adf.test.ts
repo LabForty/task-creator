@@ -7,22 +7,18 @@ const story: Story = {
   title: "Implement /export endpoint",
   userStory: {
     asA: "platform operator",
-    iWant: "to download the user table as a CSV",
-    soThat: "I can hand it to auditors without writing SQL",
+    iWant: "download the user table as a CSV",
+    soThat: "hand it to auditors without writing SQL",
   },
-  description:
-    "Primary flow: caller posts auth token, server streams CSV.\n\n" +
-    "Alternative flow: invalid token returns 401.",
-  acceptanceCriteria: [
+  scope: ["GET /api/users/export"],
+  requirements: [
     {
-      title: "Valid token streams CSV",
-      given: ["a valid auth token"],
-      when: ["the client GETs /export"],
-      then: ["the response is 200", "the body is a CSV"],
+      category: "Endpoint",
+      items: ["Add GET /api/users/export returning text/csv", "Stream the body for large tables"],
     },
   ],
-  definitionOfDone: ["Code merged to main", "Tests passing in CI"],
-  notes: "",
+  acceptanceCriteria: ["Returns 200 with a CSV body", "Returns 401 with no session"],
+  outOfScope: [],
 };
 
 describe("lib/jira/adf.inline", () => {
@@ -61,80 +57,82 @@ describe("lib/jira/adf.buildIssueDescriptionAdf", () => {
     if (first.type !== "paragraph") throw new Error("expected paragraph");
     const strongs = first.content.filter((n) => n.marks?.some((m) => m.type === "strong"));
     expect(strongs.length).toBe(3);
-    expect(strongs.map((s) => s.text)).toEqual(["As a ", ", I want ", ", so that "]);
+    expect(strongs.map((s) => s.text)).toEqual(["As a ", ", I want to ", ", so I can "]);
   });
 
-  it("emits Description / Acceptance Criteria / Definition of Done section headings", () => {
+  it("emits Scope / Requirements / Acceptance criteria section headings", () => {
     const adf = buildIssueDescriptionAdf({ story });
     const headings = adf.content
       .filter((b): b is { type: "heading"; attrs: { level: 1 | 2 | 3 | 4 | 5 | 6 }; content: { type: "text"; text: string }[] } => b.type === "heading")
       .map((h) => ({ level: h.attrs.level, text: h.content.map((c) => c.text).join("") }));
     expect(headings).toEqual(
       expect.arrayContaining([
-        { level: 2, text: "Description" },
-        { level: 2, text: "Acceptance Criteria" },
-        { level: 3, text: "Valid token streams CSV" },
-        { level: 2, text: "Definition of Done" },
+        { level: 2, text: "Scope" },
+        { level: 2, text: "Requirements" },
+        { level: 2, text: "Acceptance criteria" },
       ]),
     );
   });
 
-  it("splits description on blank lines into separate paragraphs", () => {
-    const adf = buildIssueDescriptionAdf({ story });
-    const descIdx = adf.content.findIndex(
-      (b) => b.type === "heading" && b.content[0]?.text === "Description",
+  it("omits Scope when story has no scope", () => {
+    const adf = buildIssueDescriptionAdf({ story: { ...story, scope: [] } });
+    const has = adf.content.some(
+      (b) => b.type === "heading" && b.content[0]?.text === "Scope",
     );
-    let paragraphCount = 0;
-    for (let i = descIdx + 1; i < adf.content.length; i++) {
-      if (adf.content[i].type !== "paragraph") break;
-      paragraphCount++;
-    }
-    expect(paragraphCount).toBeGreaterThanOrEqual(2);
+    expect(has).toBe(false);
   });
 
-  it("renders Gherkin scenarios as bullet lists", () => {
+  it("renders requirements as nested bullets grouped by category", () => {
+    const adf = buildIssueDescriptionAdf({ story });
+    const reqIdx = adf.content.findIndex(
+      (b) => b.type === "heading" && b.content[0]?.text === "Requirements",
+    );
+    expect(reqIdx).toBeGreaterThan(-1);
+    const list = adf.content[reqIdx + 1];
+    expect(list.type).toBe("bulletList");
+  });
+
+  it("renders acceptance criteria as flat bullets", () => {
     const adf = buildIssueDescriptionAdf({ story });
     const acIdx = adf.content.findIndex(
-      (b) => b.type === "heading" && b.content[0]?.text === "Acceptance Criteria",
+      (b) => b.type === "heading" && b.content[0]?.text === "Acceptance criteria",
     );
-    const after = adf.content.slice(acIdx + 1);
-    const list = after.find((b) => b.type === "bulletList");
-    expect(list).toBeTruthy();
+    expect(acIdx).toBeGreaterThan(-1);
+    const list = adf.content[acIdx + 1];
+    expect(list.type).toBe("bulletList");
   });
 
-  it("includes Constraints section when constraints are supplied", () => {
-    const adf = buildIssueDescriptionAdf({ story, constraints: "Use the existing auth middleware." });
+  it("includes Out of scope when populated", () => {
+    const adf = buildIssueDescriptionAdf({
+      story: { ...story, outOfScope: ["Scheduled exports"] },
+    });
     const has = adf.content.some(
-      (b) => b.type === "heading" && b.content[0]?.text === "Constraints",
+      (b) => b.type === "heading" && b.content[0]?.text === "Out of scope",
     );
     expect(has).toBe(true);
   });
 
-  it("omits Constraints section when none supplied", () => {
+  it("omits Out of scope when empty", () => {
     const adf = buildIssueDescriptionAdf({ story });
     const has = adf.content.some(
-      (b) => b.type === "heading" && b.content[0]?.text === "Constraints",
+      (b) => b.type === "heading" && b.content[0]?.text === "Out of scope",
     );
     expect(has).toBe(false);
   });
 
-  it("omits Notes section when story has none", () => {
-    const adf = buildIssueDescriptionAdf({ story });
+  it("includes Notes when constraints are supplied", () => {
+    const adf = buildIssueDescriptionAdf({ story, constraints: "Use the existing auth middleware." });
     const has = adf.content.some(
       (b) => b.type === "heading" && b.content[0]?.text === "Notes",
     );
-    expect(has).toBe(false);
+    expect(has).toBe(true);
   });
 
-  it("omits Acceptance Criteria section when includeAcceptanceCriteria is false", () => {
+  it("omits Acceptance criteria section when includeAcceptanceCriteria is false", () => {
     const adf = buildIssueDescriptionAdf({ story, includeAcceptanceCriteria: false });
     const hasAcHeading = adf.content.some(
-      (b) => b.type === "heading" && b.content[0]?.text === "Acceptance Criteria",
-    );
-    const hasScenarioHeading = adf.content.some(
-      (b) => b.type === "heading" && b.content[0]?.text === "Valid token streams CSV",
+      (b) => b.type === "heading" && b.content[0]?.text === "Acceptance criteria",
     );
     expect(hasAcHeading).toBe(false);
-    expect(hasScenarioHeading).toBe(false);
   });
 });

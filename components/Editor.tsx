@@ -2,7 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import dynamic from "next/dynamic";
 import { TextField, TextArea } from "@/components/ui/TextField";
+import { ACList } from "@/components/ACList";
+
+// TipTap + ProseMirror weighs ~110 KB gzipped. Split it out of the initial
+// page bundle so the first paint stays fast. A skeleton block keeps the
+// layout stable while the chunk fetches.
+const RichTextDescription = dynamic(
+  () => import("@/components/RichTextDescription").then((m) => m.RichTextDescription),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col gap-1.5">
+        <span className="text-hig-subhead font-medium text-ink">Description</span>
+        <div className="rounded-md border border-rule bg-surface min-h-[320px] animate-pulse" />
+      </div>
+    ),
+  },
+);
 import { Draft, EMPTY_DRAFT, isDirty, loadDraft, saveDraft } from "@/lib/draft/autosave";
 import type { HelpFieldHint } from "@/lib/jobs/types";
 
@@ -18,10 +36,6 @@ const HIGHLIGHT_MS = 2500;
 
 export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  // The acceptance-criteria textarea is bound to its raw text, not to a
-  // re-serialized join of the array — otherwise every keystroke trims/filters
-  // and the user can't type a trailing space or an empty line.
-  const [acText, setAcText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestErr, setSuggestErr] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<HelpFieldHint | null>(null);
@@ -35,7 +49,6 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
     const loaded = loadDraft(namespace);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(loaded);
-    setAcText(loaded.acceptanceCriteria.join("\n"));
   }, [namespace]);
 
   // Save synchronously on every change — localStorage writes are cheap and
@@ -169,47 +182,35 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-        <div data-editor-field="description" className={`${cls("description")} flex flex-col`}>
-          <TextArea
+      <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto">
+        <div data-editor-field="description" className={cls("description")}>
+          <RichTextDescription
             label="Description"
-            description="What the feature does, who triggers it, when, and why it matters."
+            description="What needs to happen, who triggers it, when, in what context, and why it matters. Pour in raw context — the planner extracts structure."
             value={draft.description}
-            onChange={(e) => set("description", e.target.value)}
+            onValueChange={(next) => set("description", next)}
             placeholder="What needs to happen, who triggers it, in what context, and why?"
-            className="min-h-[140px] flex-1"
           />
         </div>
 
-        <div data-editor-field="acceptanceCriteria" className={`${cls("acceptanceCriteria")} flex flex-col`}>
-          <TextArea
+        <div data-editor-field="acceptanceCriteria" className={cls("acceptanceCriteria")}>
+          <ACList
             label="Acceptance criteria"
-            description="One per line — testable, not implementation hints."
-            value={acText}
-            onChange={(e) => {
-              const next = e.target.value;
-              setAcText(next);
-              set(
-                "acceptanceCriteria",
-                next.split("\n").map((l) => l.trim()).filter(Boolean),
-              );
-            }}
-            placeholder={"- The endpoint returns 200 with a CSV body\n- 401 on invalid token"}
-            className="min-h-[140px] flex-1"
+            description="One testable bullet per row. Outcomes the engineer/AI will verify against."
+            value={draft.acceptanceCriteria}
+            onItemsChange={(next) => set("acceptanceCriteria", next)}
+            placeholder="e.g. The endpoint returns 200 with a CSV body"
           />
         </div>
 
-        <div
-          data-editor-field="constraints"
-          className={`${cls("constraints")} flex flex-col lg:col-span-2`}
-        >
+        <div data-editor-field="constraints" className={`${cls("constraints")} flex flex-col`}>
           <TextArea
             label="Pay attention to"
             description="Hard limits, dependencies, things to preserve."
             value={draft.constraints}
             onChange={(e) => set("constraints", e.target.value)}
             placeholder="Reuse existing operator-session auth, no new permission system, …"
-            className="min-h-[96px] flex-1"
+            className="min-h-[96px]"
           />
         </div>
       </div>

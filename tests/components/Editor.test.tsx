@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@/components/Editor";
 
@@ -21,15 +21,17 @@ describe("<Editor>", () => {
     const onFinalize = vi.fn();
     render(<Editor namespace="t3" onFinalize={onFinalize} />);
     await userEvent.type(screen.getByLabelText(/task title/i), "Export users");
-    await userEvent.type(screen.getByLabelText(/^description/i), "Need CSV export");
-    fireEvent.change(screen.getByLabelText(/acceptance criteria/i), {
-      target: { value: "First ac\nSecond ac" },
-    });
+    // The acceptance-criteria editor is a list of one-input-per-row. Type into
+    // the first row, then add a second row and type there.
+    const firstAc = screen.getByLabelText(/^acceptance criterion 1$/i);
+    await userEvent.type(firstAc, "First ac");
+    await userEvent.click(screen.getByRole("button", { name: /add criterion/i }));
+    const secondAc = await screen.findByLabelText(/^acceptance criterion 2$/i);
+    await userEvent.type(secondAc, "Second ac");
     await userEvent.click(screen.getByRole("button", { name: /finalize task/i }));
     expect(onFinalize).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Export users",
-        description: "Need CSV export",
         acceptanceCriteria: ["First ac", "Second ac"],
       }),
     );

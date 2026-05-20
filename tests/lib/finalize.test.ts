@@ -19,20 +19,18 @@ const sampleStory: Story = {
   title: "Export users as CSV",
   userStory: {
     asA: "platform operator",
-    iWant: "to download the user table as a CSV file",
-    soThat: "I can hand it to auditors without writing SQL",
+    iWant: "download the user table as a CSV file",
+    soThat: "hand it to auditors without writing SQL",
   },
-  description: "Primary flow: operator clicks Export and downloads CSV.",
-  acceptanceCriteria: [
+  scope: ["GET /api/users/export", "Users page Export button"],
+  requirements: [
     {
-      title: "Authenticated export returns CSV",
-      given: ["an operator with a valid session"],
-      when: ["the operator GETs /api/users/export"],
-      then: ["the response is 200", "the body is a CSV"],
+      category: "Endpoint",
+      items: ["Add GET /api/users/export returning text/csv"],
     },
   ],
-  definitionOfDone: ["Code merged", "Tests passing"],
-  notes: "",
+  acceptanceCriteria: ["Returns 200 with a CSV body", "Returns 401 on invalid token"],
+  outOfScope: [],
 };
 
 beforeEach(() => _resetForTests());
@@ -83,16 +81,11 @@ describe("runFinalize (orchestrator)", () => {
   it("consistency-gate failure puts the job in gates_failed but still emits a payload", async () => {
     const job = createJob();
     const agent = happyAgent();
-    // Force a consistency failure by having the planner echo an out-of-scope item into a Then clause.
+    // Force a consistency failure by having the planner echo an out-of-scope item into an AC bullet.
     const reqWithOOS: Requirement = { ...sampleReq, outOfScope: ["scheduled exports happen automatically"] };
     const storyWithLeak: Story = {
       ...sampleStory,
-      acceptanceCriteria: [
-        {
-          ...sampleStory.acceptanceCriteria[0],
-          then: ["scheduled exports happen automatically every Monday"],
-        },
-      ],
+      acceptanceCriteria: ["scheduled exports happen automatically every Monday"],
     };
     agent.runAnalyst = vi.fn(async () => ({ requirement: reqWithOOS }));
     agent.runPlanner = vi.fn(async () => ({ story: storyWithLeak }));

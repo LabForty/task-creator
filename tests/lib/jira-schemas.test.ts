@@ -4,10 +4,10 @@ import { ExportBodySchema } from "@/lib/jira/schemas";
 const validStory = {
   title: "T",
   userStory: { asA: "a", iWant: "b", soThat: "c" },
-  description: "d",
-  acceptanceCriteria: [{ title: "S", given: ["g"], when: ["w"], then: ["t"] }],
-  definitionOfDone: ["done"],
-  notes: "",
+  scope: [],
+  requirements: [{ category: "Work", items: ["do the thing"] }],
+  acceptanceCriteria: ["it works"],
+  outOfScope: [],
 };
 
 describe("lib/jira/schemas.ExportBodySchema", () => {

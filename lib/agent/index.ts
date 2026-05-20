@@ -457,27 +457,24 @@ export function makeStubTransport(): AgentTransport {
           title: "Stub story authored by TASK_AGENT_MODE=stub",
           userStory: {
             asA: "developer",
-            iWant: "to run the full pipeline without hitting Claude",
+            iWant: "run the full pipeline without hitting Claude",
             soThat: "tests stay deterministic and offline-friendly",
           },
-          description:
-            "Primary flow: the stub orchestrator wrote this story directly without calling Claude.\n\n" +
-            "Alternative flow: none in stub mode.\n\n" +
-            "Edge case: none in stub mode.\n\n" +
-            "Testing notes: cover the stub round-trip with the existing finalize integration test.",
-          acceptanceCriteria: [
+          scope: ["lib/agent stub transport", "tests/lib/finalize.test.ts"],
+          requirements: [
             {
-              title: "Stub run finalizes without Claude",
-              given: ["TASK_AGENT_MODE is set to stub"],
-              when: ["the orchestrator runs the analyst and planner phases"],
-              then: ["both phases complete", "a finalized payload is published"],
+              category: "Stub transport",
+              items: [
+                "Return canned analyst + planner JSON when TASK_AGENT_MODE=stub",
+                "Skip every network call to Anthropic",
+              ],
             },
           ],
-          definitionOfDone: [
-            "Stub round-trip covered by an integration test",
-            "No Claude tokens consumed in stub mode",
+          acceptanceCriteria: [
+            "Both analyst and planner phases complete in stub mode",
+            "A finalized payload is published with no Claude tokens consumed",
           ],
-          notes: "",
+          outOfScope: [],
         };
         onEvent({ type: "token", text: JSON.stringify(story) });
       }

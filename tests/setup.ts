@@ -1,1 +1,43 @@
 import "@testing-library/jest-dom/vitest";
+
+// jsdom 25 + Vitest 4 stopped exposing window.localStorage/sessionStorage by
+// default (Node now has an experimental localStorage gated behind
+// --localstorage-file). Tests that exercise the draft autosave layer rely on
+// these APIs, so wire up a tiny in-memory polyfill.
+class MemoryStorage implements Storage {
+  private store = new Map<string, string>();
+  get length(): number {
+    return this.store.size;
+  }
+  clear(): void {
+    this.store.clear();
+  }
+  getItem(key: string): string | null {
+    return this.store.has(key) ? this.store.get(key)! : null;
+  }
+  key(index: number): string | null {
+    return Array.from(this.store.keys())[index] ?? null;
+  }
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+  setItem(key: string, value: string): void {
+    this.store.set(key, String(value));
+  }
+}
+
+if (typeof window !== "undefined") {
+  const w = window as Window & { localStorage?: Storage; sessionStorage?: Storage };
+  if (!w.localStorage) {
+    Object.defineProperty(window, "localStorage", {
+      value: new MemoryStorage(),
+      configurable: true,
+    });
+  }
+  if (!w.sessionStorage) {
+    Object.defineProperty(window, "sessionStorage", {
+      value: new MemoryStorage(),
+      configurable: true,
+    });
+  }
+}

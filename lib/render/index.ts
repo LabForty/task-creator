@@ -1,63 +1,107 @@
-import type { Requirement, Story, GherkinScenario } from "@/lib/pipeline";
+import type { Requirement, Story } from "@/lib/pipeline";
+import type { Diagrams, MermaidFormat } from "@/lib/jobs/types";
 
 export type DraftRenderInput = { constraints?: string };
 
+const DIAGRAM_TITLES: Record<MermaidFormat, string> = {
+  flow: "Flow",
+  sequence: "Sequence",
+  interaction: "Interaction",
+};
+
 function renderUserStoryLine(story: Story): string {
   const { asA, iWant, soThat } = story.userStory;
-  return `**As a** ${asA.trim()}, **I want** ${iWant.trim()}, **so that** ${soThat.trim()}.`;
+  return `**As a** ${asA.trim()}, **I want to** ${iWant.trim()}, **so I can** ${soThat.trim()}.`;
 }
 
-function renderGherkinScenario(s: GherkinScenario): string {
-  const lines: string[] = [`### ${s.title}`];
-  s.given.forEach((g, i) => lines.push(`- ${i === 0 ? "**Given**" : "**And**"} ${g}`));
-  s.when.forEach((w, i) => lines.push(`- ${i === 0 ? "**When**" : "**And**"} ${w}`));
-  s.then.forEach((t, i) => lines.push(`- ${i === 0 ? "**Then**" : "**And**"} ${t}`));
+function renderScope(items: string[]): string {
+  return `## Scope\n${items.map((s) => `- ${s.trim()}`).join("\n")}`;
+}
+
+function renderRequirements(groups: Story["requirements"]): string {
+  const lines: string[] = ["## Requirements"];
+  for (const g of groups) {
+    lines.push(`- ${g.category.trim()}:`);
+    for (const item of g.items) {
+      lines.push(`  - ${item.trim()}`);
+    }
+  }
   return lines.join("\n");
 }
 
-// Render the finalized story as Jira-ready markdown. Shape:
+function renderAcceptanceCriteria(items: string[]): string {
+  return `## Acceptance criteria\n${items.map((s) => `- ${s.trim()}`).join("\n")}`;
+}
+
+function renderOutOfScope(items: string[]): string {
+  return `## Out of scope\n${items.map((s) => `- ${s.trim()}`).join("\n")}`;
+}
+
+function renderDiagrams(diagrams: Diagrams): string | null {
+  const order: MermaidFormat[] = ["flow", "sequence", "interaction"];
+  const blocks: string[] = [];
+  for (const fmt of order) {
+    const src = diagrams[fmt];
+    if (!src || !src.trim()) continue;
+    blocks.push(`### ${DIAGRAM_TITLES[fmt]}\n\`\`\`mermaid\n${src.trim()}\n\`\`\``);
+  }
+  if (blocks.length === 0) return null;
+  return `## Diagrams\n${blocks.join("\n\n")}`;
+}
+
+// Render the finalized task as AI/dev-actionable markdown. Shape:
 //
 //   # <title>
 //
-//   **As a <role>, I want <action>, so that <benefit>.**
+//   **As a <role>, I want to <action>, so I can <outcome>.**
 //
-//   ## Description
-//   <description body — primary/alt/edge/testing inline>
+//   ## Scope                  (omitted if empty)
+//   - surface 1
 //
-//   ## Constraints           (optional)
-//   <constraint text>
+//   ## Requirements
+//   - Category 1:
+//     - item
+//     - item
 //
-//   ## Acceptance Criteria
-//   ### Scenario 1
-//   - **Given** ...
-//   - **When** ...
-//   - **Then** ...
+//   ## Acceptance criteria
+//   - bullet
 //
-//   ## Definition of Done
-//   - item
-//   - item
+//   ## Out of scope           (omitted if empty)
+//   - bullet
 //
-//   ## Notes                 (optional)
-//   <free text>
-export function renderFinalized(_req: Requirement, story: Story, draft: DraftRenderInput): string {
+//   ## Diagrams               (omitted if no diagrams provided)
+//   ### Flow
+//   ```mermaid
+//   ...
+//   ```
+//
+// Constraints from the draft are not echoed back into the output — they're
+// guidance for the planner, not part of the ticket.
+export function renderFinalized(
+  _req: Requirement,
+  story: Story,
+  _draft: DraftRenderInput,
+  diagrams?: Diagrams,
+): string {
   const sections: string[] = [];
 
   sections.push(`# ${story.title}`);
   sections.push(renderUserStoryLine(story));
-  sections.push(`## Description\n${story.description.trim()}`);
 
-  if (draft.constraints?.trim()) {
-    sections.push(`## Constraints\n${draft.constraints.trim()}`);
+  if (story.scope && story.scope.length > 0) {
+    sections.push(renderScope(story.scope));
   }
 
-  const ac = story.acceptanceCriteria.map(renderGherkinScenario).join("\n\n");
-  sections.push(`## Acceptance Criteria\n${ac}`);
+  sections.push(renderRequirements(story.requirements));
+  sections.push(renderAcceptanceCriteria(story.acceptanceCriteria));
 
-  const dod = story.definitionOfDone.map((d) => `- ${d}`).join("\n");
-  sections.push(`## Definition of Done\n${dod}`);
+  if (story.outOfScope && story.outOfScope.length > 0) {
+    sections.push(renderOutOfScope(story.outOfScope));
+  }
 
-  if (story.notes && story.notes.trim()) {
-    sections.push(`## Notes\n${story.notes.trim()}`);
+  if (diagrams) {
+    const block = renderDiagrams(diagrams);
+    if (block) sections.push(block);
   }
 
   return sections.join("\n\n");

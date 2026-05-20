@@ -1,6 +1,8 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // Theme is flipped via `class="dark"` on <html>. See ThemeToggle + globals.css.
+  darkMode: "class",
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -39,45 +41,44 @@ const config: Config = {
         "hig-title1": ["28px", { lineHeight: "34px", letterSpacing: "0.36px", fontWeight: "600" }],
         "hig-large": ["34px", { lineHeight: "41px", letterSpacing: "0.37px", fontWeight: "700" }],
       },
+      // Tokens read from CSS variables defined in globals.css. The same class
+      // (e.g. `bg-surface`) renders different values in light vs. dark mode.
       colors: {
-        // SF system colors (light mode). systemBlue is the iOS/macOS accent.
         accent: {
-          DEFAULT: "#007aff",
-          hover: "#0064d6",
-          pressed: "#0050a8",
-          tint: "#e9f1ff",
+          DEFAULT: "var(--color-accent)",
+          hover: "var(--color-accent-hover)",
+          pressed: "var(--color-accent-pressed)",
+          tint: "var(--color-accent-tint)",
         },
         danger: {
-          DEFAULT: "#ff3b30",
-          tint: "#ffe7e6",
+          DEFAULT: "var(--color-danger)",
+          tint: "var(--color-danger-tint)",
         },
         warning: {
-          DEFAULT: "#ff9500",
-          tint: "#fff3df",
+          DEFAULT: "var(--color-warning)",
+          tint: "var(--color-warning-tint)",
         },
         success: {
-          DEFAULT: "#34c759",
-          tint: "#e2f7e8",
+          DEFAULT: "var(--color-success)",
+          tint: "var(--color-success-tint)",
         },
-        // HIG background hierarchy + content neutrals
         surface: {
-          DEFAULT: "#ffffff",
-          muted: "#f5f5f7",
-          subtle: "#fafafc",
-          inset: "#eeeef1",
+          DEFAULT: "var(--color-surface)",
+          muted: "var(--color-surface-muted)",
+          subtle: "var(--color-surface-subtle)",
+          inset: "var(--color-surface-inset)",
         },
         ink: {
-          DEFAULT: "#1d1d1f",
-          secondary: "#6e6e73",
-          tertiary: "#86868b",
-          quaternary: "#c7c7cc",
+          DEFAULT: "var(--color-ink)",
+          secondary: "var(--color-ink-secondary)",
+          tertiary: "var(--color-ink-tertiary)",
+          quaternary: "var(--color-ink-quaternary)",
         },
         rule: {
-          DEFAULT: "rgba(0,0,0,0.1)",
-          strong: "rgba(0,0,0,0.18)",
+          DEFAULT: "var(--color-rule)",
+          strong: "var(--color-rule-strong)",
         },
       },
-      // HIG radii: 6 (small), 10 (medium controls), 14 (cards), 22 (sheets)
       borderRadius: {
         sm: "6px",
         DEFAULT: "10px",
@@ -86,13 +87,11 @@ const config: Config = {
         xl: "22px",
       },
       boxShadow: {
-        // Depth layers per HIG (cards, popovers, sheets)
-        card: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06)",
-        elevated: "0 2px 4px rgba(0,0,0,0.04), 0 12px 28px rgba(0,0,0,0.10)",
-        focus: "0 0 0 3px rgba(0,122,255,0.30)",
+        card: "var(--shadow-card)",
+        elevated: "var(--shadow-elevated)",
+        focus: "var(--shadow-focus)",
       },
       transitionTimingFunction: {
-        // HIG default ease
         hig: "cubic-bezier(0.25, 0.1, 0.25, 1)",
       },
     },

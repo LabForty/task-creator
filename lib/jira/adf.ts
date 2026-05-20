@@ -1,4 +1,4 @@
-import type { GherkinScenario, Story } from "@/lib/pipeline";
+import type { Story, RequirementGroup } from "@/lib/pipeline";
 
 // Atlassian Document Format (ADF) — narrow types covering the nodes we emit.
 
@@ -59,9 +59,9 @@ function bullet(items: AdfBlock[][]): AdfBulletList {
   };
 }
 
-// Split a description into paragraphs on blank lines. Preserves single newlines
-// as soft breaks by joining with a space — ADF doesn't have a great soft-break
-// node and Jira's editor renders single newlines as line continuations anyway.
+// Split a free-text body into paragraphs on blank lines. Preserves single
+// newlines as soft breaks by joining with a space — ADF doesn't have a great
+// soft-break node and Jira's editor renders single newlines as continuations.
 function paragraphsFrom(body: string): AdfParagraph[] {
   return body
     .split(/\n\s*\n/)
@@ -70,13 +70,17 @@ function paragraphsFrom(body: string): AdfParagraph[] {
     .map((chunk) => para(chunk.replace(/\s*\n\s*/g, " ")));
 }
 
-function scenarioBlocks(s: GherkinScenario): AdfBlock[] {
-  const lines: string[] = [];
-  s.given.forEach((g, i) => lines.push(`${i === 0 ? "**Given**" : "**And**"} ${g}`));
-  s.when.forEach((w, i) => lines.push(`${i === 0 ? "**When**" : "**And**"} ${w}`));
-  s.then.forEach((t, i) => lines.push(`${i === 0 ? "**Then**" : "**And**"} ${t}`));
-  const list = bullet(lines.map((l) => [para(l)]));
-  return [heading(3, s.title), list];
+function requirementsBlock(groups: RequirementGroup[]): AdfBulletList {
+  return {
+    type: "bulletList",
+    content: groups.map<AdfListItem>((g) => ({
+      type: "listItem",
+      content: [
+        para(`${g.category.trim()}:`),
+        bullet(g.items.map((item) => [para(item.trim())])),
+      ],
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +90,7 @@ export type AdfFromStoryInput = {
   constraints?: string;
   // When the issue's project exposes a separate Acceptance Criteria custom
   // field, the caller writes AC there and sets this to false to avoid the
-  // same scenarios appearing in both places. Defaults to true.
+  // same items appearing in both places. Defaults to true.
   includeAcceptanceCriteria?: boolean;
 };
 
@@ -101,34 +105,36 @@ export function buildIssueDescriptionAdf(input: AdfFromStoryInput): AdfDoc {
     content: [
       { type: "text", text: "As a ", marks: [{ type: "strong" }] },
       { type: "text", text: us.asA.trim() },
-      { type: "text", text: ", I want ", marks: [{ type: "strong" }] },
+      { type: "text", text: ", I want to ", marks: [{ type: "strong" }] },
       { type: "text", text: us.iWant.trim() },
-      { type: "text", text: ", so that ", marks: [{ type: "strong" }] },
+      { type: "text", text: ", so I can ", marks: [{ type: "strong" }] },
       { type: "text", text: us.soThat.trim() + "." },
     ],
   });
 
-  content.push(heading(2, "Description"));
-  for (const p of paragraphsFrom(story.description)) content.push(p);
+  if (story.scope && story.scope.length > 0) {
+    content.push(heading(2, "Scope"));
+    content.push(bullet(story.scope.map((s) => [para(s.trim())])));
+  }
+
+  if (story.requirements.length > 0) {
+    content.push(heading(2, "Requirements"));
+    content.push(requirementsBlock(story.requirements));
+  }
+
+  if (includeAcceptanceCriteria && story.acceptanceCriteria.length > 0) {
+    content.push(heading(2, "Acceptance criteria"));
+    content.push(bullet(story.acceptanceCriteria.map((s) => [para(s.trim())])));
+  }
+
+  if (story.outOfScope && story.outOfScope.length > 0) {
+    content.push(heading(2, "Out of scope"));
+    content.push(bullet(story.outOfScope.map((s) => [para(s.trim())])));
+  }
 
   if (constraints && constraints.trim().length > 0) {
-    content.push(heading(2, "Constraints"));
-    for (const p of paragraphsFrom(constraints)) content.push(p);
-  }
-
-  if (includeAcceptanceCriteria) {
-    content.push(heading(2, "Acceptance Criteria"));
-    for (const s of story.acceptanceCriteria) {
-      for (const block of scenarioBlocks(s)) content.push(block);
-    }
-  }
-
-  content.push(heading(2, "Definition of Done"));
-  content.push(bullet(story.definitionOfDone.map((d) => [para(d)])));
-
-  if (story.notes && story.notes.trim().length > 0) {
     content.push(heading(2, "Notes"));
-    for (const p of paragraphsFrom(story.notes)) content.push(p);
+    for (const p of paragraphsFrom(constraints)) content.push(p);
   }
 
   return { version: 1, type: "doc", content };

@@ -19,7 +19,6 @@ export type AnalyzeFinding = {
   severity: "info" | "warn" | "error";
   summary: string;
   proposedSync?: {
-    storyDescription?: string;
     acceptanceCriteria?: string[];
     mermaid?: Diagrams;
   };
