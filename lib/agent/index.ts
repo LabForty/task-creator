@@ -7,6 +7,7 @@ import {
   parseStory,
   buildAnalystInput,
   buildPlannerInput,
+  hasAcceptanceCriteriaSection,
   type Requirement,
   type Story,
   type DraftInput,
@@ -183,6 +184,19 @@ export async function runPlanner(
   if (!result.ok) {
     const err = new Error(`planner: ${result.errors.join("; ")}`);
     (err as Error & { gateErrors?: string[] }).gateErrors = result.errors;
+    throw err;
+  }
+
+  // Hard rule: every ticket must contain an Acceptance Criteria section,
+  // regardless of which template was selected. We surface this as a schema-
+  // gate failure so the existing retry path (in finalize/index.ts) kicks
+  // in automatically with a targeted hint, instead of waiting for the
+  // softer consistency gate.
+  if (!hasAcceptanceCriteriaSection(result.value.markdown)) {
+    const msg =
+      "markdown is missing an Acceptance Criteria section. Add a section whose heading text contains \"Acceptance criteria\" (heading style like `## Acceptance criteria` OR bold-label style like `**Acceptance criteria:**`, matching the template's prevailing convention) with at least 2 short testable bullets.";
+    const err = new Error(`planner: ${msg}`);
+    (err as Error & { gateErrors?: string[] }).gateErrors = [msg];
     throw err;
   }
 

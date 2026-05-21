@@ -85,10 +85,25 @@ export function parseStory(raw: string): ParseResult<Story> {
   return { ok: true, value: result.data };
 }
 
+// Quick check: does the rendered markdown contain an "Acceptance criteria"
+// section the export-time extractor will recognise? Heading style OR bold
+// label style both count. Exposed as a standalone helper so the schema
+// gate (in runPlanner) can throw before the consistency gate and trigger
+// an automatic retry with a targeted hint.
+export function hasAcceptanceCriteriaSection(markdown: string): boolean {
+  if (!markdown) return false;
+  for (const raw of markdown.split("\n")) {
+    const line = raw.trim();
+    if (/^#{1,6}\s+.*\bacceptance\s*criteria\b/i.test(line)) return true;
+    if (/^\*\*[^*]*\bacceptance\s*criteria\b[^*]*\*\*/i.test(line)) return true;
+  }
+  return false;
+}
+
 // Consistency check between the analyst's analysis and the planner's story.
 // Cheap, deterministic, and runs in-process — no external CLI. The goal is
-// catching obvious mismatches (planner emitted empty markdown, or echoed an
-// out-of-scope item verbatim).
+// catching obvious mismatches (planner emitted empty markdown, ignored the
+// mandatory AC section, or echoed an out-of-scope item verbatim).
 export function checkConsistency(req: Requirement, story: Story): GateResult {
   const errors: string[] = [];
 
@@ -97,6 +112,10 @@ export function checkConsistency(req: Requirement, story: Story): GateResult {
   }
   if (!story.markdown.trim()) {
     errors.push("story.markdown is empty");
+  } else if (!hasAcceptanceCriteriaSection(story.markdown)) {
+    errors.push(
+      "story.markdown is missing an Acceptance Criteria section (mandatory; planner must emit one even when the template doesn't)",
+    );
   }
 
   // Out-of-scope leak detection: case-insensitive substring search over the
