@@ -150,11 +150,18 @@ export async function runPlanner(
     requirement: Requirement;
     draft: DraftInput;
     retryHint?: string[];
+    // The selected task-type template content (markdown prose describing
+    // ticket structure). Injected into the planner system prompt so the
+    // planner produces a body that follows the template.
+    template?: { key: string; content: string };
   },
 ): Promise<{ story: Story }> {
   args.publish({ type: "role_started", role: "planner" });
 
-  const systemPrompt = await loadRolePrompt("planner");
+  const basePlannerPrompt = await loadRolePrompt("planner");
+  const systemPrompt = args.template
+    ? buildPlannerSystemPrompt(basePlannerPrompt, args.template)
+    : basePlannerPrompt;
   const baseMessage = buildPlannerInput(args.requirement, args.draft);
   const userMessage = args.retryHint?.length
     ? buildRetryMessage("planner", baseMessage, args.retryHint)
@@ -181,6 +188,30 @@ export async function runPlanner(
 
   args.publish({ type: "role_finished", role: "planner", artifactId: result.value.title });
   return { story: result.value };
+}
+
+// Compose the planner system prompt with the selected task-type template
+// appended below. The base prompt (prompts/planner.md) defines the strict
+// JSON output contract; the template defines how the markdown body inside
+// it should be shaped.
+function buildPlannerSystemPrompt(
+  base: string,
+  template: { key: string; content: string },
+): string {
+  return [
+    base,
+    "",
+    "---",
+    "",
+    `## Selected task type: \`${template.key}\``,
+    "",
+    "Follow the template below when authoring the `markdown` field. Treat its",
+    "structure, section names, tone, and formatting rules as authoritative.",
+    "The template uses its own headings/sections — emit those exactly. Do NOT",
+    "fall back to the generic story shape unless the template tells you to.",
+    "",
+    template.content.trim(),
+  ].join("\n");
 }
 
 function buildRetryMessage(role: RoleName, baseMessage: string, errors: string[]): string {
@@ -311,7 +342,12 @@ export async function runHelp(args: {
   transport: AgentTransport;
   publish: (e: JobEvent) => void;
   signal?: AbortSignal;
-}): Promise<{ text: string; done: boolean; suggestions?: import("@/lib/jobs/types").HelpSuggestion[] }> {
+}): Promise<{
+  text: string;
+  done: boolean;
+  suggestions?: import("@/lib/jobs/types").HelpSuggestion[];
+  proposedEdit?: import("@/lib/jobs/types").ProposedEdit;
+}> {
   const systemPrompt = await loadSkillPrompt("task-help");
   const userMessage = JSON.stringify({
     surface: args.surface,
@@ -328,13 +364,14 @@ export async function runHelp(args: {
     onError: (e) => args.publish({ type: "error", ...e }),
   });
 
-  // Help Skill output: tolerate either {text, done, suggestions?} JSON or bare
-  // text from stub. Drop malformed suggestions silently so the chat still
-  // works even when only `text` is returned.
+  // Help Skill output: tolerate either {text, done, suggestions?, proposedEdit?}
+  // JSON or bare text from stub. Drop malformed suggestions silently so the
+  // chat still works even when only `text` is returned.
   type RawReply = {
     text: string;
     done: boolean;
     suggestions?: import("@/lib/jobs/types").HelpSuggestion[];
+    proposedEdit?: import("@/lib/jobs/types").ProposedEdit;
   };
   let reply: RawReply;
   try {
@@ -455,26 +492,22 @@ export function makeStubTransport(): AgentTransport {
       } else if (role === "planner") {
         const story = {
           title: "Stub story authored by TASK_AGENT_MODE=stub",
-          userStory: {
-            asA: "developer",
-            iWant: "run the full pipeline without hitting Claude",
-            soThat: "tests stay deterministic and offline-friendly",
-          },
-          scope: ["lib/agent stub transport", "tests/lib/finalize.test.ts"],
-          requirements: [
-            {
-              category: "Stub transport",
-              items: [
-                "Return canned analyst + planner JSON when TASK_AGENT_MODE=stub",
-                "Skip every network call to Anthropic",
-              ],
-            },
-          ],
-          acceptanceCriteria: [
-            "Both analyst and planner phases complete in stub mode",
-            "A finalized payload is published with no Claude tokens consumed",
-          ],
-          outOfScope: [],
+          markdown: [
+            "**As a** developer, **I want to** run the full pipeline without hitting Claude, **so I can** keep tests deterministic and offline-friendly.",
+            "",
+            "## Scope",
+            "- lib/agent stub transport",
+            "- tests/lib/finalize.test.ts",
+            "",
+            "## Requirements",
+            "- Stub transport:",
+            "  - Return canned analyst + planner JSON when TASK_AGENT_MODE=stub",
+            "  - Skip every network call to Anthropic",
+            "",
+            "## Acceptance criteria",
+            "- Both analyst and planner phases complete in stub mode",
+            "- A finalized payload is published with no Claude tokens consumed",
+          ].join("\n"),
         };
         onEvent({ type: "token", text: JSON.stringify(story) });
       }

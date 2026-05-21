@@ -3,11 +3,7 @@ import { ExportBodySchema } from "@/lib/jira/schemas";
 
 const validStory = {
   title: "T",
-  userStory: { asA: "a", iWant: "b", soThat: "c" },
-  scope: [],
-  requirements: [{ category: "Work", items: ["do the thing"] }],
-  acceptanceCriteria: ["it works"],
-  outOfScope: [],
+  markdown: "# T\n\nDo the thing.",
 };
 
 describe("lib/jira/schemas.ExportBodySchema", () => {
@@ -30,12 +26,12 @@ describe("lib/jira/schemas.ExportBodySchema", () => {
     expect(r.success).toBe(false);
   });
 
-  it("rejects malformed story", () => {
+  it("rejects malformed story (missing markdown)", () => {
     const r = ExportBodySchema.safeParse({
       cloudId: "abc",
       projectKey: "PROJ",
       issueTypeId: "10001",
-      payload: { story: { ...validStory, acceptanceCriteria: [] } },
+      payload: { story: { ...validStory, markdown: "" } },
     });
     expect(r.success).toBe(false);
   });

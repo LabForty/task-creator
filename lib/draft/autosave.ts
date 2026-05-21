@@ -5,6 +5,9 @@ export type Draft = {
   description: string;
   acceptanceCriteria: string[];
   constraints: string;
+  // Slug of the selected task-type template (matches a prompts/types/<slug>.md
+  // file). Defaults to "story" when missing — see loadDraft.
+  taskType: string;
   // v2 extensions — optional so v1 drafts hydrate cleanly.
   diagrams?: Diagrams;
   chatHistory?: HelpMessage[];
@@ -15,6 +18,7 @@ export const EMPTY_DRAFT: Draft = {
   description: "",
   acceptanceCriteria: [],
   constraints: "",
+  taskType: "story",
 };
 
 const PREFIX = "task-creator:draft:";
@@ -31,6 +35,7 @@ export function loadDraft(namespace: string): Draft {
       description: parsed.description ?? "",
       acceptanceCriteria: Array.isArray(parsed.acceptanceCriteria) ? parsed.acceptanceCriteria : [],
       constraints: parsed.constraints ?? "",
+      taskType: typeof parsed.taskType === "string" && parsed.taskType.trim() ? parsed.taskType : "story",
       diagrams: parsed.diagrams,
       chatHistory: Array.isArray(parsed.chatHistory) ? parsed.chatHistory : undefined,
     };

@@ -10,6 +10,9 @@ export type DraftInput = {
   useCases?: string;
   acceptanceCriteria?: string[];
   constraints?: string;
+  // Slug of the selected task-type template (matches a file in prompts/types/).
+  // Optional — the planner falls back to the in-repo default when absent.
+  taskType?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -30,36 +33,17 @@ export const RequirementSchema = z.object({
 export type Requirement = z.infer<typeof RequirementSchema>;
 
 // ---------------------------------------------------------------------------
-// Planner output — a lean, AI/dev-actionable ticket.
+// Planner output — title + the fully-rendered ticket markdown.
 //
-// Shape modelled on Jira FI-3673:
-//   - one-line user story (As a / I want to / so I can)
-//   - Scope: surfaces / modules the task touches (optional)
-//   - Requirements: grouped concrete bullets (the actual work)
-//   - Acceptance criteria: short testable bullets (no Gherkin)
-//   - Out of scope: explicit boundary (optional, only when useful)
+// The shape, sections, and tone of the ticket are dictated by the selected
+// task-type template (synced daily from the workflow service). The planner
+// is responsible for following that template; we just check we got a title
+// and non-empty markdown back.
 // ---------------------------------------------------------------------------
-
-export const UserStoryFormSchema = z.object({
-  asA: z.string().min(1, "userStory.asA is required"),
-  iWant: z.string().min(1, "userStory.iWant is required"),
-  soThat: z.string().min(1, "userStory.soThat is required"),
-});
-
-export const RequirementGroupSchema = z.object({
-  category: z.string().min(1, "requirement group category is required"),
-  items: z.array(z.string().min(1)).min(1, "requirement group needs at least one item"),
-});
-
-export type RequirementGroup = z.infer<typeof RequirementGroupSchema>;
 
 export const StorySchema = z.object({
   title: z.string().min(1, "title is required"),
-  userStory: UserStoryFormSchema,
-  scope: z.array(z.string().min(1)).default([]),
-  requirements: z.array(RequirementGroupSchema).min(1, "at least one requirement group"),
-  acceptanceCriteria: z.array(z.string().min(1)).min(1, "at least one acceptance criterion"),
-  outOfScope: z.array(z.string().min(1)).default([]),
+  markdown: z.string().min(1, "markdown is required"),
 });
 
 export type Story = z.infer<typeof StorySchema>;

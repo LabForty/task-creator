@@ -28,6 +28,22 @@ export type HelpSuggestionKind = "missing_info" | "edge_case" | "alt_flow" | "mi
 
 export type HelpFieldHint = "title" | "description" | "acceptanceCriteria" | "constraints";
 
+// A concrete change the Help Skill proposes against the draft. The UI can show
+// a side-by-side diff and let the user apply it (one-by-one or in batch).
+//
+//   field=title         → value: string,   op: "replace"
+//   field=description   → value: string,   op: "replace" | "append"
+//   field=constraints   → value: string,   op: "replace" | "append"
+//   field=acceptanceCriteria → value: string[], op: "replace" | "append"
+export type ProposedEdit = {
+  id: string;
+  field: HelpFieldHint;
+  op: "replace" | "append";
+  value: string | string[];
+  // One-line human summary for the review panel ("Add 2 failure-mode ACs").
+  summary?: string;
+};
+
 export type HelpSuggestion = {
   id: string;
   kind: HelpSuggestionKind;
@@ -36,11 +52,20 @@ export type HelpSuggestion = {
   // Optional pointer to the draft field this suggestion is about. When set,
   // the UI flashes that field on "Discuss" so the user knows where to type.
   fieldHint?: HelpFieldHint;
+  // Optional concrete edit the user can review and apply.
+  proposedEdit?: ProposedEdit;
 };
 
 export type HelpMessage =
   | { role: "user"; text: string }
-  | { role: "assistant"; text: string; suggestions?: HelpSuggestion[] };
+  | {
+      role: "assistant";
+      text: string;
+      suggestions?: HelpSuggestion[];
+      // Free-form chat replies can also carry a single proposed edit so the
+      // user can request "rewrite the description tighter" and apply the diff.
+      proposedEdit?: ProposedEdit;
+    };
 
 export type JobEvent =
   | { type: "role_started"; role: RoleName }

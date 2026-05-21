@@ -32,17 +32,8 @@ const validRequirementJson = JSON.stringify({
 
 const validStoryJson = JSON.stringify({
   title: "Export users as CSV",
-  userStory: {
-    asA: "operator",
-    iWant: "download the user table as a CSV",
-    soThat: "hand it to auditors",
-  },
-  scope: ["GET /api/users/export"],
-  requirements: [
-    { category: "Endpoint", items: ["Add GET /api/users/export returning CSV"] },
-  ],
-  acceptanceCriteria: ["Returns 200 with a CSV body", "Returns 401 with no session"],
-  outOfScope: [],
+  markdown:
+    "**As a** operator, **I want to** download the user table as a CSV, **so I can** hand it to auditors.\n\n## Acceptance criteria\n- Returns 200 with a CSV body\n- Returns 401 with no session",
 });
 
 describe("lib/agent", () => {
@@ -81,8 +72,8 @@ describe("lib/agent", () => {
       publish,
     });
     expect(result.story.title).toBe("Export users as CSV");
-    expect(result.story.acceptanceCriteria[0]).toBe("Returns 200 with a CSV body");
-    expect(result.story.requirements[0].category).toBe("Endpoint");
+    expect(result.story.markdown).toContain("## Acceptance criteria");
+    expect(result.story.markdown).toContain("Returns 200 with a CSV body");
   });
 
   it("an error event from the transport publishes an error JobEvent and rejects", async () => {

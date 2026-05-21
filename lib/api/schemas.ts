@@ -5,6 +5,7 @@ export const DraftSchema = z.object({
   description: z.string().min(1),
   acceptanceCriteria: z.array(z.string()).optional(),
   constraints: z.string().optional(),
+  taskType: z.string().min(1).max(64).optional(),
 });
 
 // Looser shape for title-suggest — title can be empty (that's the whole point).

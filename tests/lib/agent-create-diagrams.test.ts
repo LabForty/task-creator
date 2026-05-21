@@ -17,15 +17,8 @@ const req: Requirement = {
 
 const story: Story = {
   title: "Implement /export/users",
-  userStory: {
-    asA: "operator",
-    iWant: "download the user table",
-    soThat: "hand it to auditors",
-  },
-  scope: ["GET /export/users"],
-  requirements: [{ category: "Endpoint", items: ["Add GET /export/users returning CSV"] }],
-  acceptanceCriteria: ["Returns 200 with CSV body"],
-  outOfScope: [],
+  markdown:
+    "**As a** operator, **I want to** download the user table, **so I can** hand it to auditors.\n\n## Acceptance criteria\n- Returns 200 with CSV body",
 };
 
 const draft: Draft = {
@@ -33,6 +26,7 @@ const draft: Draft = {
   description: "x",
   acceptanceCriteria: [],
   constraints: "",
+  taskType: "story",
 };
 
 function bufferedTransport(reply: string): AgentTransport {

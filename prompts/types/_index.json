@@ -1,0 +1,24 @@
+{
+  "lastSyncedAt": "2026-05-20T14:24:14.786Z",
+  "latestModified": "2026-05-20T14:19:04Z",
+  "types": {
+    "bug": {
+      "modified": "2026-05-20T14:19:04Z"
+    },
+    "change_request": {
+      "modified": "2026-05-20T14:19:04Z"
+    },
+    "design": {
+      "modified": "2026-05-20T14:19:04Z"
+    },
+    "epic": {
+      "modified": "2026-05-20T14:19:04Z"
+    },
+    "spike": {
+      "modified": "2026-05-20T14:19:04Z"
+    },
+    "story": {
+      "modified": "2026-05-20T14:19:04Z"
+    }
+  }
+}

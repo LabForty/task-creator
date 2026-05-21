@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Editor } from "@/components/Editor";
 import { RunSheet } from "@/components/RunSheet";
 import { Preview } from "@/components/Preview";
 import { HelpPanel } from "@/components/HelpPanel";
+import { EditReviewSheet } from "@/components/EditReviewSheet";
 import { Button } from "@/components/ui/Button";
 import { JiraChip, type JiraSessionInfo } from "@/components/JiraChip";
 import { JiraExport } from "@/components/JiraExport";
@@ -19,6 +20,7 @@ import type {
   FinalizedPayload,
   HelpMessage,
   MermaidFormat,
+  ProposedEdit,
 } from "@/lib/jobs/types";
 
 // Re-render the markdown for the left pane so it reflects the current story
@@ -51,8 +53,57 @@ export default function StandalonePage() {
   const [applyingAnalysis, setApplyingAnalysis] = useState(false);
   const [helpOpen, setHelpOpen] = useState<null | "editor" | "diagrams">(null);
   const [chatHistory, setChatHistory] = useState<HelpMessage[]>([]);
+  // Pending Help-proposed edits the user has not yet applied or discarded.
+  // Lifted here so it survives Help-panel close/reopen and feeds the review
+  // sheet. Drops an edit id when the user applies or discards it.
+  const [resolvedEditIds, setResolvedEditIds] = useState<Set<string>>(new Set());
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [jiraSession, setJiraSession] = useState<JiraSessionInfo | null>(null);
   const [jiraBanner, setJiraBanner] = useState<string | null>(null);
+
+  // Derive the live list of pending edits from chatHistory minus the ones
+  // the user already resolved. Later proposals with the same id supersede
+  // earlier ones (so a refreshed Skill response keeps a single live entry).
+  const pendingEdits = useMemo<ProposedEdit[]>(() => {
+    const byId = new Map<string, ProposedEdit>();
+    for (const msg of chatHistory) {
+      if (msg.role !== "assistant") continue;
+      for (const s of msg.suggestions ?? []) {
+        if (s.proposedEdit) byId.set(s.proposedEdit.id, s.proposedEdit);
+      }
+      if (msg.proposedEdit) byId.set(msg.proposedEdit.id, msg.proposedEdit);
+    }
+    return Array.from(byId.values()).filter((e) => !resolvedEditIds.has(e.id));
+  }, [chatHistory, resolvedEditIds]);
+
+  function applyEdit(edit: ProposedEdit) {
+    // The Editor component listens for this event and mutates its own
+    // controlled draft. Keeping the apply path event-driven avoids lifting
+    // the entire draft state up here.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("task:apply-edit", { detail: { edit } }),
+      );
+    }
+    setResolvedEditIds((prev) => {
+      const next = new Set(prev);
+      next.add(edit.id);
+      return next;
+    });
+  }
+
+  function applyAllEdits() {
+    for (const edit of pendingEdits) applyEdit(edit);
+    setReviewOpen(false);
+  }
+
+  function discardEdit(editId: string) {
+    setResolvedEditIds((prev) => {
+      const next = new Set(prev);
+      next.add(editId);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -171,16 +222,14 @@ export default function StandalonePage() {
       // the schema gate after edits. Treat this as iteration UX; if you want a
       // gate-passing artifact, hit "Edit / start over" and re-Finalize.
       let nextDiagrams: Diagrams = { ...diagrams };
-      let nextStory = { ...mode.payload.story };
+      const nextStory = { ...mode.payload.story };
       for (const id of acceptedIds) {
         const f = analysis.find((x) => x.id === id);
         if (!f?.proposedSync) continue;
-        if (f.proposedSync.acceptanceCriteria) {
-          nextStory = {
-            ...nextStory,
-            acceptanceCriteria: f.proposedSync.acceptanceCriteria.map((s) => s.trim()).filter(Boolean),
-          };
-        }
+        // The analyser used to return a structured acceptanceCriteria array
+        // — with the template-driven pipeline the story body is opaque
+        // markdown, so we can't surgically patch it from here. The user
+        // edits the textarea directly to incorporate analyser findings.
         if (f.proposedSync.mermaid) nextDiagrams = { ...nextDiagrams, ...f.proposedSync.mermaid };
       }
       persistDiagrams(nextDiagrams);
@@ -442,6 +491,18 @@ export default function StandalonePage() {
           history={chatHistory}
           onUpdateHistory={updateChatHistory}
           onClose={() => setHelpOpen(null)}
+          pendingEditCount={pendingEdits.length}
+          onOpenReview={() => setReviewOpen(true)}
+        />
+      )}
+      {reviewOpen && (
+        <EditReviewSheet
+          draft={loadDraft(NAMESPACE)}
+          edits={pendingEdits}
+          onApply={applyEdit}
+          onApplyAll={applyAllEdits}
+          onDiscard={discardEdit}
+          onClose={() => setReviewOpen(false)}
         />
       )}
     </main>

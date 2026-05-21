@@ -2,6 +2,7 @@ import * as defaultAgent from "@/lib/agent";
 import { publish, getJob } from "@/lib/jobs";
 import { renderFinalized } from "@/lib/render";
 import { checkConsistency } from "@/lib/pipeline";
+import { readTemplate } from "@/lib/templates/sync";
 import type { DraftInput, Requirement, Story, GateResult } from "@/lib/pipeline";
 import type { AgentTransport } from "@/lib/agent/types";
 import type { JobEvent } from "@/lib/jobs/types";
@@ -19,6 +20,7 @@ type AgentModule = {
     transport: AgentTransport;
     publish: (e: JobEvent) => void;
     retryHint?: string[];
+    template?: { key: string; content: string };
   }) => Promise<{ story: Story }>;
   makeTransport: () => AgentTransport;
   makeDefaultTransport?: () => AgentTransport;
@@ -63,6 +65,7 @@ async function runPlannerWithRetry(
     draft: DraftInput;
     transport: AgentTransport;
     publish: (e: JobEvent) => void;
+    template?: { key: string; content: string };
   },
 ): Promise<{ story: Story; schema: GateResult }> {
   try {
@@ -97,11 +100,21 @@ export async function runFinalize(opts: {
     publishEvent({ type: "gate_result", gate: "schema", ok: analystSchema.ok });
 
     // --- PLANNER phase ---
+    // Load the selected task-type template (from prompts/types/<key>.md).
+    // If the user didn't pick one or the file is missing, the planner falls
+    // back to the in-repo default. taskType is optional on DraftInput.
+    const taskType = (opts.draft as DraftInput & { taskType?: string }).taskType?.trim();
+    const templateContent = taskType ? await readTemplate(taskType) : null;
+    const template = taskType && templateContent
+      ? { key: taskType, content: templateContent }
+      : undefined;
+
     const { story, schema: plannerSchema } = await runPlannerWithRetry(agent, {
       requirement,
       draft: opts.draft,
       transport,
       publish: publishEvent,
+      template,
     });
     publishEvent({ type: "gate_result", gate: "schema", ok: plannerSchema.ok });
 

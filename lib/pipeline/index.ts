@@ -87,35 +87,27 @@ export function parseStory(raw: string): ParseResult<Story> {
 
 // Consistency check between the analyst's analysis and the planner's story.
 // Cheap, deterministic, and runs in-process — no external CLI. The goal is
-// catching obvious mismatches (planner ignored an out-of-scope item, or
-// emitted an empty story).
+// catching obvious mismatches (planner emitted empty markdown, or echoed an
+// out-of-scope item verbatim).
 export function checkConsistency(req: Requirement, story: Story): GateResult {
   const errors: string[] = [];
 
   if (!story.title.trim()) {
     errors.push("story.title is empty");
   }
-
-  if (story.acceptanceCriteria.length === 0) {
-    errors.push("story has no acceptance criteria");
+  if (!story.markdown.trim()) {
+    errors.push("story.markdown is empty");
   }
 
-  if (story.requirements.length === 0) {
-    errors.push("story has no requirement groups");
-  }
-
-  // Out-of-scope leak detection: if an analyst-flagged out-of-scope item shows up
-  // verbatim in an acceptance criterion or requirement bullet, flag it.
-  // Soft check — case-insensitive substring, ignore short tokens.
-  if (req.outOfScope.length) {
-    const haystack = [
-      ...story.acceptanceCriteria,
-      ...story.requirements.flatMap((g) => g.items),
-    ].map((s) => s.toLowerCase());
+  // Out-of-scope leak detection: case-insensitive substring search over the
+  // rendered markdown body. Tokens shorter than 6 chars are ignored to avoid
+  // matching unrelated words.
+  if (req.outOfScope.length && story.markdown) {
+    const hay = story.markdown.toLowerCase();
     for (const item of req.outOfScope) {
       const needle = item.toLowerCase().trim();
       if (needle.length < 6) continue;
-      if (haystack.some((t) => t.includes(needle))) {
+      if (hay.includes(needle)) {
         errors.push(`out-of-scope item appears in story: "${item}"`);
       }
     }
@@ -136,10 +128,5 @@ export function buildAnalystInput(draft: DraftInput): string {
   return JSON.stringify({ draft });
 }
 
-export type { Requirement, Story, GateResult, DraftInput, RequirementGroup } from "./types";
-export {
-  RequirementSchema,
-  StorySchema,
-  RequirementGroupSchema,
-  UserStoryFormSchema,
-} from "./types";
+export type { Requirement, Story, GateResult, DraftInput } from "./types";
+export { RequirementSchema, StorySchema } from "./types";

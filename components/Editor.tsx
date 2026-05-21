@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/Button";
 import dynamic from "next/dynamic";
 import { TextField, TextArea } from "@/components/ui/TextField";
 import { ACList } from "@/components/ACList";
+import { TaskTypePicker } from "@/components/TaskTypePicker";
+import { applyEditToDraft } from "@/lib/draft/applyEdit";
+import type { ProposedEdit } from "@/lib/jobs/types";
 
 // TipTap + ProseMirror weighs ~110 KB gzipped. Split it out of the initial
 // page bundle so the first paint stays fast. A skeleton block keeps the
@@ -100,6 +103,26 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
     return () => window.removeEventListener(HIGHLIGHT_EVENT, onHighlight as EventListener);
   }, []);
 
+  // Listen for Apply requests from the Help review sheet. The page dispatches
+  // a 'task:apply-edit' event with a ProposedEdit; we run it through the pure
+  // applyEditToDraft helper and update local state.
+  useEffect(() => {
+    const onApplyEdit = (e: Event) => {
+      const ce = e as CustomEvent<{ edit: ProposedEdit }>;
+      const edit = ce.detail?.edit;
+      if (!edit) return;
+      setDraft((prev) => applyEditToDraft(prev, edit));
+      // Brief field flash so the user sees where the edit landed.
+      setHighlight(edit.field);
+      window.setTimeout(
+        () => setHighlight((cur) => (cur === edit.field ? null : cur)),
+        HIGHLIGHT_MS,
+      );
+    };
+    window.addEventListener("task:apply-edit", onApplyEdit as EventListener);
+    return () => window.removeEventListener("task:apply-edit", onApplyEdit as EventListener);
+  }, []);
+
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
@@ -153,6 +176,11 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
         <span className="hig-section-label">Draft</span>
         <h2 className="text-hig-title3">What needs to happen?</h2>
       </header>
+
+      <TaskTypePicker
+        value={draft.taskType}
+        onValueChange={(next) => set("taskType", next)}
+      />
 
       <div data-editor-field="title" className={cls("title")}>
         <div className="flex items-end gap-2">

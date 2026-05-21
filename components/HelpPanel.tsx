@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import type { Diagrams, HelpMessage, HelpSuggestion, HelpSuggestionKind } from "@/lib/jobs/types";
+import type {
+  Diagrams,
+  HelpMessage,
+  HelpSuggestion,
+  HelpSuggestionKind,
+  ProposedEdit,
+} from "@/lib/jobs/types";
 import type { Draft } from "@/lib/draft/autosave";
 
 type Props = {
@@ -12,6 +18,10 @@ type Props = {
   history: HelpMessage[];
   onUpdateHistory: (next: HelpMessage[]) => void;
   onClose: () => void;
+  // Count of proposed edits that are still pending review. When > 0 the panel
+  // header shows a "Review N changes" button; clicking it calls onOpenReview.
+  pendingEditCount?: number;
+  onOpenReview?: () => void;
 };
 
 const SUGGESTION_KIND_LABEL: Record<HelpSuggestionKind, string> = {
@@ -28,7 +38,16 @@ const SUGGESTION_KIND_CHIP: Record<HelpSuggestionKind, string> = {
   mismatch: "bg-danger/10 text-danger",
 };
 
-export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, onClose }: Props) {
+export function HelpPanel({
+  surface,
+  draft,
+  diagrams,
+  history,
+  onUpdateHistory,
+  onClose,
+  pendingEditCount = 0,
+  onOpenReview,
+}: Props) {
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +63,7 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
     text: string;
     done: boolean;
     suggestions?: HelpSuggestion[];
+    proposedEdit?: ProposedEdit;
   } | null> {
     try {
       const res = await fetch("/api/help", {
@@ -56,7 +76,12 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
         setError(typeof json.error === "string" ? json.error : `Request failed (${res.status}).`);
         return null;
       }
-      return json as { text: string; done: boolean; suggestions?: HelpSuggestion[] };
+      return json as {
+        text: string;
+        done: boolean;
+        suggestions?: HelpSuggestion[];
+        proposedEdit?: ProposedEdit;
+      };
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
       return null;
@@ -73,6 +98,7 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
         role: "assistant",
         text: reply.text,
         suggestions: reply.suggestions,
+        proposedEdit: reply.proposedEdit,
       };
       onUpdateHistory([msg]);
       if (reply.done) onClose();
@@ -110,7 +136,10 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
     try {
       const reply = await callHelp(baseHistory);
       if (!reply) return;
-      onUpdateHistory([...baseHistory, { role: "assistant", text: reply.text }]);
+      onUpdateHistory([
+        ...baseHistory,
+        { role: "assistant", text: reply.text, proposedEdit: reply.proposedEdit },
+      ]);
       if (reply.done) onClose();
     } finally {
       setPending(false);
@@ -136,7 +165,10 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
       try {
         const reply = await callHelp(baseHistory);
         if (!reply) return;
-        onUpdateHistory([...baseHistory, { role: "assistant", text: reply.text }]);
+        onUpdateHistory([
+        ...baseHistory,
+        { role: "assistant", text: reply.text, proposedEdit: reply.proposedEdit },
+      ]);
         if (reply.done) onClose();
       } finally {
         setPending(false);
@@ -160,6 +192,11 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
             <h2 className="text-hig-headline">Ask anything</h2>
           </div>
           <span className="flex-1" />
+          {pendingEditCount > 0 && onOpenReview && (
+            <Button size="sm" onClick={onOpenReview}>
+              Review {pendingEditCount} {pendingEditCount === 1 ? "change" : "changes"}
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={onClose}>
             Close
           </Button>
@@ -195,6 +232,13 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
             >
               {m.text}
             </div>
+            {m.role === "assistant" && m.proposedEdit && onOpenReview && (
+              <div className="self-start">
+                <Button size="sm" variant="secondary" onClick={onOpenReview}>
+                  Review proposed change
+                </Button>
+              </div>
+            )}
             {m.role === "assistant" && m.suggestions && m.suggestions.length > 0 && (
               <ul className="flex flex-col gap-2 self-start max-w-[95%]">
                 {m.suggestions
@@ -221,7 +265,12 @@ export function HelpPanel({ surface, draft, diagrams, history, onUpdateHistory, 
                       <p className="text-hig-footnote text-ink-secondary leading-snug">
                         {s.question}
                       </p>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        {s.proposedEdit && onOpenReview && (
+                          <Button size="sm" onClick={onOpenReview}>
+                            Review change
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="secondary"

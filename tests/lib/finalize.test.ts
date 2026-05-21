@@ -17,20 +17,8 @@ const sampleReq: Requirement = {
 
 const sampleStory: Story = {
   title: "Export users as CSV",
-  userStory: {
-    asA: "platform operator",
-    iWant: "download the user table as a CSV file",
-    soThat: "hand it to auditors without writing SQL",
-  },
-  scope: ["GET /api/users/export", "Users page Export button"],
-  requirements: [
-    {
-      category: "Endpoint",
-      items: ["Add GET /api/users/export returning text/csv"],
-    },
-  ],
-  acceptanceCriteria: ["Returns 200 with a CSV body", "Returns 401 on invalid token"],
-  outOfScope: [],
+  markdown:
+    "**As a** platform operator, **I want to** download the user table as a CSV, **so I can** hand it to auditors.\n\n## Acceptance criteria\n- Returns 200 with a CSV body\n- 401 on invalid token",
 };
 
 beforeEach(() => _resetForTests());
@@ -57,7 +45,7 @@ describe("runFinalize (orchestrator)", () => {
     const final = getJob(job.id);
     expect(final?.status).toBe("finalized");
     expect(final?.result?.story.title).toBe(sampleStory.title);
-    expect(final?.result?.markdown).toContain(`# ${sampleStory.title}`);
+    expect(final?.result?.markdown.startsWith(sampleStory.markdown)).toBe(true);
     expect(agent.runAnalyst).toHaveBeenCalledOnce();
     expect(agent.runPlanner).toHaveBeenCalledOnce();
   });
@@ -81,11 +69,10 @@ describe("runFinalize (orchestrator)", () => {
   it("consistency-gate failure puts the job in gates_failed but still emits a payload", async () => {
     const job = createJob();
     const agent = happyAgent();
-    // Force a consistency failure by having the planner echo an out-of-scope item into an AC bullet.
     const reqWithOOS: Requirement = { ...sampleReq, outOfScope: ["scheduled exports happen automatically"] };
     const storyWithLeak: Story = {
       ...sampleStory,
-      acceptanceCriteria: ["scheduled exports happen automatically every Monday"],
+      markdown: sampleStory.markdown + "\n\n## Notes\nscheduled exports happen automatically every Monday",
     };
     agent.runAnalyst = vi.fn(async () => ({ requirement: reqWithOOS }));
     agent.runPlanner = vi.fn(async () => ({ story: storyWithLeak }));
