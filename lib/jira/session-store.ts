@@ -51,29 +51,27 @@ function decryptJson<T>(buf: Buffer, secret: string): T {
   return JSON.parse(pt.toString("utf8")) as T;
 }
 
-// In-memory mirror for performance. Reads from disk on first use, writes
-// through to disk on every mutation. We never have more than a handful of
-// sessions so the cost is trivial.
-let cache: Envelope | null = null;
-
+// No in-memory cache — disk is the single source of truth. The previous
+// module-level `let cache` desynchronised under Next.js dev HMR (each
+// reloaded module got its own empty cache while the disk was current),
+// producing the "the same cookie says signed-in on /signin but not-signed-in
+// on / " loop. The file is tiny (<10 sessions, well under a kilobyte each),
+// so re-reading per request is free.
 async function ensureDir(): Promise<void> {
   await fs.mkdir(path.dirname(storePath()), { recursive: true });
 }
 
 async function readEnvelope(): Promise<Envelope> {
-  if (cache) return cache;
   const cfg = readConfig();
   try {
     const buf = await fs.readFile(storePath());
-    cache = decryptJson<Envelope>(buf, cfg.cookieSecret);
+    return decryptJson<Envelope>(buf, cfg.cookieSecret);
   } catch (err) {
-    // ENOENT or decrypt error — start fresh.
     if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
       console.warn("[jira/session-store] failed to read store, starting fresh:", err);
     }
-    cache = {};
+    return {};
   }
-  return cache;
 }
 
 async function writeEnvelope(env: Envelope): Promise<void> {
@@ -85,7 +83,6 @@ async function writeEnvelope(env: Envelope): Promise<void> {
   const tmpPath = finalPath + ".tmp";
   await fs.writeFile(tmpPath, buf);
   await fs.rename(tmpPath, finalPath);
-  cache = env;
 }
 
 function newSessionId(): string {

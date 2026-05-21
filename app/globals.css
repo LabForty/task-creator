@@ -272,3 +272,170 @@ html.dark .react-flow__attribution a {
   margin: 1em 0;
 }
 
+/* ───────────────────────── Sign-in landing ─────────────────────────
+   Aurora background, glass card spotlight, caret blink, CTA sheen.
+   All animations defer to prefers-reduced-motion via the global rule
+   in @layer base above.
+*/
+
+.signin-shell {
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--color-accent-tint) 0%, transparent 60%),
+    var(--color-surface-subtle);
+}
+
+.signin-aurora { pointer-events: none; }
+
+.signin-blob {
+  position: absolute;
+  display: block;
+  border-radius: 9999px;
+  filter: blur(72px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+html.dark .signin-blob { opacity: 0.4; mix-blend-mode: lighten; }
+
+.signin-blob--a {
+  width: 38rem; height: 38rem;
+  left: -8rem; top: -10rem;
+  background: radial-gradient(closest-side, #6f8cff 0%, transparent 70%);
+  animation: signin-drift-a 24s ease-in-out infinite alternate;
+}
+.signin-blob--b {
+  width: 32rem; height: 32rem;
+  right: -6rem; top: 30%;
+  background: radial-gradient(closest-side, #b07cff 0%, transparent 70%);
+  animation: signin-drift-b 28s ease-in-out infinite alternate;
+}
+.signin-blob--c {
+  width: 28rem; height: 28rem;
+  left: 25%; bottom: -10rem;
+  background: radial-gradient(closest-side, #4ad6ff 0%, transparent 70%);
+  animation: signin-drift-c 32s ease-in-out infinite alternate;
+}
+
+@keyframes signin-drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(4rem, 3rem, 0) scale(1.08); }
+}
+@keyframes signin-drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(-3rem, 4rem, 0) scale(1.05); }
+}
+@keyframes signin-drift-c {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(3rem, -3rem, 0) scale(1.1); }
+}
+
+/* Faint dot grid — visible but quiet. */
+.signin-grid {
+  background-image: radial-gradient(circle at 1px 1px, var(--color-rule) 1px, transparent 0);
+  background-size: 22px 22px;
+  opacity: 0.35;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+}
+
+/* Vignette pulls focus to the card. */
+.signin-vignette {
+  background: radial-gradient(120% 90% at 50% 50%, transparent 40%, var(--color-surface-subtle) 95%);
+}
+
+/* Glass card — translucent surface + mouse-following accent spotlight on top. */
+.signin-card {
+  --spot-x: 50%;
+  --spot-y: 0%;
+  isolation: isolate;
+}
+.signin-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    220px 220px at var(--spot-x) var(--spot-y),
+    rgba(0, 122, 255, 0.18),
+    transparent 70%
+  );
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: -1;
+}
+html.dark .signin-card::before {
+  background: radial-gradient(
+    260px 260px at var(--spot-x) var(--spot-y),
+    rgba(10, 132, 255, 0.28),
+    transparent 70%
+  );
+}
+
+/* Typewriter caret. */
+.signin-caret {
+  display: inline-block;
+  width: 1ch;
+  margin-left: 1px;
+  color: var(--color-accent);
+  animation: signin-caret-blink 1s steps(2, end) infinite;
+}
+@keyframes signin-caret-blink {
+  50% { opacity: 0; }
+}
+
+/* LabForty mark — hex frame rotates on hover, diamond breathes always,
+   bloom appears under cursor. transform-box: fill-box keeps SVG rotations
+   centered on each path even when their bounding boxes differ. */
+.labforty-mark {
+  display: inline-block;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.04));
+}
+html.dark .labforty-mark {
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.45));
+}
+.labforty-mark svg { display: block; overflow: visible; }
+.labforty-mark__hex {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: transform 600ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.labforty-mark:hover .labforty-mark__hex {
+  transform: rotate(60deg);
+}
+.labforty-mark__diamond {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: labforty-breathe 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 0 rgba(237,59,59,0));
+  transition: filter 350ms ease;
+}
+.labforty-mark:hover .labforty-mark__diamond {
+  filter: drop-shadow(0 0 10px rgba(237,59,59,0.55));
+}
+.labforty-mark:active .labforty-mark__hex {
+  transform: rotate(180deg);
+  transition-duration: 250ms;
+}
+@keyframes labforty-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+/* CTA shimmer that drifts left→right on hover. */
+.signin-cta { isolation: isolate; }
+.signin-cta-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255,255,255,0.35) 50%,
+    transparent 70%
+  );
+  transform: translateX(-110%);
+  transition: transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  pointer-events: none;
+}
+.signin-cta:hover .signin-cta-sheen { transform: translateX(110%); }
+

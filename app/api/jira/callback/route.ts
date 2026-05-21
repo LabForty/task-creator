@@ -12,6 +12,7 @@ import {
   setSessionCookieOnResponse,
   type JiraSession,
 } from "@/lib/jira";
+import { sanitizeReturnPath } from "@/lib/auth/returnPath";
 
 export const runtime = "nodejs";
 
@@ -90,29 +91,42 @@ function buildFullRedirect(
   origin: string,
   outcome: Outcome,
   reason: string | null,
+  returnPath: string,
 ): NextResponse {
-  const qs =
-    outcome === "connected"
-      ? "jira=connected"
-      : `jira=error&reason=${encodeURIComponent(reason ?? "")}`;
-  return NextResponse.redirect(new URL(`/?${qs}`, origin));
+  if (outcome === "connected") {
+    return NextResponse.redirect(new URL(returnPath, origin));
+  }
+  const qs = new URLSearchParams({
+    error: reason ?? "unknown",
+    return: returnPath,
+  }).toString();
+  return NextResponse.redirect(new URL(`/signin?${qs}`, origin));
 }
 
 function parseStateCookie(value: string | null): {
   nonce: string;
   popup: boolean;
   redirectUri: string;
+  returnPath: string;
 } | null {
   if (!value) return null;
   const parts = value.split("|");
   if (parts.length < 3) {
-    return { nonce: value, popup: false, redirectUri: "" };
+    return { nonce: value, popup: false, redirectUri: "", returnPath: "/" };
   }
-  return {
-    nonce: parts[0],
-    popup: parts[1] === "1",
-    redirectUri: decodeURIComponent(parts.slice(2).join("|")),
-  };
+  // 4-segment shape: nonce | popup | redirectUri | returnPath
+  // Older 3-segment cookies (no returnPath) still decode safely.
+  const nonce = parts[0];
+  const popup = parts[1] === "1";
+  let redirectUri = "";
+  let returnPath = "/";
+  if (parts.length >= 4) {
+    redirectUri = decodeURIComponent(parts[2]);
+    returnPath = sanitizeReturnPath(decodeURIComponent(parts[3]));
+  } else {
+    redirectUri = decodeURIComponent(parts.slice(2).join("|"));
+  }
+  return { nonce, popup, redirectUri, returnPath };
 }
 
 export async function GET(req: Request) {
@@ -124,7 +138,8 @@ export async function GET(req: Request) {
   const stateCookieValue = await readStateCookie();
   const parsedState = parseStateCookie(stateCookieValue);
   const isPopup = parsedState?.popup ?? false;
-  console.log(`[jira/callback] stateCookie=${stateCookieValue ? "present" : "MISSING"} popup=${isPopup}`);
+  const returnPath = parsedState?.returnPath ?? "/";
+  console.log(`[jira/callback] stateCookie=${stateCookieValue ? "present" : "MISSING"} popup=${isPopup} returnPath=${returnPath}`);
 
   // Build response on demand and always clear the state cookie at the end.
   const finish = async (
@@ -134,7 +149,7 @@ export async function GET(req: Request) {
   ): Promise<NextResponse> => {
     const res = isPopup
       ? buildPopupResponse(origin, outcome, reason)
-      : buildFullRedirect(origin, outcome, reason);
+      : buildFullRedirect(origin, outcome, reason, returnPath);
     if (session) await setSessionCookieOnResponse(res, session);
     clearStateCookieOnResponse(res);
     const setCookieHeaders = res.headers.getSetCookie?.() ?? [];

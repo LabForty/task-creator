@@ -1,4 +1,17 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Download route is gated by Jira session auth. Stub the gate so a session
+// is always present in this suite.
+vi.mock("@/lib/auth/requireSession", () => ({
+  requireSession: vi.fn(async () => ({
+    accessToken: "tok",
+    refreshToken: "rt",
+    expiresAt: Date.now() + 3_600_000,
+    accountId: "acc-1",
+    email: "test@example.com",
+  })),
+}));
+
 import { GET } from "@/app/api/jobs/[id]/download/[artifact]/route";
 import { createJob, publish, _resetForTests } from "@/lib/jobs";
 import type { FinalizedPayload } from "@/lib/jobs/types";

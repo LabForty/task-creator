@@ -76,6 +76,11 @@ export function JiraChip({ session, onSessionChange }: Props) {
       /* ignore */
     }
     onSessionChange({ configured: true, connected: false });
+    // App surfaces are gated; without a session the user has nothing useful to
+    // do here. Bounce to the landing page so they can re-sign-in cleanly.
+    if (typeof window !== "undefined") {
+      window.location.assign("/signin");
+    }
   }
 
   return (

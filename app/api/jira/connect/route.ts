@@ -7,6 +7,7 @@ import {
   resolveRedirectUri,
   setStateCookieOnResponse,
 } from "@/lib/jira";
+import { sanitizeReturnPath } from "@/lib/auth/returnPath";
 
 export const runtime = "nodejs";
 
@@ -20,14 +21,16 @@ export async function GET(req: Request) {
   } catch (err) {
     const msg = err instanceof JiraError ? err.message : "Jira is not configured.";
     return NextResponse.redirect(
-      new URL(`/?jira=error&reason=${encodeURIComponent(msg)}`, origin),
+      new URL(`/signin?error=${encodeURIComponent(msg)}`, origin),
     );
   }
 
   const redirectUri = resolveRedirectUri(cfg, req.url);
   const nonce = buildStateNonce();
   const popup = url.searchParams.get("popup") === "1";
-  const stateValue = `${nonce}|${popup ? "1" : "0"}|${encodeURIComponent(redirectUri)}`;
+  const returnPath = sanitizeReturnPath(url.searchParams.get("return"));
+  // 4-segment state: nonce | popup | redirectUri | returnPath
+  const stateValue = `${nonce}|${popup ? "1" : "0"}|${encodeURIComponent(redirectUri)}|${encodeURIComponent(returnPath)}`;
   const authorizeUrl = buildAuthorizeUrl(nonce, redirectUri, cfg);
   const res = NextResponse.redirect(authorizeUrl);
   setStateCookieOnResponse(res, stateValue);

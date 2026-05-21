@@ -1,5 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+// Routes are now gated by Jira session auth. Tests don't care about the gate;
+// stub it so a session is always considered present.
+vi.mock("@/lib/auth/requireSession", () => ({
+  requireSession: vi.fn(async () => ({
+    accessToken: "tok",
+    refreshToken: "rt",
+    expiresAt: Date.now() + 3_600_000,
+    accountId: "acc-1",
+    email: "test@example.com",
+  })),
+}));
+
 vi.mock("@/lib/agent", async () => {
   const actual = await vi.importActual<typeof import("@/lib/agent")>("@/lib/agent");
   return {
