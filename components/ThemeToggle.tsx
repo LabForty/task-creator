@@ -15,8 +15,12 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
-  // Sync once on mount so SSR markup doesn't differ from client.
+  // Sync once on mount so SSR markup doesn't differ from client. The lint
+  // rule is correct in general — here the post-mount setState is the whole
+  // point of the effect (defers the real theme read until after the
+  // server-matched first paint to avoid a hydration mismatch).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(readInitial());
     setMounted(true);
   }, []);

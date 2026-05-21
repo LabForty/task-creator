@@ -138,17 +138,25 @@ export async function getValidSession(): Promise<JiraSession> {
   if (!session) {
     throw new JiraError("not_connected", "Not connected to Jira.", 401);
   }
-  if (session.expiresAt - Date.now() > REFRESH_LEEWAY_MS) {
+  const msUntilExpiry = session.expiresAt - Date.now();
+  if (msUntilExpiry > REFRESH_LEEWAY_MS) {
     return session;
   }
-  const refreshed = await refreshTokens(session.refreshToken);
-  const next: JiraSession = {
-    accessToken: refreshed.access_token,
-    refreshToken: refreshed.refresh_token,
-    expiresAt: Date.now() + refreshed.expires_in * 1000,
-    accountId: session.accountId,
-    email: session.email,
-  };
-  await writeSessionCookie(next);
-  return next;
+  console.log(`[jira/oauth] token near/past expiry (${msUntilExpiry}ms left) — refreshing`);
+  try {
+    const refreshed = await refreshTokens(session.refreshToken);
+    const next: JiraSession = {
+      accessToken: refreshed.access_token,
+      refreshToken: refreshed.refresh_token,
+      expiresAt: Date.now() + refreshed.expires_in * 1000,
+      accountId: session.accountId,
+      email: session.email,
+    };
+    await writeSessionCookie(next);
+    console.log(`[jira/oauth] refresh OK, new expiresAt=${new Date(next.expiresAt).toISOString()}`);
+    return next;
+  } catch (err) {
+    console.error(`[jira/oauth] refresh failed:`, err);
+    throw err;
+  }
 }

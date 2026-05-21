@@ -4,6 +4,7 @@ import { createJob, publish } from "@/lib/jobs";
 import { makeTransport, runAnalyzeDiagrams } from "@/lib/agent";
 import type { Requirement, Story } from "@/lib/pipeline";
 import type { Diagrams } from "@/lib/jobs/types";
+import { requireSession } from "@/lib/auth/requireSession";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,9 @@ function isOriginAllowed(req: Request): boolean {
 }
 
 export async function POST(req: Request) {
+  const sessionOrRes = await requireSession();
+  if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+
   if (!isOriginAllowed(req)) {
     return NextResponse.json({ error: "origin not allowed" }, { status: 403 });
   }

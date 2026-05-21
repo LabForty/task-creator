@@ -1,5 +1,7 @@
+import { NextResponse } from "next/server";
 import { getJob, subscribe } from "@/lib/jobs";
 import type { JobEvent } from "@/lib/jobs/types";
+import { requireSession } from "@/lib/auth/requireSession";
 
 export const runtime = "nodejs";
 
@@ -25,6 +27,11 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Auth must clear before we construct the SSE ReadableStream — otherwise
+  // the client sees an open event stream instead of a clean 401.
+  const sessionOrRes = await requireSession();
+  if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+
   const { id } = await params;
   const job = getJob(id);
   if (!job) {

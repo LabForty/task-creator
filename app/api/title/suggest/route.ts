@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { TitleSuggestBodySchema } from "@/lib/api/schemas";
 import { makeTransport, runTitleSuggest } from "@/lib/agent";
+import { requireSession } from "@/lib/auth/requireSession";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,9 @@ function isOriginAllowed(req: Request): boolean {
 }
 
 export async function POST(req: Request) {
+  const sessionOrRes = await requireSession();
+  if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+
   if (!isOriginAllowed(req)) {
     return NextResponse.json({ error: "origin not allowed" }, { status: 403 });
   }
