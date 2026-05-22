@@ -1,6 +1,9 @@
 import { buildIssueDescriptionAdf } from "./adf";
 import {
+  addComment,
   createIssue,
+  createIssueLink,
+  listCreatableIssueTypes,
   listCreateFields,
   uploadAttachment,
   type JiraFieldMeta,
@@ -19,6 +22,10 @@ export type ExportResult = {
   attachmentErrors: Partial<Record<MermaidFormat, string>>;
   autoFilledFields: string[];
   missingRequiredFields: string[];
+  linkResults?: { ok: string[]; failed: Array<{ key: string; error: string }> };
+  flagCommentResult?: "ok" | "skipped" | "failed";
+  flagCommentError?: string;
+  epicCreated?: { key: string };
 };
 
 // In Jira Cloud REST v3, rich-text custom fields (textarea-style) expect
@@ -49,6 +56,39 @@ function acAsPlainText(acMarkdown: string): string {
     .trim();
 }
 
+// Resolve the "Epic Link" association for the project. Modern team-managed
+// projects expose a `parent` field on every child issue type, while
+// classic company-managed projects keep the legacy `customfield_*` whose
+// schema.custom URI matches `gh-epic-link`. Returns `null` when neither
+// shape is available (e.g. the project doesn't use epics at all).
+export function findEpicLinkField(
+  fields: Record<string, JiraFieldMeta>,
+): { id: string; mode: "parent" | "epic-link" } | null {
+  if ("parent" in fields) return { id: "parent", mode: "parent" };
+  for (const [id, meta] of Object.entries(fields)) {
+    const custom = meta.schema?.custom ?? "";
+    if (/epic-link/i.test(custom)) return { id, mode: "epic-link" };
+  }
+  return null;
+}
+
+// The "Flagged" custom field is identified by display name (Atlassian
+// doesn't ship a stable custom-schema URI for it across deployments).
+// Accept both "Flag" and "Flagged" to tolerate admin renames.
+export function findFlaggedField(
+  fields: Record<string, JiraFieldMeta>,
+): { id: string } | null {
+  for (const [id, meta] of Object.entries(fields)) {
+    if (/^flag(ged)?$/i.test(meta.name)) return { id };
+  }
+  return null;
+}
+
+// Labels are always the system `labels` field when present on createmeta.
+export function findLabelsField(fields: Record<string, JiraFieldMeta>): boolean {
+  return "labels" in fields;
+}
+
 // System fields we already populate explicitly — never auto-route AC into
 // these even if their display name happens to match.
 const SYSTEM_FIELDS_WE_HANDLE = new Set([
@@ -73,6 +113,9 @@ export async function exportToJira(
   const autoFilled: string[] = [];
   const missingRequired: string[] = [];
   let acField: { id: string; meta: JiraFieldMeta } | null = null;
+  let epicField: { id: string; mode: "parent" | "epic-link" } | null = null;
+  let flaggedField: { id: string } | null = null;
+  let labelsAvailable = false;
   try {
     const fieldMeta = await listCreateFields(
       accessToken,
@@ -88,8 +131,57 @@ export async function exportToJira(
       }
       if (meta.required) missingRequired.push(`${meta.name} (${id})`);
     }
+    epicField = findEpicLinkField(fieldMeta);
+    flaggedField = findFlaggedField(fieldMeta);
+    labelsAvailable = findLabelsField(fieldMeta);
   } catch (err) {
     console.warn("[jira/export] failed to fetch field metadata, proceeding anyway:", err);
+  }
+
+  const metadata = body.metadata;
+
+  // Resolve the epic association up front. For kind === "existing" we just
+  // capture the supplied key; for kind === "new" we pre-create an Epic
+  // issue so its key can be set as the parent on the main createIssue
+  // call. We need to do this before building `fields` so the fields-build
+  // step can unify both branches.
+  let epicCreated: { key: string } | undefined;
+  let resolvedEpicKey: string | null = null;
+
+  if (metadata?.epic) {
+    if (metadata.epic.kind === "existing") {
+      resolvedEpicKey = metadata.epic.key;
+    } else {
+      // kind === "new" — pre-create an Epic issue
+      const types = await listCreatableIssueTypes(
+        accessToken,
+        body.cloudId,
+        body.projectKey,
+      );
+      const epicType = types.find((t) => /^epic$/i.test(t.name));
+      if (!epicType) {
+        throw new Error(
+          "Cannot create epic inline: no Epic issuetype is available in this project.",
+        );
+      }
+      const epicCreate = await createIssue(accessToken, body.cloudId, {
+        summary: metadata.epic.title.slice(0, 250),
+        project: { key: body.projectKey },
+        issuetype: { id: epicType.id },
+        description: {
+          type: "doc",
+          version: 1,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Created from task creator." }],
+            },
+          ],
+        },
+      });
+      resolvedEpicKey = epicCreate.key;
+      epicCreated = { key: epicCreate.key };
+    }
   }
 
   // Description source = the markdown the user sees in the preview pane,
@@ -112,6 +204,19 @@ export async function exportToJira(
     issuetype: { id: body.issueTypeId },
     description: adf,
   };
+
+  if (metadata?.labels && metadata.labels.length > 0 && labelsAvailable) {
+    fields.labels = metadata.labels;
+  }
+
+  if (resolvedEpicKey && epicField) {
+    fields[epicField.id] =
+      epicField.mode === "parent" ? { key: resolvedEpicKey } : resolvedEpicKey;
+  }
+
+  if (metadata?.flagged && flaggedField) {
+    fields[flaggedField.id] = [{ value: "Impediment" }];
+  }
 
   if (acField && acSection) {
     const value = fieldExpectsAdf(acField.meta)
@@ -148,6 +253,55 @@ export async function exportToJira(
     ? `${siteUrl.replace(/\/$/, "")}/browse/${created.key}`
     : `https://www.atlassian.com/`;
 
+  // Post-create: issue links + flag comment. Both happen after the main
+  // issue exists, never abort the export on failure, and surface their
+  // per-step outcomes on the result so the UI can render warnings.
+  const linkResults: { ok: string[]; failed: Array<{ key: string; error: string }> } = {
+    ok: [],
+    failed: [],
+  };
+  if (metadata?.linkedIssues && metadata.linkedIssues.length > 0) {
+    await Promise.all(
+      metadata.linkedIssues.map(async (l) => {
+        try {
+          await createIssueLink(accessToken, body.cloudId, {
+            type: { id: l.linkTypeId },
+            inwardIssue: { key: l.key },
+            outwardIssue: { key: created.key },
+          });
+          linkResults.ok.push(l.key);
+        } catch (err) {
+          linkResults.failed.push({
+            key: l.key,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }),
+    );
+  }
+
+  let flagCommentResult: "ok" | "skipped" | "failed" = "skipped";
+  let flagCommentError: string | undefined;
+  if (metadata?.flagged && metadata.flagReason) {
+    try {
+      const adfBody = {
+        type: "doc",
+        version: 1,
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: `Flagged: ${metadata.flagReason}` }],
+          },
+        ],
+      };
+      await addComment(accessToken, body.cloudId, created.key, adfBody);
+      flagCommentResult = "ok";
+    } catch (err) {
+      flagCommentResult = "failed";
+      flagCommentError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   const attachments: ExportResult["attachments"] = {};
   const attachmentErrors: ExportResult["attachmentErrors"] = {};
 
@@ -173,5 +327,9 @@ export async function exportToJira(
     attachmentErrors,
     autoFilledFields: autoFilled,
     missingRequiredFields: missingRequired,
+    linkResults,
+    flagCommentResult,
+    flagCommentError,
+    epicCreated,
   };
 }

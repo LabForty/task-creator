@@ -66,8 +66,12 @@ export async function jiraFetch<T>(
     );
   }
   if (res.status === 204) return undefined as T;
+  // Some endpoints (e.g. POST /issueLink) return 2xx with an empty body.
+  // Read as text first so we can short-circuit instead of choking on res.json().
+  const text = await res.text();
+  if (!text) return undefined as T;
   // attachment uploads return JSON arrays — same handling either way.
-  return (await res.json()) as T;
+  return JSON.parse(text) as T;
 }
 
 // ---- Typed shapes for the endpoints we use --------------------------------
@@ -179,6 +183,93 @@ export async function createIssue(
   });
 }
 
+export async function searchIssues(
+  accessToken: string,
+  cloudId: string,
+  jql: string,
+  maxResults = 10,
+): Promise<Array<{ key: string; title: string }>> {
+  type Resp = { issues: Array<{ key: string; fields?: { summary?: string } }> };
+  const data = await jiraFetch<Resp>(accessToken, cloudId, "/rest/api/3/search/jql", {
+    method: "POST",
+    body: { jql, fields: ["summary"], maxResults },
+  });
+  return (data.issues ?? []).map((i) => ({ key: i.key, title: i.fields?.summary ?? "" }));
+}
+
+export async function searchLabels(
+  accessToken: string,
+  cloudId: string,
+  query: string,
+  maxResults = 20,
+): Promise<string[]> {
+  // Use the JQL autocomplete endpoint — it's the only label-suggest path the
+  // OAuth 3LO proxy (api.atlassian.com/ex/jira) exposes. /rest/api/1.0/* and
+  // /rest/api/3/label are not proxied (401). Response: { results: [{ value, displayName }] }
+  type Resp = { results: Array<{ value: string; displayName: string }> };
+  const data = await jiraFetch<Resp>(
+    accessToken,
+    cloudId,
+    "/rest/api/3/jql/autocompletedata/suggestions",
+    { query: { fieldName: "labels", fieldValue: query } },
+  );
+  const unique = new Set<string>();
+  for (const r of data.results ?? []) {
+    if (r.value) unique.add(r.value);
+    if (unique.size >= maxResults) break;
+  }
+  return Array.from(unique);
+}
+
+export type JiraLinkType = {
+  id: string;
+  name: string;
+  inward: string;
+  outward: string;
+};
+
+export async function listLinkTypes(
+  accessToken: string,
+  cloudId: string,
+): Promise<JiraLinkType[]> {
+  type Resp = { issueLinkTypes: JiraLinkType[] };
+  const data = await jiraFetch<Resp>(accessToken, cloudId, "/rest/api/3/issueLinkType");
+  return data.issueLinkTypes ?? [];
+}
+
+export async function uploadAttachmentBinary(
+  accessToken: string,
+  cloudId: string,
+  issueKey: string,
+  filename: string,
+  data: Uint8Array,
+  contentType: string,
+): Promise<JiraAttachment[]> {
+  const boundary = "----TaskCreatorBoundary" + Math.random().toString(36).slice(2);
+  const enc = new TextEncoder();
+  const head = enc.encode(
+    `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${filename.replace(/"/g, '\\"')}"\r\n` +
+      `Content-Type: ${contentType || "application/octet-stream"}\r\n\r\n`,
+  );
+  const tail = enc.encode(`\r\n--${boundary}--\r\n`);
+  const buf = new Uint8Array(head.length + data.length + tail.length);
+  buf.set(head, 0);
+  buf.set(data, head.length);
+  buf.set(tail, head.length + data.length);
+  return jiraFetch<JiraAttachment[]>(
+    accessToken,
+    cloudId,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}/attachments`,
+    {
+      method: "POST",
+      rawBody: buf,
+      contentType: `multipart/form-data; boundary=${boundary}`,
+      noCheck: true,
+    },
+  );
+}
+
 export async function uploadAttachment(
   accessToken: string,
   cloudId: string,
@@ -211,5 +302,36 @@ export async function uploadAttachment(
       contentType: `multipart/form-data; boundary=${boundary}`,
       noCheck: true,
     },
+  );
+}
+
+export type IssueLinkBody = {
+  type: { id?: string; name?: string };
+  inwardIssue: { key: string };
+  outwardIssue: { key: string };
+};
+
+export async function createIssueLink(
+  accessToken: string,
+  cloudId: string,
+  body: IssueLinkBody,
+): Promise<void> {
+  await jiraFetch<void>(accessToken, cloudId, "/rest/api/3/issueLink", {
+    method: "POST",
+    body,
+  });
+}
+
+export async function addComment(
+  accessToken: string,
+  cloudId: string,
+  issueKey: string,
+  adfBody: unknown,
+): Promise<{ id: string }> {
+  return jiraFetch<{ id: string }>(
+    accessToken,
+    cloudId,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`,
+    { method: "POST", body: { body: adfBody } },
   );
 }

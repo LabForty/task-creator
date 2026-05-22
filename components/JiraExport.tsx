@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { JiraMetadata } from "@/components/jira-metadata/JiraMetadata";
+import { EMPTY_METADATA, type JiraMetadata as JiraMetadataValue } from "@/lib/jira/metadata";
+import { uploadDraftAttachment } from "@/lib/jira/upload-client";
 import type { Diagrams, FinalizedPayload, MermaidFormat } from "@/lib/jobs/types";
 
 type Site = { id: string; name: string; url: string };
@@ -15,6 +18,10 @@ type ExportResult = {
   attachmentErrors: Partial<Record<MermaidFormat, string>>;
   autoFilledFields?: string[];
   missingRequiredFields?: string[];
+  linkResults?: { ok: string[]; failed: Array<{ key: string; error: string }> };
+  flagCommentResult?: "ok" | "skipped" | "failed";
+  flagCommentError?: string;
+  epicCreated?: { key: string };
 };
 
 type Props = {
@@ -50,6 +57,11 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
   const [exporting, setExporting] = useState(false);
   const [exportErr, setExportErr] = useState<string | null>(null);
   const [result, setResult] = useState<ExportResult | null>(null);
+
+  const [metadata, setMetadata] = useState<JiraMetadataValue>(EMPTY_METADATA);
+  const [attachmentResults, setAttachmentResults] = useState<Array<{
+    name: string; status: "uploading" | "ok" | "failed"; error?: string; pct?: number;
+  }>>([]);
 
   // Load sites once.
   useEffect(() => {
@@ -158,6 +170,15 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
           issueTypeId,
           payload: { story: payload.story, markdown: payload.markdown, constraints: undefined },
           diagrams: diagrams && Object.fromEntries(Object.entries(diagrams).filter(([, v]) => v && v.trim())),
+          metadata: {
+            labels: metadata.labels.length ? metadata.labels : undefined,
+            linkedIssues: metadata.linkedIssues.length
+              ? metadata.linkedIssues.map((l) => ({ key: l.key, linkTypeId: l.linkTypeId }))
+              : undefined,
+            flagged: metadata.flagged || undefined,
+            flagReason: metadata.flagged ? metadata.flagReason : undefined,
+            epic: metadata.epic,
+          },
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -165,7 +186,36 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
         setExportErr(typeof json.error === "string" ? json.error : `Export failed (${res.status})`);
         return;
       }
-      setResult(json as ExportResult);
+      const r = json as ExportResult;
+      setResult(r);
+
+      if (metadata.attachments.length > 0 && r.key) {
+        const issueKey = r.key;
+        const initial = metadata.attachments.map((a) => ({
+          name: a.file.name,
+          status: "uploading" as const,
+          pct: 0,
+        }));
+        setAttachmentResults(initial);
+        await Promise.all(metadata.attachments.map(async (a, idx) => {
+          try {
+            await uploadDraftAttachment({
+              cloudId: siteId!,
+              issueKey,
+              file: a.file,
+              onProgress: (pct) =>
+                setAttachmentResults((cur) => cur.map((row, i) => i === idx ? { ...row, pct } : row)),
+            });
+            setAttachmentResults((cur) =>
+              cur.map((row, i) => i === idx ? { ...row, status: "ok", pct: 100 } : row),
+            );
+          } catch (e) {
+            setAttachmentResults((cur) => cur.map((row, i) =>
+              i === idx ? { ...row, status: "failed", error: e instanceof Error ? e.message : "upload failed" } : row,
+            ));
+          }
+        }));
+      }
     } catch (e) {
       setExportErr(e instanceof Error ? e.message : "Network error");
     } finally {
@@ -224,6 +274,42 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
                   ))}
                 </ul>
               </div>
+            )}
+            {attachmentResults.length > 0 && (
+              <div className="rounded-md bg-surface-muted p-3">
+                <p className="text-hig-footnote text-ink-secondary mb-1">Draft attachments</p>
+                <ul className="text-hig-footnote">
+                  {attachmentResults.map((r) => (
+                    <li key={r.name}>
+                      <code>{r.name}</code> —{" "}
+                      {r.status === "uploading"
+                        ? `uploading${typeof r.pct === "number" ? ` (${r.pct}%)` : "…"}`
+                        : r.status === "ok"
+                        ? <span className="text-ink">uploaded</span>
+                        : <span className="text-danger">failed{r.error ? `: ${r.error}` : ""}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {result.linkResults && (result.linkResults.ok.length > 0 || result.linkResults.failed.length > 0) && (
+              <div className="rounded-md bg-surface-muted p-3">
+                <p className="text-hig-footnote text-ink-secondary mb-1">Linked issues</p>
+                <ul className="text-hig-footnote">
+                  {result.linkResults.ok.map((k) => (
+                    <li key={k} className="text-ink">{k} linked</li>
+                  ))}
+                  {result.linkResults.failed.map((f) => (
+                    <li key={f.key} className="text-danger">{f.key}: {f.error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {result.flagCommentResult === "failed" && (
+              <p className="text-hig-footnote text-danger">Flag comment failed: {result.flagCommentError ?? "unknown"}</p>
+            )}
+            {result.epicCreated && (
+              <p className="text-hig-footnote text-ink-secondary">Epic created: <code>{result.epicCreated.key}</code></p>
             )}
           </div>
         </div>
@@ -343,6 +429,15 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
               <p className="text-hig-footnote text-danger break-words">{exportErr}</p>
             </div>
           )}
+
+          <JiraMetadata
+            cloudId={siteId || null}
+            projectKey={projectKey || null}
+            issueTypeId={issueTypeId || null}
+            value={metadata}
+            onChange={setMetadata}
+            disabled={exporting || !!result}
+          />
         </div>
 
         {/* RIGHT: preview of what Jira will receive */}
@@ -362,6 +457,32 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
                   <li key={f}><code>{f}.mmd</code></li>
                 ))}
               </ul>
+            </div>
+          )}
+          {(metadata.labels.length > 0 ||
+            metadata.linkedIssues.length > 0 ||
+            metadata.attachments.length > 0 ||
+            metadata.flagged ||
+            metadata.epic) && (
+            <div className="shrink-0 rounded-md bg-surface-muted p-3 flex flex-col gap-1">
+              <p className="text-hig-footnote text-ink-secondary mb-1">Metadata</p>
+              {metadata.labels.length > 0 && (
+                <p className="text-hig-footnote"><strong>Labels:</strong> {metadata.labels.join(", ")}</p>
+              )}
+              {metadata.linkedIssues.length > 0 && (
+                <p className="text-hig-footnote"><strong>Linked:</strong> {metadata.linkedIssues.map((l) => l.key).join(", ")}</p>
+              )}
+              {metadata.attachments.length > 0 && (
+                <p className="text-hig-footnote"><strong>Attachments:</strong> {metadata.attachments.map((a) => a.file.name).join(", ")}</p>
+              )}
+              {metadata.flagged && (
+                <p className="text-hig-footnote"><strong>Flag:</strong> {metadata.flagReason}</p>
+              )}
+              {metadata.epic && (
+                <p className="text-hig-footnote"><strong>Epic:</strong> {
+                  metadata.epic.kind === "existing" ? metadata.epic.key : `New: ${metadata.epic.title}`
+                }</p>
+              )}
             </div>
           )}
         </div>

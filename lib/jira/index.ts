@@ -36,17 +36,41 @@ export {
   listProjects,
   listCreatableIssueTypes,
   createIssue,
+  searchIssues,
+  searchLabels,
+  listLinkTypes,
   uploadAttachment,
+  uploadAttachmentBinary,
+  createIssueLink,
+  addComment,
   type JiraProject,
   type JiraIssueType,
   type CreateIssueResponse,
   type JiraAttachment,
+  type JiraLinkType,
+  type IssueLinkBody,
 } from "./client";
 export { buildIssueDescriptionAdf, type AdfDoc } from "./adf";
 export { exportToJira, type ExportResult } from "./export";
 export {
   ExportBodySchema,
   ExportPayloadSchema,
+  MetadataSchema,
   type ExportBody,
   type ExportPayload,
+  type ExportMetadata,
 } from "./schemas";
+export {
+  EMPTY_METADATA,
+  MAX_DRAFT_ATTACHMENT_BYTES_DEFAULT,
+  ISSUE_KEY_REGEX,
+  isValidIssueKey,
+  isValidFlagReason,
+  normalizeLabel,
+  dedupeLabels,
+  type JiraLinkedIssue,
+  type JiraDraftAttachment,
+  type JiraEpicRef,
+  type JiraMetadata,
+} from "./metadata";
+export { readDraftAttachmentMaxBytes } from "./config";

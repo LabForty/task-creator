@@ -1,4 +1,5 @@
 import { JiraError } from "./errors";
+import { MAX_DRAFT_ATTACHMENT_BYTES_DEFAULT } from "./metadata";
 
 export type JiraConfig = {
   clientId: string;
@@ -79,4 +80,12 @@ export function isConfigured(): boolean {
   } catch {
     return false;
   }
+}
+
+export function readDraftAttachmentMaxBytes(): number {
+  const raw = process.env.JIRA_DRAFT_ATTACHMENT_MAX_MB;
+  if (!raw) return MAX_DRAFT_ATTACHMENT_BYTES_DEFAULT;
+  const mb = Number.parseInt(raw, 10);
+  if (!Number.isFinite(mb) || mb <= 0) return MAX_DRAFT_ATTACHMENT_BYTES_DEFAULT;
+  return mb * 1024 * 1024;
 }
