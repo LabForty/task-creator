@@ -19,6 +19,10 @@ export type ExportResult = {
   attachmentErrors: Partial<Record<MermaidFormat, string>>;
   autoFilledFields: string[];
   missingRequiredFields: string[];
+  linkResults?: { ok: string[]; failed: Array<{ key: string; error: string }> };
+  flagCommentResult?: "ok" | "skipped" | "failed";
+  flagCommentError?: string;
+  epicCreated?: { key: string };
 };
 
 // In Jira Cloud REST v3, rich-text custom fields (textarea-style) expect
@@ -106,6 +110,9 @@ export async function exportToJira(
   const autoFilled: string[] = [];
   const missingRequired: string[] = [];
   let acField: { id: string; meta: JiraFieldMeta } | null = null;
+  let epicField: { id: string; mode: "parent" | "epic-link" } | null = null;
+  let flaggedField: { id: string } | null = null;
+  let labelsAvailable = false;
   try {
     const fieldMeta = await listCreateFields(
       accessToken,
@@ -121,9 +128,14 @@ export async function exportToJira(
       }
       if (meta.required) missingRequired.push(`${meta.name} (${id})`);
     }
+    epicField = findEpicLinkField(fieldMeta);
+    flaggedField = findFlaggedField(fieldMeta);
+    labelsAvailable = findLabelsField(fieldMeta);
   } catch (err) {
     console.warn("[jira/export] failed to fetch field metadata, proceeding anyway:", err);
   }
+
+  const metadata = body.metadata;
 
   // Description source = the markdown the user sees in the preview pane,
   // which may diverge from story.markdown if they edited the textarea after
@@ -145,6 +157,19 @@ export async function exportToJira(
     issuetype: { id: body.issueTypeId },
     description: adf,
   };
+
+  if (metadata?.labels && metadata.labels.length > 0 && labelsAvailable) {
+    fields.labels = metadata.labels;
+  }
+
+  if (metadata?.epic && metadata.epic.kind === "existing" && epicField) {
+    fields[epicField.id] =
+      epicField.mode === "parent" ? { key: metadata.epic.key } : metadata.epic.key;
+  }
+
+  if (metadata?.flagged && flaggedField) {
+    fields[flaggedField.id] = [{ value: "Impediment" }];
+  }
 
   if (acField && acSection) {
     const value = fieldExpectsAdf(acField.meta)
