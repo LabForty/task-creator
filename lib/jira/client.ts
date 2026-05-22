@@ -226,6 +226,39 @@ export async function listLinkTypes(
   return data.issueLinkTypes ?? [];
 }
 
+export async function uploadAttachmentBinary(
+  accessToken: string,
+  cloudId: string,
+  issueKey: string,
+  filename: string,
+  data: Uint8Array,
+  contentType: string,
+): Promise<JiraAttachment[]> {
+  const boundary = "----TaskCreatorBoundary" + Math.random().toString(36).slice(2);
+  const enc = new TextEncoder();
+  const head = enc.encode(
+    `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${filename.replace(/"/g, '\\"')}"\r\n` +
+      `Content-Type: ${contentType || "application/octet-stream"}\r\n\r\n`,
+  );
+  const tail = enc.encode(`\r\n--${boundary}--\r\n`);
+  const buf = new Uint8Array(head.length + data.length + tail.length);
+  buf.set(head, 0);
+  buf.set(data, head.length);
+  buf.set(tail, head.length + data.length);
+  return jiraFetch<JiraAttachment[]>(
+    accessToken,
+    cloudId,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}/attachments`,
+    {
+      method: "POST",
+      rawBody: buf,
+      contentType: `multipart/form-data; boundary=${boundary}`,
+      noCheck: true,
+    },
+  );
+}
+
 export async function uploadAttachment(
   accessToken: string,
   cloudId: string,

@@ -40,6 +40,7 @@ export {
   searchLabels,
   listLinkTypes,
   uploadAttachment,
+  uploadAttachmentBinary,
   createIssueLink,
   addComment,
   type JiraProject,
