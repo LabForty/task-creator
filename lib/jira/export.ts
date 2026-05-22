@@ -49,6 +49,39 @@ function acAsPlainText(acMarkdown: string): string {
     .trim();
 }
 
+// Resolve the "Epic Link" association for the project. Modern team-managed
+// projects expose a `parent` field on every child issue type, while
+// classic company-managed projects keep the legacy `customfield_*` whose
+// schema.custom URI matches `gh-epic-link`. Returns `null` when neither
+// shape is available (e.g. the project doesn't use epics at all).
+export function findEpicLinkField(
+  fields: Record<string, JiraFieldMeta>,
+): { id: string; mode: "parent" | "epic-link" } | null {
+  if ("parent" in fields) return { id: "parent", mode: "parent" };
+  for (const [id, meta] of Object.entries(fields)) {
+    const custom = meta.schema?.custom ?? "";
+    if (/epic-link/i.test(custom)) return { id, mode: "epic-link" };
+  }
+  return null;
+}
+
+// The "Flagged" custom field is identified by display name (Atlassian
+// doesn't ship a stable custom-schema URI for it across deployments).
+// Accept both "Flag" and "Flagged" to tolerate admin renames.
+export function findFlaggedField(
+  fields: Record<string, JiraFieldMeta>,
+): { id: string } | null {
+  for (const [id, meta] of Object.entries(fields)) {
+    if (/^flag(ged)?$/i.test(meta.name)) return { id };
+  }
+  return null;
+}
+
+// Labels are always the system `labels` field when present on createmeta.
+export function findLabelsField(fields: Record<string, JiraFieldMeta>): boolean {
+  return "labels" in fields;
+}
+
 // System fields we already populate explicitly — never auto-route AC into
 // these even if their display name happens to match.
 const SYSTEM_FIELDS_WE_HANDLE = new Set([
