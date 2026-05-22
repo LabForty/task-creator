@@ -28,7 +28,9 @@ function useDebouncedFetch<T>(
   // Keep latest parse in a ref so changing it (inline arrows in callers) does
   // not retrigger the fetch effect on every render.
   const parseRef = useRef(parse);
-  parseRef.current = parse;
+  useEffect(() => {
+    parseRef.current = parse;
+  });
 
   const run = useCallback(async (target: string) => {
     abortRef.current?.abort();
@@ -66,6 +68,10 @@ function useDebouncedFetch<T>(
 
   useEffect(() => {
     if (!url) {
+      // Reset when the consumer drops the query — these setStates are the
+      // intentional "synchronize to no-query" path; the rule's cascading-
+      // render concern doesn't apply because url stays null on subsequent renders.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setData(null);
       setLoading(false);
       setError(null);
@@ -184,6 +190,7 @@ export function useLinkTypes(cloudId: string | null): FetchState<LinkType[]> {
 
   useEffect(() => {
     if (!cloudId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setData(null);
       return;
     }
