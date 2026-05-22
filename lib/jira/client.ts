@@ -66,8 +66,12 @@ export async function jiraFetch<T>(
     );
   }
   if (res.status === 204) return undefined as T;
+  // Some endpoints (e.g. POST /issueLink) return 2xx with an empty body.
+  // Read as text first so we can short-circuit instead of choking on res.json().
+  const text = await res.text();
+  if (!text) return undefined as T;
   // attachment uploads return JSON arrays — same handling either way.
-  return (await res.json()) as T;
+  return JSON.parse(text) as T;
 }
 
 // ---- Typed shapes for the endpoints we use --------------------------------
@@ -254,5 +258,36 @@ export async function uploadAttachment(
       contentType: `multipart/form-data; boundary=${boundary}`,
       noCheck: true,
     },
+  );
+}
+
+export type IssueLinkBody = {
+  type: { id?: string; name?: string };
+  inwardIssue: { key: string };
+  outwardIssue: { key: string };
+};
+
+export async function createIssueLink(
+  accessToken: string,
+  cloudId: string,
+  body: IssueLinkBody,
+): Promise<void> {
+  await jiraFetch<void>(accessToken, cloudId, "/rest/api/3/issueLink", {
+    method: "POST",
+    body,
+  });
+}
+
+export async function addComment(
+  accessToken: string,
+  cloudId: string,
+  issueKey: string,
+  adfBody: unknown,
+): Promise<{ id: string }> {
+  return jiraFetch<{ id: string }>(
+    accessToken,
+    cloudId,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`,
+    { method: "POST", body: { body: adfBody } },
   );
 }

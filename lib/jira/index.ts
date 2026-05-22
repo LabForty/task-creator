@@ -40,11 +40,14 @@ export {
   searchLabels,
   listLinkTypes,
   uploadAttachment,
+  createIssueLink,
+  addComment,
   type JiraProject,
   type JiraIssueType,
   type CreateIssueResponse,
   type JiraAttachment,
   type JiraLinkType,
+  type IssueLinkBody,
 } from "./client";
 export { buildIssueDescriptionAdf, type AdfDoc } from "./adf";
 export { exportToJira, type ExportResult } from "./export";
