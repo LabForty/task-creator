@@ -1,6 +1,8 @@
 import { buildIssueDescriptionAdf } from "./adf";
 import {
+  addComment,
   createIssue,
+  createIssueLink,
   listCreateFields,
   uploadAttachment,
   type JiraFieldMeta,
@@ -206,6 +208,55 @@ export async function exportToJira(
     ? `${siteUrl.replace(/\/$/, "")}/browse/${created.key}`
     : `https://www.atlassian.com/`;
 
+  // Post-create: issue links + flag comment. Both happen after the main
+  // issue exists, never abort the export on failure, and surface their
+  // per-step outcomes on the result so the UI can render warnings.
+  const linkResults: { ok: string[]; failed: Array<{ key: string; error: string }> } = {
+    ok: [],
+    failed: [],
+  };
+  if (metadata?.linkedIssues && metadata.linkedIssues.length > 0) {
+    await Promise.all(
+      metadata.linkedIssues.map(async (l) => {
+        try {
+          await createIssueLink(accessToken, body.cloudId, {
+            type: { id: l.linkTypeId },
+            inwardIssue: { key: l.key },
+            outwardIssue: { key: created.key },
+          });
+          linkResults.ok.push(l.key);
+        } catch (err) {
+          linkResults.failed.push({
+            key: l.key,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }),
+    );
+  }
+
+  let flagCommentResult: "ok" | "skipped" | "failed" = "skipped";
+  let flagCommentError: string | undefined;
+  if (metadata?.flagged && metadata.flagReason) {
+    try {
+      const adfBody = {
+        type: "doc",
+        version: 1,
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: `Flagged: ${metadata.flagReason}` }],
+          },
+        ],
+      };
+      await addComment(accessToken, body.cloudId, created.key, adfBody);
+      flagCommentResult = "ok";
+    } catch (err) {
+      flagCommentResult = "failed";
+      flagCommentError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   const attachments: ExportResult["attachments"] = {};
   const attachmentErrors: ExportResult["attachmentErrors"] = {};
 
@@ -231,5 +282,8 @@ export async function exportToJira(
     attachmentErrors,
     autoFilledFields: autoFilled,
     missingRequiredFields: missingRequired,
+    linkResults,
+    flagCommentResult,
+    flagCommentError,
   };
 }
