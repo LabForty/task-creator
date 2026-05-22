@@ -179,6 +179,20 @@ export async function createIssue(
   });
 }
 
+export async function searchIssues(
+  accessToken: string,
+  cloudId: string,
+  jql: string,
+  maxResults = 10,
+): Promise<Array<{ key: string; title: string }>> {
+  type Resp = { issues: Array<{ key: string; fields?: { summary?: string } }> };
+  const data = await jiraFetch<Resp>(accessToken, cloudId, "/rest/api/3/search/jql", {
+    method: "POST",
+    body: { jql, fields: ["summary"], maxResults },
+  });
+  return (data.issues ?? []).map((i) => ({ key: i.key, title: i.fields?.summary ?? "" }));
+}
+
 export async function searchLabels(
   accessToken: string,
   cloudId: string,
