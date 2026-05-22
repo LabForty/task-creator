@@ -9,7 +9,7 @@ const DIAGRAM_TITLES: Record<MermaidFormat, string> = {
   interaction: "Interaction",
 };
 
-function renderDiagrams(diagrams: Diagrams): string | null {
+export function renderDiagramsBlock(diagrams: Diagrams): string | null {
   const order: MermaidFormat[] = ["flow", "sequence", "interaction"];
   const blocks: string[] = [];
   for (const fmt of order) {
@@ -19,6 +19,33 @@ function renderDiagrams(diagrams: Diagrams): string | null {
   }
   if (blocks.length === 0) return null;
   return `## Diagrams\n${blocks.join("\n\n")}`;
+}
+
+// Matches an existing `## Diagrams` section from its heading to end-of-string.
+// `renderDiagramsBlock` always emits this section last, so consuming to EOF
+// is safe — anything the planner or user has above it is preserved.
+const DIAGRAMS_BLOCK_RE = /\n*## Diagrams\b[\s\S]*$/;
+
+// Surgically replace (or append, or strip) the `## Diagrams` section of the
+// supplied markdown so it matches the current diagrams state. Preserves all
+// other edits to the markdown (description body, AC, etc.) so manual
+// textarea changes aren't clobbered when diagrams are created, regenerated,
+// or edited individually.
+//
+// - If `diagrams` produces a non-empty block: replace an existing block, or
+//   append one when none is present.
+// - If `diagrams` is empty/absent: strip any existing block.
+export function syncDiagramsInMarkdown(
+  markdown: string,
+  diagrams: Diagrams | undefined,
+): string {
+  const rendered = diagrams ? renderDiagramsBlock(diagrams) : null;
+  const hasBlock = DIAGRAMS_BLOCK_RE.test(markdown);
+  if (rendered) {
+    if (hasBlock) return markdown.replace(DIAGRAMS_BLOCK_RE, `\n\n${rendered}`);
+    return markdown.trimEnd() + `\n\n${rendered}`;
+  }
+  return hasBlock ? markdown.replace(DIAGRAMS_BLOCK_RE, "").trimEnd() : markdown;
 }
 
 // Render the finalized ticket. With the template-driven pipeline the planner
@@ -35,7 +62,7 @@ export function renderFinalized(
   const body = story.markdown.trim();
   const sections: string[] = [body];
   if (diagrams) {
-    const block = renderDiagrams(diagrams);
+    const block = renderDiagramsBlock(diagrams);
     if (block) sections.push(block);
   }
   return sections.join("\n\n");

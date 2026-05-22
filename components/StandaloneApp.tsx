@@ -12,7 +12,7 @@ import { JiraExport } from "@/components/JiraExport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { subscribeToJob } from "@/lib/sse/client";
 import { loadDraft, saveDraft } from "@/lib/draft/autosave";
-import { renderFinalized } from "@/lib/render";
+import { syncDiagramsInMarkdown } from "@/lib/render";
 import type { Draft } from "@/lib/draft/autosave";
 import type {
   AnalyzeFinding,
@@ -23,13 +23,13 @@ import type {
   ProposedEdit,
 } from "@/lib/jobs/types";
 
-// Re-render the markdown for the left pane so it reflects the current story
-// + diagrams. Called whenever diagrams arrive/regenerate or the story changes
-// via the analyzer. The user's manual textarea edits go straight into
-// payload.markdown without touching this path, so they are not clobbered.
-function rebuiltPayloadMarkdown(payload: FinalizedPayload, draft: Draft, diagrams?: Diagrams): FinalizedPayload {
-  const markdown = renderFinalized(payload.requirement, payload.story, { constraints: draft.constraints }, diagrams);
-  return { ...payload, markdown };
+// Keep the embedded `## Diagrams` section of payload.markdown in sync with
+// the current `diagrams` state without clobbering the user's manual textarea
+// edits to the rest of the body. Used after createDiagrams /
+// regenerateDiagram / editDiagram / applyAnalysis (the analyzer also tweaks
+// diagrams).
+function payloadWithSyncedDiagrams(payload: FinalizedPayload, diagrams?: Diagrams): FinalizedPayload {
+  return { ...payload, markdown: syncDiagramsInMarkdown(payload.markdown, diagrams) };
 }
 
 type Mode =
@@ -178,6 +178,13 @@ export function StandaloneApp({ initialSession }: Props) {
   function editDiagram(format: MermaidFormat, source: string) {
     const next: Diagrams = { ...(diagrams ?? {}), [format]: source };
     persistDiagrams(next);
+    // Refresh the inline `## Diagrams` block in the preview so the textarea
+    // (and the Jira description that's built from it) reflects the user's
+    // graphical / source edits. Other textarea edits are preserved.
+    setMode((prev) => {
+      if (prev.kind !== "done" && prev.kind !== "gates_failed") return prev;
+      return { ...prev, payload: payloadWithSyncedDiagrams(prev.payload, next) };
+    });
   }
 
   async function analyzeDiagrams() {
@@ -238,9 +245,8 @@ export function StandaloneApp({ initialSession }: Props) {
         if (f.proposedSync.mermaid) nextDiagrams = { ...nextDiagrams, ...f.proposedSync.mermaid };
       }
       persistDiagrams(nextDiagrams);
-      const nextPayload = rebuiltPayloadMarkdown(
+      const nextPayload = payloadWithSyncedDiagrams(
         { ...mode.payload, story: nextStory },
-        mode.lastDraft,
         nextDiagrams,
       );
       setMode({ ...mode, payload: nextPayload });
@@ -277,7 +283,7 @@ export function StandaloneApp({ initialSession }: Props) {
           persistDiagrams(next);
           setMode((prev) => {
             if (prev.kind !== "done" && prev.kind !== "gates_failed") return prev;
-            return { ...prev, payload: rebuiltPayloadMarkdown(prev.payload, prev.lastDraft, next) };
+            return { ...prev, payload: payloadWithSyncedDiagrams(prev.payload, next) };
           });
           setRegeneratingFormat(null);
           unsub();
@@ -342,7 +348,7 @@ export function StandaloneApp({ initialSession }: Props) {
           persistDiagrams(e.payload);
           setMode((prev) => {
             if (prev.kind !== "done" && prev.kind !== "gates_failed") return prev;
-            return { ...prev, payload: rebuiltPayloadMarkdown(prev.payload, prev.lastDraft, e.payload) };
+            return { ...prev, payload: payloadWithSyncedDiagrams(prev.payload, e.payload) };
           });
           setCreatingDiagrams(false);
           unsub();
