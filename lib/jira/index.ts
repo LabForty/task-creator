@@ -47,8 +47,10 @@ export { exportToJira, type ExportResult } from "./export";
 export {
   ExportBodySchema,
   ExportPayloadSchema,
+  MetadataSchema,
   type ExportBody,
   type ExportPayload,
+  type ExportMetadata,
 } from "./schemas";
 export {
   EMPTY_METADATA,
