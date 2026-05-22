@@ -179,6 +179,19 @@ export async function createIssue(
   });
 }
 
+export async function searchLabels(
+  accessToken: string,
+  cloudId: string,
+  query: string,
+  maxResults = 20,
+): Promise<string[]> {
+  type Resp = { suggestions: Array<{ label: string }> };
+  const data = await jiraFetch<Resp>(accessToken, cloudId, "/rest/api/3/label", {
+    query: { query, maxResults },
+  });
+  return data.suggestions?.map((s) => s.label) ?? [];
+}
+
 export async function uploadAttachment(
   accessToken: string,
   cloudId: string,

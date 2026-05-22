@@ -36,6 +36,7 @@ export {
   listProjects,
   listCreatableIssueTypes,
   createIssue,
+  searchLabels,
   uploadAttachment,
   type JiraProject,
   type JiraIssueType,
