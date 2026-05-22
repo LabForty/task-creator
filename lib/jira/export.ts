@@ -92,15 +92,18 @@ export async function exportToJira(
     console.warn("[jira/export] failed to fetch field metadata, proceeding anyway:", err);
   }
 
+  // Description source = the markdown the user sees in the preview pane,
+  // which may diverge from story.markdown if they edited the textarea after
+  // finalize (see AI-34). story.title still drives the Jira summary.
+  const descriptionMarkdown = body.payload.markdown;
+
   // Pull AC out of the markdown body when an AC field exists. Otherwise
   // leave the body intact — the AC will appear in the description.
   const { acSection, bodyWithoutAc } = acField
-    ? extractAcceptanceCriteria(story.markdown)
-    : { acSection: null, bodyWithoutAc: story.markdown };
+    ? extractAcceptanceCriteria(descriptionMarkdown)
+    : { acSection: null, bodyWithoutAc: descriptionMarkdown };
 
-  const descriptionStory: Story = acField && acSection
-    ? { ...story, markdown: bodyWithoutAc }
-    : story;
+  const descriptionStory: Story = { ...story, markdown: bodyWithoutAc };
   const adf = buildIssueDescriptionAdf({ story: descriptionStory });
 
   const fields: Record<string, unknown> = {

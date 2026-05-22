@@ -156,7 +156,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
           cloudId: siteId,
           projectKey,
           issueTypeId,
-          payload: { story: payload.story, constraints: undefined },
+          payload: { story: payload.story, markdown: payload.markdown, constraints: undefined },
           diagrams: diagrams && Object.fromEntries(Object.entries(diagrams).filter(([, v]) => v && v.trim())),
         }),
       });
