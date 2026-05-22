@@ -3,6 +3,7 @@ import {
   addComment,
   createIssue,
   createIssueLink,
+  listCreatableIssueTypes,
   listCreateFields,
   uploadAttachment,
   type JiraFieldMeta,
@@ -139,6 +140,50 @@ export async function exportToJira(
 
   const metadata = body.metadata;
 
+  // Resolve the epic association up front. For kind === "existing" we just
+  // capture the supplied key; for kind === "new" we pre-create an Epic
+  // issue so its key can be set as the parent on the main createIssue
+  // call. We need to do this before building `fields` so the fields-build
+  // step can unify both branches.
+  let epicCreated: { key: string } | undefined;
+  let resolvedEpicKey: string | null = null;
+
+  if (metadata?.epic) {
+    if (metadata.epic.kind === "existing") {
+      resolvedEpicKey = metadata.epic.key;
+    } else {
+      // kind === "new" — pre-create an Epic issue
+      const types = await listCreatableIssueTypes(
+        accessToken,
+        body.cloudId,
+        body.projectKey,
+      );
+      const epicType = types.find((t) => /^epic$/i.test(t.name));
+      if (!epicType) {
+        throw new Error(
+          "Cannot create epic inline: no Epic issuetype is available in this project.",
+        );
+      }
+      const epicCreate = await createIssue(accessToken, body.cloudId, {
+        summary: metadata.epic.title.slice(0, 250),
+        project: { key: body.projectKey },
+        issuetype: { id: epicType.id },
+        description: {
+          type: "doc",
+          version: 1,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Created from task creator." }],
+            },
+          ],
+        },
+      });
+      resolvedEpicKey = epicCreate.key;
+      epicCreated = { key: epicCreate.key };
+    }
+  }
+
   // Description source = the markdown the user sees in the preview pane,
   // which may diverge from story.markdown if they edited the textarea after
   // finalize (see AI-34). story.title still drives the Jira summary.
@@ -164,9 +209,9 @@ export async function exportToJira(
     fields.labels = metadata.labels;
   }
 
-  if (metadata?.epic && metadata.epic.kind === "existing" && epicField) {
+  if (resolvedEpicKey && epicField) {
     fields[epicField.id] =
-      epicField.mode === "parent" ? { key: metadata.epic.key } : metadata.epic.key;
+      epicField.mode === "parent" ? { key: resolvedEpicKey } : resolvedEpicKey;
   }
 
   if (metadata?.flagged && flaggedField) {
@@ -285,5 +330,6 @@ export async function exportToJira(
     linkResults,
     flagCommentResult,
     flagCommentError,
+    epicCreated,
   };
 }
