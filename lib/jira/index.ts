@@ -38,11 +38,13 @@ export {
   createIssue,
   searchIssues,
   searchLabels,
+  listLinkTypes,
   uploadAttachment,
   type JiraProject,
   type JiraIssueType,
   type CreateIssueResponse,
   type JiraAttachment,
+  type JiraLinkType,
 } from "./client";
 export { buildIssueDescriptionAdf, type AdfDoc } from "./adf";
 export { exportToJira, type ExportResult } from "./export";

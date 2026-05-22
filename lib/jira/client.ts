@@ -206,6 +206,22 @@ export async function searchLabels(
   return data.suggestions?.map((s) => s.label) ?? [];
 }
 
+export type JiraLinkType = {
+  id: string;
+  name: string;
+  inward: string;
+  outward: string;
+};
+
+export async function listLinkTypes(
+  accessToken: string,
+  cloudId: string,
+): Promise<JiraLinkType[]> {
+  type Resp = { issueLinkTypes: JiraLinkType[] };
+  const data = await jiraFetch<Resp>(accessToken, cloudId, "/rest/api/3/issueLinkType");
+  return data.issueLinkTypes ?? [];
+}
+
 export async function uploadAttachment(
   accessToken: string,
   cloudId: string,
