@@ -203,11 +203,22 @@ export async function searchLabels(
   query: string,
   maxResults = 20,
 ): Promise<string[]> {
-  type Resp = { suggestions: Array<{ label: string }> };
-  const data = await jiraFetch<Resp>(accessToken, cloudId, "/rest/api/3/label", {
-    query: { query, maxResults },
-  });
-  return data.suggestions?.map((s) => s.label) ?? [];
+  // Use the JQL autocomplete endpoint — it's the only label-suggest path the
+  // OAuth 3LO proxy (api.atlassian.com/ex/jira) exposes. /rest/api/1.0/* and
+  // /rest/api/3/label are not proxied (401). Response: { results: [{ value, displayName }] }
+  type Resp = { results: Array<{ value: string; displayName: string }> };
+  const data = await jiraFetch<Resp>(
+    accessToken,
+    cloudId,
+    "/rest/api/3/jql/autocompletedata/suggestions",
+    { query: { fieldName: "labels", fieldValue: query } },
+  );
+  const unique = new Set<string>();
+  for (const r of data.results ?? []) {
+    if (r.value) unique.add(r.value);
+    if (unique.size >= maxResults) break;
+  }
+  return Array.from(unique);
 }
 
 export type JiraLinkType = {
