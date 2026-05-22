@@ -50,3 +50,17 @@ export {
   type ExportBody,
   type ExportPayload,
 } from "./schemas";
+export {
+  EMPTY_METADATA,
+  MAX_DRAFT_ATTACHMENT_BYTES_DEFAULT,
+  ISSUE_KEY_REGEX,
+  isValidIssueKey,
+  isValidFlagReason,
+  normalizeLabel,
+  dedupeLabels,
+  type JiraLinkedIssue,
+  type JiraDraftAttachment,
+  type JiraEpicRef,
+  type JiraMetadata,
+} from "./metadata";
+export { readDraftAttachmentMaxBytes } from "./config";
