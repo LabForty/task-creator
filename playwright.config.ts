@@ -18,6 +18,9 @@ export default defineConfig({
       // Stub mode bypasses real Claude; provide a sentinel so the SDK isn't
       // tempted to auto-prompt for OAuth during dev.
       CLAUDE_CODE_OAUTH_TOKEN: "stub",
+      // Enables the /api/test/install-session escape hatch so specs can drop
+      // a synthetic Jira session cookie and skip the real OAuth round-trip.
+      E2E_TEST_AUTH: "1",
     },
   },
 });

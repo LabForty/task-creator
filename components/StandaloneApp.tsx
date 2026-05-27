@@ -111,6 +111,28 @@ export function StandaloneApp({ initialSession }: Props) {
     });
   }
 
+  // E2E-only escape hatch: tests call window.__E2E_SET_MODE__ to short-
+  // circuit the Editor → Finalize → SSE path and jump straight into the
+  // post-finalize Preview state. We always install the hook (it's cheap)
+  // but production code never calls it.
+  type E2ESetMode = (detail: {
+    payload: FinalizedPayload;
+    lastDraft: Draft;
+    diagrams?: Diagrams;
+  }) => void;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const win = window as unknown as { __E2E_SET_MODE__?: E2ESetMode };
+    win.__E2E_SET_MODE__ = (detail) => {
+      if (detail.diagrams) setDiagrams(detail.diagrams);
+      setMode({ kind: "done", payload: detail.payload, lastDraft: detail.lastDraft });
+    };
+    return () => {
+      const w = window as unknown as { __E2E_SET_MODE__?: E2ESetMode };
+      delete w.__E2E_SET_MODE__;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     async function refreshSession() {
