@@ -15,7 +15,8 @@ message of this shape:
   "rounds": [
     {
       "questions": [{ "id": "q1", "prompt": "...", "section": "business", "type": "single", "options": ["A","B"] }],
-      "answers": { "q1": "A" }
+      "answers": { "q1": "A" },
+      "skipped": ["q2"]
     }
   ],
   "roundNumber": 2,
@@ -25,7 +26,10 @@ message of this shape:
 ```
 
 `rounds` are the rounds already asked and answered. `roundNumber` is the round
-you are about to produce. Decide whether you still need more context.
+you are about to produce. Decide whether you still need more context. A question
+id listed in a round's `skipped` array was deliberately skipped by the user —
+do not re-ask the same question, and treat that topic as intentionally left
+open rather than missing context to chase.
 
 **Output exactly one JSON object** — no markdown, no preamble, no trailing prose.
 
