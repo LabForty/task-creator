@@ -88,4 +88,14 @@ describe("lib/draft/autosave", () => {
     window.localStorage.setItem("task-creator:draft:rv2", JSON.stringify({ title: "T" }));
     expect(loadDraft("rv2").reviewing).toBeFalsy();
   });
+
+  it("loadDraft preserves an epicTasks array", () => {
+    const epicTasks = [{ id: "t1", title: "T", labels: ["x"], blocks: [], blockedBy: [] }];
+    window.localStorage.setItem("task-creator:draft:et", JSON.stringify({ title: "T", epicTasks }));
+    expect(loadDraft("et").epicTasks).toEqual(epicTasks);
+  });
+  it("loadDraft leaves epicTasks undefined when absent", () => {
+    window.localStorage.setItem("task-creator:draft:et2", JSON.stringify({ title: "T" }));
+    expect(loadDraft("et2").epicTasks).toBeUndefined();
+  });
 });
