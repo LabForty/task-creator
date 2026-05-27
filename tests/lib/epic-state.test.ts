@@ -22,6 +22,12 @@ describe("isAnswered", () => {
     expect(isAnswered(q, ["x"])).toBe(true);
     expect(isAnswered(q, undefined)).toBe(false);
   });
+  it("single needs a non-empty chosen option", () => {
+    const q: KneadQuestion = { id: "s", prompt: "S", section: "technical", type: "single", options: ["Low", "High"] };
+    expect(isAnswered(q, "")).toBe(false);
+    expect(isAnswered(q, "Low")).toBe(true);
+    expect(isAnswered(q, undefined)).toBe(false);
+  });
 });
 
 describe("knead state transitions", () => {

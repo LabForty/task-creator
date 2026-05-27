@@ -49,5 +49,7 @@ export function markComplete(state: KneadState): KneadState {
 // "Knead tasks" button drives the next run.
 export function resetDough(state: KneadState, keepAnswers: boolean): KneadState {
   if (!keepAnswers) return { ...EMPTY_KNEAD };
-  return { status: "idle", rounds: state.rounds, sourceDescription: undefined };
+  // Copy the array so the returned state shares no mutable structure with the
+  // input — keeps every helper uniformly immutable.
+  return { status: "idle", rounds: [...state.rounds], sourceDescription: undefined };
 }
