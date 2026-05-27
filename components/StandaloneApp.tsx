@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Editor } from "@/components/Editor";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { KneadingPanel } from "@/components/epic/KneadingPanel";
+import { CapturedContext } from "@/components/epic/CapturedContext";
+import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
+import { startInterview, appendRound, setAnswer, markComplete, resetDough } from "@/lib/epic/state";
+import { EMPTY_KNEAD, type KneadState, type KneadAnswerValue } from "@/lib/knead/types";
 import { RunSheet } from "@/components/RunSheet";
 import { Preview } from "@/components/Preview";
 import { HelpPanel } from "@/components/HelpPanel";
@@ -66,6 +72,49 @@ export function StandaloneApp({ initialSession }: Props) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [jiraSession, setJiraSession] = useState<JiraSessionInfo | null>(initialSession);
   const [jiraBanner, setJiraBanner] = useState<string | null>(null);
+
+  const [epicMode, setEpicMode] = useState(false);
+  const [knead, setKnead] = useState<KneadState>(EMPTY_KNEAD);
+  const [kneadLoading, setKneadLoading] = useState(false);
+  const [kneadError, setKneadError] = useState<string | null>(null);
+  const [capPrompt, setCapPrompt] = useState<{ justification: string } | null>(null);
+  const [showLostDough, setShowLostDough] = useState(false);
+  const [liveDraft, setLiveDraft] = useState<Draft | null>(null);
+
+  const kneadRef = useRef(knead);
+  useEffect(() => { kneadRef.current = knead; }, [knead]);
+  const draftRef = useRef<Draft | null>(liveDraft);
+  useEffect(() => { draftRef.current = liveDraft; }, [liveDraft]);
+  // Once the user explicitly flips the header switch we stop adopting the
+  // persisted draft's `mode` — their choice wins for the rest of the session.
+  const modeTouchedRef = useRef(false);
+
+  useEffect(() => {
+    const d = loadDraft(NAMESPACE);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEpicMode(d.mode === "epic");
+    if (d.knead) setKnead(d.knead);
+    setLiveDraft(d);
+  }, []);
+
+  // The Editor hydrates its draft from localStorage one tick after mount and
+  // pushes it up via onDraftChange. Until the user touches the switch, adopt
+  // that hydrated mode — this also recovers from the Editor's mount-time
+  // autosave of an empty (single) draft racing our own hydration read.
+  useEffect(() => {
+    if (modeTouchedRef.current || !liveDraft) return;
+    setEpicMode(liveDraft.mode === "epic");
+  }, [liveDraft]);
+
+  function persistEpic(nextMode: boolean, nextKnead: KneadState) {
+    const current = loadDraft(NAMESPACE);
+    saveDraft(NAMESPACE, { ...current, mode: nextMode ? "epic" : "single", knead: nextKnead });
+  }
+
+  const doughIsStale =
+    knead.rounds.length > 0 &&
+    knead.sourceDescription !== undefined &&
+    (liveDraft?.description ?? "") !== knead.sourceDescription;
 
   // Derive the live list of pending edits from chatHistory minus the ones
   // the user already resolved. Later proposals with the same id supersede
@@ -321,6 +370,68 @@ export function StandaloneApp({ initialSession }: Props) {
     }
   }
 
+  async function callKnead(rounds: KneadState["rounds"], overrideCapApproved: boolean) {
+    const epicDescription = (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim();
+    setKneadLoading(true);
+    setKneadError(null);
+    setCapPrompt(null);
+    try {
+      const res = await fetch("/api/knead", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ epicDescription, rounds, overrideCapApproved }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.kind) {
+        setKneadError(typeof json.error === "string" ? json.error : `Request failed (${res.status}).`);
+        return;
+      }
+      if (json.kind === "questions") {
+        setKnead((s) => { const next = appendRound(s, json.round.questions); persistEpic(true, next); return next; });
+      } else if (json.kind === "complete") {
+        setKnead((s) => { const next = markComplete(s); persistEpic(true, next); return next; });
+      } else if (json.kind === "cap_reached") {
+        setCapPrompt({ justification: json.justification });
+      }
+    } catch (e) {
+      setKneadError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setKneadLoading(false);
+    }
+  }
+
+  function startKneading(draft: Draft) {
+    if (doughIsStale) { setShowLostDough(true); return; }
+    const fresh = startInterview(EMPTY_KNEAD, draft.description);
+    setKnead(fresh);
+    persistEpic(true, fresh);
+    void callKnead([], false);
+  }
+
+  function confirmReKnead(keepAnswers: boolean) {
+    setShowLostDough(false);
+    const kept = resetDough(kneadRef.current, keepAnswers);
+    const fresh = startInterview(kept, draftRef.current?.description ?? "");
+    const seeded: KneadState = keepAnswers ? { ...fresh, rounds: kept.rounds } : fresh;
+    setKnead(seeded);
+    persistEpic(true, seeded);
+    void callKnead(seeded.rounds, false);
+  }
+
+  function answerQuestion(qid: string, value: KneadAnswerValue) {
+    setKnead((s) => { const next = setAnswer(s, qid, value); persistEpic(true, next); return next; });
+  }
+
+  function continueKneading() { void callKnead(kneadRef.current.rounds, false); }
+  function approveCap() { void callKnead(kneadRef.current.rounds, true); }
+  function declineCap() { setCapPrompt(null); }
+
+  function onModeChange(next: "single" | "epic") {
+    modeTouchedRef.current = true;
+    setEpicMode(next === "epic");
+    persistEpic(next === "epic", kneadRef.current);
+  }
+
   async function submit(draft: Draft) {
     setSubmitErr(null);
     setDiagrams(undefined);
@@ -405,6 +516,14 @@ export function StandaloneApp({ initialSession }: Props) {
           </div>
           <span className="flex-1" />
           <ThemeToggle />
+          {(mode.kind === "idle" || mode.kind === "running") && (
+            <SegmentedControl<"single" | "epic">
+              ariaLabel="Authoring mode"
+              value={epicMode ? "epic" : "single"}
+              items={[{ value: "single", label: "Single task" }, { value: "epic", label: "Epic" }]}
+              onChange={onModeChange}
+            />
+          )}
           <JiraChip session={jiraSession} onSessionChange={setJiraSession} />
           {(mode.kind === "done" || mode.kind === "gates_failed") && (
             <Button variant="secondary" onClick={reset}>
@@ -433,13 +552,32 @@ export function StandaloneApp({ initialSession }: Props) {
                 <p className="text-hig-footnote text-danger">{submitErr}</p>
               </div>
             )}
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <Editor
                 namespace={NAMESPACE}
                 onFinalize={submit}
                 disabled={mode.kind === "running"}
                 onHelp={() => setHelpOpen("editor")}
+                mode={epicMode ? "epic" : "single"}
+                onKnead={startKneading}
+                kneadDisabled={kneadLoading}
+                onDraftChange={setLiveDraft}
               />
+              {epicMode && (
+                <>
+                  {doughIsStale && !showLostDough && (
+                    <p className="mt-3 text-hig-footnote text-warning">
+                      Epic description edited — press “Knead tasks” to re-knead.
+                    </p>
+                  )}
+                  {showLostDough && (
+                    <div className="mt-3">
+                      <LostDoughWarning onConfirm={confirmReKnead} onCancel={() => setShowLostDough(false)} />
+                    </div>
+                  )}
+                  <CapturedContext rounds={knead.rounds} />
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -509,6 +647,20 @@ export function StandaloneApp({ initialSession }: Props) {
             /* error shown inline by RunSheet */
           }}
           onRetry={() => submit(mode.lastDraft)}
+        />
+      )}
+
+      {epicMode && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
+        <KneadingPanel
+          state={knead}
+          loading={kneadLoading}
+          error={kneadError}
+          capPrompt={capPrompt}
+          onAnswer={answerQuestion}
+          onKnead={continueKneading}
+          onApproveCap={approveCap}
+          onDeclineCap={declineCap}
+          onRetry={continueKneading}
         />
       )}
 
