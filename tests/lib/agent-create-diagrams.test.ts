@@ -27,6 +27,7 @@ const draft: Draft = {
   acceptanceCriteria: [],
   constraints: "",
   taskType: "story",
+  mode: "single",
 };
 
 function bufferedTransport(reply: string): AgentTransport {

@@ -1,4 +1,5 @@
 import type { Diagrams, HelpMessage } from "@/lib/jobs/types";
+import type { KneadState } from "@/lib/knead/types";
 
 export type Draft = {
   title: string;
@@ -11,6 +12,9 @@ export type Draft = {
   // v2 extensions — optional so v1 drafts hydrate cleanly.
   diagrams?: Diagrams;
   chatHistory?: HelpMessage[];
+  // Epic-mode extensions. mode defaults to "single" for v1 drafts.
+  mode: "single" | "epic";
+  knead?: KneadState;
 };
 
 export const EMPTY_DRAFT: Draft = {
@@ -19,6 +23,7 @@ export const EMPTY_DRAFT: Draft = {
   acceptanceCriteria: [],
   constraints: "",
   taskType: "story",
+  mode: "single",
 };
 
 const PREFIX = "task-creator:draft:";
@@ -38,6 +43,8 @@ export function loadDraft(namespace: string): Draft {
       taskType: typeof parsed.taskType === "string" && parsed.taskType.trim() ? parsed.taskType : "story",
       diagrams: parsed.diagrams,
       chatHistory: Array.isArray(parsed.chatHistory) ? parsed.chatHistory : undefined,
+      mode: parsed.mode === "epic" ? "epic" : "single",
+      knead: parsed.knead,
     };
   } catch {
     return { ...EMPTY_DRAFT };

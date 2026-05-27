@@ -44,4 +44,25 @@ describe("lib/draft/autosave", () => {
     expect(isDirty({ ...EMPTY_DRAFT, title: "T" })).toBe(true);
     expect(isDirty({ ...EMPTY_DRAFT, acceptanceCriteria: ["x"] })).toBe(true);
   });
+
+  it("loadDraft defaults mode to 'single' when missing", () => {
+    window.localStorage.setItem("task-creator:draft:m1", JSON.stringify({ title: "T" }));
+    expect(loadDraft("m1").mode).toBe("single");
+  });
+
+  it("loadDraft preserves an epic mode + knead block", () => {
+    const knead = { status: "interviewing", rounds: [{ questions: [], answers: {} }] };
+    window.localStorage.setItem(
+      "task-creator:draft:m2",
+      JSON.stringify({ title: "T", description: "D", mode: "epic", knead }),
+    );
+    const d = loadDraft("m2");
+    expect(d.mode).toBe("epic");
+    expect(d.knead).toEqual(knead);
+  });
+
+  it("loadDraft falls back to 'single' for an unknown mode value", () => {
+    window.localStorage.setItem("task-creator:draft:m3", JSON.stringify({ mode: "bogus" }));
+    expect(loadDraft("m3").mode).toBe("single");
+  });
 });
