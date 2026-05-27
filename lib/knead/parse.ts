@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { extractJsonObject } from "@/lib/json/extract";
 import {
   type KneadModelResult,
   type KneadOutcome,
@@ -29,31 +30,6 @@ const ModelResultSchema = z.union([
   }),
   z.object({ kind: z.literal("complete") }),
 ]);
-
-// Extract the first balanced top-level JSON object from arbitrary model text.
-// Mirrors lib/agent's extractJsonObject so fences/prose are tolerated.
-function extractJsonObject(raw: string): string | null {
-  const text = raw.trim();
-  const start = text.indexOf("{");
-  if (start === -1) return null;
-  let depth = 0, inString = false, escape = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (inString) {
-      if (escape) escape = false;
-      else if (ch === "\\") escape = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) return text.slice(start, i + 1);
-    }
-  }
-  return null;
-}
 
 export function parseKneadResponse(raw: string): KneadModelResult {
   const candidate = extractJsonObject(raw);
