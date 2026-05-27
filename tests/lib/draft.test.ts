@@ -65,4 +65,15 @@ describe("lib/draft/autosave", () => {
     window.localStorage.setItem("task-creator:draft:m3", JSON.stringify({ mode: "bogus" }));
     expect(loadDraft("m3").mode).toBe("single");
   });
+
+  it("loadDraft preserves a subtasks array", () => {
+    const subtasks = [{ id: "s1", title: "T", description: "D", labels: ["x"], blocks: [], blockedBy: [] }];
+    window.localStorage.setItem("task-creator:draft:st", JSON.stringify({ title: "T", subtasks }));
+    expect(loadDraft("st").subtasks).toEqual(subtasks);
+  });
+
+  it("loadDraft leaves subtasks undefined when absent", () => {
+    window.localStorage.setItem("task-creator:draft:st2", JSON.stringify({ title: "T" }));
+    expect(loadDraft("st2").subtasks).toBeUndefined();
+  });
 });

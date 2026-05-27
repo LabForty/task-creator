@@ -1,5 +1,6 @@
 import type { Diagrams, HelpMessage } from "@/lib/jobs/types";
 import type { KneadState } from "@/lib/knead/types";
+import type { SubTask } from "@/lib/subtasks/types";
 
 export type Draft = {
   title: string;
@@ -15,6 +16,7 @@ export type Draft = {
   // Epic-mode extensions. mode defaults to "single" for v1 drafts.
   mode: "single" | "epic";
   knead?: KneadState;
+  subtasks?: SubTask[];
 };
 
 export const EMPTY_DRAFT: Draft = {
@@ -45,6 +47,7 @@ export function loadDraft(namespace: string): Draft {
       chatHistory: Array.isArray(parsed.chatHistory) ? parsed.chatHistory : undefined,
       mode: parsed.mode === "epic" ? "epic" : "single",
       knead: parsed.knead,
+      subtasks: Array.isArray(parsed.subtasks) ? parsed.subtasks : undefined,
     };
   } catch {
     return { ...EMPTY_DRAFT };
