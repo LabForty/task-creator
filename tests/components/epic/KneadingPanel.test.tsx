@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KneadingPanel } from "@/components/epic/KneadingPanel";
+import { setAnswer } from "@/lib/epic/state";
 import type { KneadState } from "@/lib/knead/types";
 
 function interviewing(answers: Record<string, string | string[]> = {}): KneadState {
@@ -93,6 +95,35 @@ describe("<KneadingPanel>", () => {
     // Skip the first (text) question.
     await userEvent.click(screen.getAllByRole("button", { name: /^skip$/i })[0]);
     expect(onSkip).toHaveBeenCalledWith("a");
+  });
+
+  it("enables Knead when a single question is answered ONLY via the custom input", async () => {
+    function LivePanel() {
+      const [state, setState] = useState<KneadState>({
+        status: "interviewing",
+        rounds: [{ questions: [{ id: "s", prompt: "Risk?", section: "technical", type: "single", options: ["Low", "High"] }], answers: {}, skipped: [] }],
+      });
+      return <KneadingPanel {...baseProps} state={state} onAnswer={(qid, v) => setState((s) => setAnswer(s, qid, v))} />;
+    }
+    render(<LivePanel />);
+    expect(screen.getByRole("button", { name: /^knead$/i })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/custom answer for risk/i), "Hybrid");
+    expect(screen.getByRole("button", { name: /^knead$/i })).not.toBeDisabled();
+  });
+
+  it("enables Knead when a multi question is answered ONLY via a custom value", async () => {
+    function LivePanel() {
+      const [state, setState] = useState<KneadState>({
+        status: "interviewing",
+        rounds: [{ questions: [{ id: "m", prompt: "Surfaces?", section: "business", type: "multi", options: ["Web", "API"] }], answers: {}, skipped: [] }],
+      });
+      return <KneadingPanel {...baseProps} state={state} onAnswer={(qid, v) => setState((s) => setAnswer(s, qid, v))} />;
+    }
+    render(<LivePanel />);
+    expect(screen.getByRole("button", { name: /^knead$/i })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/add a custom answer for surfaces/i), "Mobile");
+    await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    expect(screen.getByRole("button", { name: /^knead$/i })).not.toBeDisabled();
   });
 
   it("shows a skipped question with an Undo and lets Knead proceed once all are resolved", async () => {

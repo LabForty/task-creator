@@ -71,4 +71,12 @@ describe("<QuestionField>", () => {
     await userEvent.type(screen.getByLabelText(/add a custom answer for which surfaces/i), "Mobile{Enter}");
     expect(onChange).toHaveBeenCalledWith(["Mobile"]);
   });
+
+  it("lets a multi question add a custom value via the Add button", async () => {
+    const onChange = vi.fn();
+    render(<QuestionField question={multiQ} value={[]} onChange={onChange} />);
+    await userEvent.type(screen.getByLabelText(/add a custom answer for which surfaces/i), "Mobile");
+    await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    expect(onChange).toHaveBeenCalledWith(["Mobile"]);
+  });
 });

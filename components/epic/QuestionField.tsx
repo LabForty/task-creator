@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/TextField";
 import type { KneadQuestion, KneadAnswerValue } from "@/lib/knead/types";
 
@@ -110,16 +111,22 @@ export function QuestionField({ question, value, onChange, disabled }: Props) {
           ))}
         </div>
       )}
-      <input
-        type="text"
-        aria-label={`Add a custom answer for ${question.prompt}`}
-        value={customDraft}
-        onChange={(e) => setCustomDraft(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }}
-        placeholder="Add your own…"
-        disabled={disabled}
-        className={`mt-0.5 ${customInputClass}`}
-      />
+      <div className="mt-0.5 flex items-center gap-1.5">
+        <input
+          type="text"
+          aria-label={`Add a custom answer for ${question.prompt}`}
+          value={customDraft}
+          onChange={(e) => setCustomDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }}
+          onBlur={addCustom}
+          placeholder="Add your own…"
+          disabled={disabled}
+          className={`flex-1 ${customInputClass}`}
+        />
+        <Button type="button" size="sm" variant="secondary" onClick={addCustom} disabled={disabled || !customDraft.trim()}>
+          Add
+        </Button>
+      </div>
     </fieldset>
   );
 }
