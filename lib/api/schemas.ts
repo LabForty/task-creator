@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { KneadQuestionSchema } from "@/lib/knead/parse";
 
 export const DraftSchema = z.object({
   title: z.string().min(1).max(200),
@@ -59,6 +60,19 @@ export const HelpBodySchema = z.object({
     z.object({ role: z.enum(["user", "assistant"]), text: z.string() }),
   ),
 });
+
+export const KneadBodySchema = z.object({
+  epicDescription: z.string().min(1),
+  rounds: z.array(
+    z.object({
+      questions: z.array(KneadQuestionSchema),
+      answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+    }),
+  ),
+  overrideCapApproved: z.boolean().optional(),
+});
+
+export type KneadBody = z.infer<typeof KneadBodySchema>;
 
 export type DraftPayload = z.infer<typeof DraftSchema>;
 export type FinalizeBody = z.infer<typeof FinalizeBodySchema>;
