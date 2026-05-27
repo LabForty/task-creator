@@ -20,6 +20,7 @@ import { parseSubtasksResponse } from "@/lib/subtasks/parse";
 import type { ProposedSubtask, SubTask } from "@/lib/subtasks/types";
 import { parseInterferenceResponse } from "@/lib/interference/parse";
 import type { InterferenceWarning } from "@/lib/review/types";
+import { parseRefineResponse, type RefineResult } from "@/lib/refine/parse";
 import type { AgentEvent, AgentTransport, RunArgs } from "./types";
 
 // Webapp-owned Claude Skills. Loaded from skills/<name>/SKILL.md at invocation
@@ -476,6 +477,32 @@ export async function runInterferenceAnalysis(args: {
     .map((w) => ({ affectedTaskId: w.affectedTaskId, sourceTaskId: args.editedSubtask.id, reason: w.reason }));
 }
 
+export async function runRefine(args: {
+  epicDescription: string;
+  draft: { title: string; description: string; acceptanceCriteria: string[]; constraints: string };
+  transport: AgentTransport;
+  signal?: AbortSignal;
+}): Promise<RefineResult> {
+  const systemPrompt = await loadSkillPrompt("task-refine");
+  const userMessage = JSON.stringify({ epicDescription: args.epicDescription, draft: args.draft });
+
+  let buffer = "";
+  let pending: Error | null = null;
+  await args.transport.runRole({
+    role: "refine",
+    systemPrompt,
+    userMessage,
+    cwd: process.cwd(),
+    signal: args.signal,
+    onEvent: (e) => {
+      if (e.type === "token") buffer += e.text;
+      else if (e.type === "error") pending = new Error(`${e.code}: ${e.message}`);
+    },
+  });
+  if (pending) throw pending;
+  return parseRefineResponse(buffer);
+}
+
 // ---------------------------------------------------------------------------
 // Default transport — drives the Anthropic Claude Agent SDK.
 // JSON-only skills/roles get no tools (text-only output).
@@ -603,6 +630,13 @@ export function makeStubTransport(): AgentTransport {
           /* ignore — empty interference */
         }
         onEvent({ type: "token", text: JSON.stringify({ interference }) });
+      } else if (role === "refine") {
+        let title = "Refined sub-task";
+        try {
+          const parsed = JSON.parse(userMessage) as { draft?: { title?: string } };
+          if (parsed.draft?.title) title = `${parsed.draft.title} (refined)`;
+        } catch { /* ignore */ }
+        onEvent({ type: "token", text: JSON.stringify({ title, description: "Refined description.", acceptanceCriteria: ["Refined AC 1", "Refined AC 2"] }) });
       } else if (role === "analyst") {
         const req = {
           title: "Stub requirement authored by TASK_AGENT_MODE=stub",
