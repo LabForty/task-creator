@@ -61,18 +61,24 @@ export const HelpBodySchema = z.object({
   ),
 });
 
+export const KneadRoundSchema = z.object({
+  questions: z.array(KneadQuestionSchema),
+  answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+});
+
 export const KneadBodySchema = z.object({
   epicDescription: z.string().min(1),
-  rounds: z.array(
-    z.object({
-      questions: z.array(KneadQuestionSchema),
-      answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
-    }),
-  ),
+  rounds: z.array(KneadRoundSchema),
   overrideCapApproved: z.boolean().optional(),
 });
 
 export type KneadBody = z.infer<typeof KneadBodySchema>;
+
+export const SubtasksBodySchema = z.object({
+  epicDescription: z.string().min(1),
+  rounds: z.array(KneadRoundSchema),
+});
+export type SubtasksBody = z.infer<typeof SubtasksBodySchema>;
 
 export type DraftPayload = z.infer<typeof DraftSchema>;
 export type FinalizeBody = z.infer<typeof FinalizeBodySchema>;
