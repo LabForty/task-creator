@@ -6,6 +6,9 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { KneadingPanel } from "@/components/epic/KneadingPanel";
 import { CapturedContext } from "@/components/epic/CapturedContext";
 import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
+import { SubtaskList } from "@/components/epic/SubtaskList";
+import { fromProposed, addSubtask, deleteSubtask, updateSubtask, setLabels, addLink, removeLink } from "@/lib/subtasks/state";
+import type { SubTask, ProposedSubtask } from "@/lib/subtasks/types";
 import { startInterview, appendRound, setAnswer, markComplete, resetDough } from "@/lib/epic/state";
 import { EMPTY_KNEAD, type KneadState, type KneadAnswerValue } from "@/lib/knead/types";
 import { RunSheet } from "@/components/RunSheet";
@@ -80,6 +83,9 @@ export function StandaloneApp({ initialSession }: Props) {
   const [capPrompt, setCapPrompt] = useState<{ justification: string } | null>(null);
   const [showLostDough, setShowLostDough] = useState(false);
   const [liveDraft, setLiveDraft] = useState<Draft | null>(null);
+  const [subtasks, setSubtasks] = useState<SubTask[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [subtasksError, setSubtasksError] = useState<string | null>(null);
 
   const kneadRef = useRef(knead);
   useEffect(() => { kneadRef.current = knead; }, [knead]);
@@ -94,6 +100,7 @@ export function StandaloneApp({ initialSession }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setEpicMode(d.mode === "epic");
     if (d.knead) setKnead(d.knead);
+    if (d.subtasks) setSubtasks(d.subtasks);
     setLiveDraft(d);
   }, []);
 
@@ -109,6 +116,15 @@ export function StandaloneApp({ initialSession }: Props) {
   function persistEpic(nextMode: boolean, nextKnead: KneadState) {
     const current = loadDraft(NAMESPACE);
     saveDraft(NAMESPACE, { ...current, mode: nextMode ? "epic" : "single", knead: nextKnead });
+  }
+
+  function persistSubtasks(next: SubTask[]) {
+    const current = loadDraft(NAMESPACE);
+    saveDraft(NAMESPACE, { ...current, subtasks: next });
+  }
+  function commitSubtasks(next: SubTask[]) {
+    setSubtasks(next);
+    persistSubtasks(next);
   }
 
   const doughIsStale =
@@ -415,11 +431,35 @@ export function StandaloneApp({ initialSession }: Props) {
     const seeded: KneadState = keepAnswers ? { ...fresh, rounds: kept.rounds } : fresh;
     setKnead(seeded);
     persistEpic(true, seeded);
+    commitSubtasks([]);
     void callKnead(seeded.rounds, false);
   }
 
   function answerQuestion(qid: string, value: KneadAnswerValue) {
     setKnead((s) => { const next = setAnswer(s, qid, value); persistEpic(true, next); return next; });
+  }
+
+  async function generateSubtasks() {
+    const epicDescription = (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim();
+    setGenerating(true);
+    setSubtasksError(null);
+    try {
+      const res = await fetch("/api/subtasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ epicDescription, rounds: kneadRef.current.rounds }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !Array.isArray(json.subtasks)) {
+        setSubtasksError(typeof json.error === "string" ? json.error : `Request failed (${res.status}).`);
+        return;
+      }
+      commitSubtasks(fromProposed(json.subtasks as ProposedSubtask[]));
+    } catch (e) {
+      setSubtasksError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function continueKneading() { void callKnead(kneadRef.current.rounds, false); }
@@ -651,17 +691,38 @@ export function StandaloneApp({ initialSession }: Props) {
       )}
 
       {epicMode && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
-        <KneadingPanel
-          state={knead}
-          loading={kneadLoading}
-          error={kneadError}
-          capPrompt={capPrompt}
-          onAnswer={answerQuestion}
-          onKnead={continueKneading}
-          onApproveCap={approveCap}
-          onDeclineCap={declineCap}
-          onRetry={continueKneading}
-        />
+        subtasks.length > 0 ? (
+          <aside className="w-[460px] shrink-0 border-l border-rule bg-surface h-full overflow-y-auto p-5">
+            {subtasksError && (
+              <div className="mb-3 rounded-md bg-danger/5 border border-danger/30 px-3 py-2" role="alert">
+                <p className="text-hig-footnote text-danger">{subtasksError}</p>
+              </div>
+            )}
+            <SubtaskList
+              subtasks={subtasks}
+              onAdd={() => commitSubtasks(addSubtask(subtasks))}
+              onDelete={(id) => commitSubtasks(deleteSubtask(subtasks, id))}
+              onUpdate={(id, patch) => commitSubtasks(updateSubtask(subtasks, id, patch))}
+              onSetLabels={(id, labels) => commitSubtasks(setLabels(subtasks, id, labels))}
+              onAddLink={(blockerId, blockedId) => commitSubtasks(addLink(subtasks, blockerId, blockedId))}
+              onRemoveLink={(blockerId, blockedId) => commitSubtasks(removeLink(subtasks, blockerId, blockedId))}
+            />
+          </aside>
+        ) : (
+          <KneadingPanel
+            state={knead}
+            loading={kneadLoading}
+            error={kneadError}
+            capPrompt={capPrompt}
+            onAnswer={answerQuestion}
+            onKnead={continueKneading}
+            onApproveCap={approveCap}
+            onDeclineCap={declineCap}
+            onRetry={continueKneading}
+            onGenerate={generateSubtasks}
+            generating={generating}
+          />
+        )
       )}
 
       {helpOpen && (

@@ -65,7 +65,7 @@ describe("StandaloneApp — epic mode", () => {
     await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
 
     expect(await screen.findByText(/kneading complete/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /generate sub-tasks/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /generate sub-tasks/i })).not.toBeDisabled();
   });
 
   it("switching to Single task restores the Finalize button", async () => {
@@ -93,6 +93,48 @@ describe("StandaloneApp — epic mode", () => {
       expect(stored.mode).toBe("epic");
       expect(stored.knead?.rounds?.length).toBeGreaterThanOrEqual(1);
       expect(stored.knead.rounds[0].answers).toEqual({ a: "High" });
+    });
+  });
+
+  function mockEpicFetch() {
+    let kneadCalls = 0;
+    return vi.fn(async (url: string) => {
+      if (typeof url === "string" && url.includes("/api/jira/session")) return { ok: true, json: async () => session } as unknown as Response;
+      if (typeof url === "string" && url.includes("/api/knead")) {
+        kneadCalls += 1;
+        const body = kneadCalls === 1
+          ? { kind: "questions", round: { questions: [{ id: "a", prompt: "Risk?", section: "technical", type: "single", options: ["Low", "High"] }] } }
+          : { kind: "complete" };
+        return { ok: true, json: async () => body } as unknown as Response;
+      }
+      if (typeof url === "string" && url.includes("/api/subtasks")) {
+        return { ok: true, json: async () => ({ subtasks: [
+          { title: "First", description: "d", labels: ["x"], blocks: [1] },
+          { title: "Second", description: "", labels: [], blocks: [] },
+        ] }) } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({}) } as unknown as Response;
+    });
+  }
+
+  it("generates sub-tasks after kneading completes and persists them", async () => {
+    vi.stubGlobal("fetch", mockEpicFetch());
+    render(<StandaloneApp initialSession={session} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
+    await userEvent.click(await screen.findByRole("radio", { name: "High" }));
+    await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
+
+    const generate = await screen.findByRole("button", { name: /generate sub-tasks/i });
+    await userEvent.click(generate);
+
+    expect(await screen.findByDisplayValue("First")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Second")).toBeInTheDocument();
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
+      expect(stored.subtasks?.length).toBe(2);
+      expect(stored.subtasks[0].blocks).toEqual([stored.subtasks[1].id]);
     });
   });
 });

@@ -70,10 +70,20 @@ describe("<KneadingPanel>", () => {
     expect(onApproveCap).toHaveBeenCalled();
   });
 
-  it("shows the complete state with a disabled Generate sub-tasks button", () => {
+  it("shows the complete state with an enabled Generate sub-tasks button", async () => {
+    const onGenerate = vi.fn();
     const complete: KneadState = { status: "complete", rounds: interviewing({ a: "x", b: "Low" }).rounds };
-    render(<KneadingPanel {...baseProps} state={complete} />);
+    render(<KneadingPanel {...baseProps} state={complete} onGenerate={onGenerate} />);
     expect(screen.getByText(/kneading complete/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /generate sub-tasks/i })).toBeDisabled();
+    const btn = screen.getByRole("button", { name: /generate sub-tasks/i });
+    expect(btn).not.toBeDisabled();
+    await userEvent.click(btn);
+    expect(onGenerate).toHaveBeenCalled();
+  });
+
+  it("disables Generate while generating", () => {
+    const complete: KneadState = { status: "complete", rounds: interviewing({ a: "x", b: "Low" }).rounds };
+    render(<KneadingPanel {...baseProps} state={complete} onGenerate={() => {}} generating />);
+    expect(screen.getByRole("button", { name: /generating/i })).toBeDisabled();
   });
 });

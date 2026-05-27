@@ -15,12 +15,15 @@ type Props = {
   onApproveCap: () => void;
   onDeclineCap: () => void;
   onRetry: () => void;
+  onGenerate?: () => void;
+  generating?: boolean;
 };
 
 const SECTION_LABEL: Record<KneadSection, string> = { business: "Business", technical: "Technical" };
 
 export function KneadingPanel({
   state, loading, error, capPrompt, onAnswer, onKnead, onApproveCap, onDeclineCap, onRetry,
+  onGenerate, generating = false,
 }: Props) {
   const round = currentRound(state);
 
@@ -60,8 +63,13 @@ export function KneadingPanel({
             Context captured across {state.rounds.length} round{state.rounds.length === 1 ? "" : "s"}.
             Ready to turn into sub-tasks.
           </p>
-          <Button type="button" disabled title="Sub-task generation arrives in SP2">
-            Generate sub-tasks
+          <Button
+            type="button"
+            onClick={onGenerate}
+            disabled={!onGenerate || generating}
+            title="Generate sub-tasks from the kneaded context"
+          >
+            {generating ? "Generating…" : "Generate sub-tasks"}
           </Button>
         </div>
       ) : (
