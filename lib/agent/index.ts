@@ -17,7 +17,9 @@ import { extractJsonObject } from "@/lib/json/extract";
 import { parseKneadResponse, applyCap } from "@/lib/knead/parse";
 import type { KneadOutcome, KneadRound } from "@/lib/knead/types";
 import { parseSubtasksResponse } from "@/lib/subtasks/parse";
-import type { ProposedSubtask } from "@/lib/subtasks/types";
+import type { ProposedSubtask, SubTask } from "@/lib/subtasks/types";
+import { parseInterferenceResponse } from "@/lib/interference/parse";
+import type { InterferenceWarning } from "@/lib/review/types";
 import type { AgentEvent, AgentTransport, RunArgs } from "./types";
 
 // Webapp-owned Claude Skills. Loaded from skills/<name>/SKILL.md at invocation
@@ -439,6 +441,41 @@ export async function runGenerateSubtasks(args: {
   return parseSubtasksResponse(buffer);
 }
 
+export async function runInterferenceAnalysis(args: {
+  epicDescription: string;
+  editedSubtask: SubTask;
+  allSubtasks: SubTask[];
+  transport: AgentTransport;
+  signal?: AbortSignal;
+}): Promise<InterferenceWarning[]> {
+  const systemPrompt = await loadSkillPrompt("task-interference");
+  const userMessage = JSON.stringify({
+    epicDescription: args.epicDescription,
+    editedSubtask: args.editedSubtask,
+    allSubtasks: args.allSubtasks,
+  });
+
+  let buffer = "";
+  let pending: Error | null = null;
+  await args.transport.runRole({
+    role: "interference",
+    systemPrompt,
+    userMessage,
+    cwd: process.cwd(),
+    signal: args.signal,
+    onEvent: (e) => {
+      if (e.type === "token") buffer += e.text;
+      else if (e.type === "error") pending = new Error(`${e.code}: ${e.message}`);
+    },
+  });
+  if (pending) throw pending;
+
+  const validIds = new Set(args.allSubtasks.map((s) => s.id));
+  return parseInterferenceResponse(buffer)
+    .filter((w) => w.affectedTaskId !== args.editedSubtask.id && validIds.has(w.affectedTaskId))
+    .map((w) => ({ affectedTaskId: w.affectedTaskId, sourceTaskId: args.editedSubtask.id, reason: w.reason }));
+}
+
 // ---------------------------------------------------------------------------
 // Default transport — drives the Anthropic Claude Agent SDK.
 // JSON-only skills/roles get no tools (text-only output).
@@ -556,6 +593,16 @@ export function makeStubTransport(): AgentTransport {
           ],
         };
         onEvent({ type: "token", text: JSON.stringify(payload) });
+      } else if (role === "interference") {
+        let interference: Array<{ affectedTaskId: string; reason: string }> = [];
+        try {
+          const parsed = JSON.parse(userMessage) as { editedSubtask?: { id?: string; title?: string }; allSubtasks?: Array<{ id: string }> };
+          const other = (parsed.allSubtasks ?? []).find((s) => s.id !== parsed.editedSubtask?.id);
+          if (other) interference = [{ affectedTaskId: other.id, reason: `May be affected by changes to "${parsed.editedSubtask?.title ?? "a task"}".` }];
+        } catch {
+          /* ignore — empty interference */
+        }
+        onEvent({ type: "token", text: JSON.stringify({ interference }) });
       } else if (role === "analyst") {
         const req = {
           title: "Stub requirement authored by TASK_AGENT_MODE=stub",
