@@ -80,6 +80,22 @@ export const SubtasksBodySchema = z.object({
 });
 export type SubtasksBody = z.infer<typeof SubtasksBodySchema>;
 
+const SubTaskSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  labels: z.array(z.string()),
+  blocks: z.array(z.string()),
+  blockedBy: z.array(z.string()),
+});
+
+export const InterferenceBodySchema = z.object({
+  epicDescription: z.string().min(1),
+  editedSubtask: SubTaskSchema,
+  allSubtasks: z.array(SubTaskSchema),
+});
+export type InterferenceBody = z.infer<typeof InterferenceBodySchema>;
+
 export type DraftPayload = z.infer<typeof DraftSchema>;
 export type FinalizeBody = z.infer<typeof FinalizeBodySchema>;
 export type CreateDiagramsBody = z.infer<typeof CreateDiagramsBodySchema>;
