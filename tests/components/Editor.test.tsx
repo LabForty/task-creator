@@ -91,4 +91,11 @@ describe("<Editor>", () => {
     );
     expect(screen.getByRole("button", { name: /knead tasks/i })).toBeDisabled();
   });
+
+  it("hides the submit button when hideSubmit is set", () => {
+    render(<Editor namespace="hs1" onFinalize={vi.fn()} hideSubmit />);
+    expect(screen.queryByRole("button", { name: /finalize task/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /knead tasks/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/task title/i)).toBeInTheDocument();
+  });
 });

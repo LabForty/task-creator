@@ -37,6 +37,7 @@ type Props = {
   onKnead?: (draft: Draft) => void;
   kneadDisabled?: boolean;
   onDraftChange?: (draft: Draft) => void;
+  hideSubmit?: boolean;
 };
 
 const HIGHLIGHT_EVENT = "task:highlight-field";
@@ -51,6 +52,7 @@ function hasEpicDescription(html: string): boolean {
 export function Editor({
   namespace, onFinalize, disabled = false, onHelp,
   mode = "single", onKnead, kneadDisabled = false, onDraftChange,
+  hideSubmit = false,
 }: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [suggesting, setSuggesting] = useState(false);
@@ -193,6 +195,7 @@ export function Editor({
       className="hig-card p-5 flex flex-col gap-4 h-full"
       onSubmit={(e) => {
         e.preventDefault();
+        if (hideSubmit) return;
         if (mode === "epic") {
           if (onKnead && hasEpicDescription(draft.description)) onKnead(draft);
           return;
@@ -278,7 +281,7 @@ export function Editor({
             Help
           </Button>
         )}
-        {mode === "epic" ? (
+        {!hideSubmit && (mode === "epic" ? (
           <Button
             type="submit"
             size="lg"
@@ -290,7 +293,7 @@ export function Editor({
           <Button type="submit" size="lg" disabled={disabled || !draft.title.trim()}>
             Finalize task
           </Button>
-        )}
+        ))}
       </div>
     </form>
   );
