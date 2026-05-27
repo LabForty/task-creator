@@ -1,0 +1,75 @@
+"use client";
+
+import { Button } from "@/components/ui/Button";
+import { EpicPreview } from "@/components/epic/review/EpicPreview";
+import { ReviewNav } from "@/components/epic/review/ReviewNav";
+import { ReviewTaskPanel } from "@/components/epic/review/ReviewTaskPanel";
+import { getReview } from "@/lib/review/state";
+import type { SubTask } from "@/lib/subtasks/types";
+import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
+
+type Props = {
+  epicTitle: string;
+  epicDescriptionHtml: string;
+  subtasks: SubTask[];
+  reviews: ReviewMap;
+  interference: InterferenceMap;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onEditTasks: () => void;
+  onUpdate: (id: string, patch: { title?: string; description?: string }) => void;
+  onSetLabels: (id: string, labels: string[]) => void;
+  onAddLink: (blockerId: string, blockedId: string) => void;
+  onRemoveLink: (blockerId: string, blockedId: string) => void;
+  onReviewChange: (id: string, patch: Partial<SubtaskReview>) => void;
+  onDelete: (id: string) => void;
+};
+
+export function ReviewerMode(props: Props) {
+  const selected = props.subtasks.find((s) => s.id === props.selectedId) ?? null;
+
+  return (
+    <div className="flex-1 min-h-0 flex">
+      <aside className="w-[320px] shrink-0 border-r border-rule bg-surface overflow-y-auto p-4 flex flex-col gap-4">
+        <EpicPreview title={props.epicTitle} descriptionHtml={props.epicDescriptionHtml} subtasks={props.subtasks} />
+        <ReviewNav
+          subtasks={props.subtasks}
+          reviews={props.reviews}
+          selectedId={props.selectedId}
+          onSelect={props.onSelect}
+          interference={props.interference}
+        />
+        <div>
+          <h3 className="hig-section-label">Diagrams</h3>
+          <p className="text-hig-footnote text-ink-tertiary">Diagram from tasks arrives in a later phase.</p>
+        </div>
+        <div className="mt-auto flex flex-col gap-2 pt-2 border-t border-rule">
+          <Button type="button" disabled title="You need to review all the tasks and resolve requested changes">
+            Finalize
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={props.onEditTasks}>Edit tasks</Button>
+        </div>
+      </aside>
+
+      <div className="flex-1 min-h-0 overflow-y-auto p-5">
+        {selected ? (
+          <ReviewTaskPanel
+            key={selected.id}
+            subtask={selected}
+            allSubtasks={props.subtasks}
+            review={getReview(props.reviews, selected.id)}
+            warning={props.interference[selected.id]}
+            onUpdate={(patch) => props.onUpdate(selected.id, patch)}
+            onSetLabels={(labels) => props.onSetLabels(selected.id, labels)}
+            onAddLink={props.onAddLink}
+            onRemoveLink={props.onRemoveLink}
+            onReviewChange={(patch) => props.onReviewChange(selected.id, patch)}
+            onDelete={() => props.onDelete(selected.id)}
+          />
+        ) : (
+          <p className="text-hig-body text-ink-secondary">Select a task from the navigation to review it.</p>
+        )}
+      </div>
+    </div>
+  );
+}
