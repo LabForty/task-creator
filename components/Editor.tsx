@@ -71,8 +71,12 @@ export function Editor({
   // Save synchronously on every change — localStorage writes are cheap and
   // this guarantees the most recent keystroke is on disk if the tab is
   // closed or the server restarts mid-edit.
+  // mode/knead are owned by the parent (StandaloneApp) which persists them
+  // separately; preserve whatever is already in storage so Editor's content
+  // autosave never clobbers epic-mode state.
   useEffect(() => {
-    saveDraft(namespace, draft);
+    const existing = loadDraft(namespace);
+    saveDraft(namespace, { ...draft, mode: existing.mode, knead: existing.knead });
   }, [namespace, draft]);
 
   const onDraftChangeRef = useRef(onDraftChange);
@@ -82,7 +86,10 @@ export function Editor({
   useEffect(() => {
     // Belt-and-braces flush on tab close / hide. setTimeout(0) would be too
     // late here — `pagehide` is the last chance to write synchronously.
-    const flush = () => saveDraft(namespace, draftRef.current);
+    const flush = () => {
+      const existing = loadDraft(namespace);
+      saveDraft(namespace, { ...draftRef.current, mode: existing.mode, knead: existing.knead });
+    };
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       flush();
       if (isDirty(draftRef.current)) {

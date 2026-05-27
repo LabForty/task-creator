@@ -74,4 +74,25 @@ describe("StandaloneApp — epic mode", () => {
     await userEvent.click(await screen.findByRole("tab", { name: /single task/i }));
     expect(await screen.findByRole("button", { name: /finalize task/i })).toBeInTheDocument();
   });
+
+  it("preserves knead state and mode when a left-pane field is edited mid-interview", async () => {
+    vi.stubGlobal("fetch", mockKneadFetch());
+    render(<StandaloneApp initialSession={session} />);
+
+    // Start a round and answer it (do not complete).
+    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
+    await userEvent.click(await screen.findByRole("radio", { name: "High" }));
+
+    // Edit a LEFT-PANE field that is NOT the description (the title).
+    const title = screen.getByLabelText(/task title/i);
+    await userEvent.type(title, " v2");
+
+    // Editor autosave must not have clobbered the parent-owned mode/knead.
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
+      expect(stored.mode).toBe("epic");
+      expect(stored.knead?.rounds?.length).toBeGreaterThanOrEqual(1);
+      expect(stored.knead.rounds[0].answers).toEqual({ a: "High" });
+    });
+  });
 });
