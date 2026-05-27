@@ -137,4 +137,60 @@ describe("StandaloneApp — epic mode", () => {
       expect(stored.subtasks[0].blocks).toEqual([stored.subtasks[1].id]);
     });
   });
+
+  function mockReviewFetch() {
+    let kneadCalls = 0;
+    return vi.fn(async (url: string, init?: RequestInit) => {
+      if (typeof url === "string" && url.includes("/api/jira/session")) return { ok: true, json: async () => session } as unknown as Response;
+      if (typeof url === "string" && url.includes("/api/knead")) {
+        kneadCalls += 1;
+        const body = kneadCalls === 1
+          ? { kind: "questions", round: { questions: [{ id: "a", prompt: "Risk?", section: "technical", type: "single", options: ["Low", "High"] }] } }
+          : { kind: "complete" };
+        return { ok: true, json: async () => body } as unknown as Response;
+      }
+      if (typeof url === "string" && url.includes("/api/subtasks")) {
+        return { ok: true, json: async () => ({ subtasks: [
+          { title: "First", description: "d", labels: [], blocks: [] },
+          { title: "Second", description: "", labels: [], blocks: [] },
+        ] }) } as unknown as Response;
+      }
+      if (typeof url === "string" && url.includes("/api/interference")) {
+        const reqBody = JSON.parse(String(init?.body ?? "{}"));
+        const editedId = reqBody.editedSubtask?.id;
+        const other = (reqBody.allSubtasks ?? []).find((s: { id: string }) => s.id !== editedId);
+        return { ok: true, json: async () => ({ interference: other ? [{ affectedTaskId: other.id, sourceTaskId: editedId, reason: "shares scope" }] : [] }) } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({}) } as unknown as Response;
+    });
+  }
+
+  it("bakes into reviewer mode, sets a status, and persists reviews", async () => {
+    vi.stubGlobal("fetch", mockReviewFetch());
+    render(<StandaloneApp initialSession={session} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
+    await userEvent.click(await screen.findByRole("radio", { name: "High" }));
+    await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /generate sub-tasks/i }));
+    await screen.findByDisplayValue("First");
+
+    await userEvent.click(screen.getByRole("button", { name: /^bake$/i }));
+
+    expect(await screen.findByRole("navigation", { name: /review navigation/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /finalize/i })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: /^approve$/i }));
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
+      expect(stored.reviewing).toBe(true);
+      const firstId = stored.subtasks[0].id;
+      expect(stored.reviews[firstId].status).toBe("approved");
+    });
+
+    // Editing the selected task triggers debounced interference → warning on the other task.
+    await userEvent.type(screen.getByDisplayValue("First"), " X");
+    expect(await screen.findByLabelText(/interference warning/i)).toBeInTheDocument();
+  });
 });

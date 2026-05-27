@@ -7,6 +7,9 @@ import { KneadingPanel } from "@/components/epic/KneadingPanel";
 import { CapturedContext } from "@/components/epic/CapturedContext";
 import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
 import { SubtaskList } from "@/components/epic/SubtaskList";
+import { ReviewerMode } from "@/components/epic/review/ReviewerMode";
+import { setReview, initReviews, pruneReviews } from "@/lib/review/state";
+import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
 import { fromProposed, addSubtask, deleteSubtask, updateSubtask, setLabels, addLink, removeLink } from "@/lib/subtasks/state";
 import type { SubTask, ProposedSubtask } from "@/lib/subtasks/types";
 import { startInterview, appendRound, setAnswer, markComplete, resetDough } from "@/lib/epic/state";
@@ -86,6 +89,11 @@ export function StandaloneApp({ initialSession }: Props) {
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [generating, setGenerating] = useState(false);
   const [subtasksError, setSubtasksError] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviews, setReviews] = useState<ReviewMap>({});
+  const [interference, setInterference] = useState<InterferenceMap>({});
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const interferenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const kneadRef = useRef(knead);
   useEffect(() => { kneadRef.current = knead; }, [knead]);
@@ -101,6 +109,8 @@ export function StandaloneApp({ initialSession }: Props) {
     setEpicMode(d.mode === "epic");
     if (d.knead) setKnead(d.knead);
     if (d.subtasks) setSubtasks(d.subtasks);
+    if (d.reviewing) setReviewing(true);
+    if (d.reviews) setReviews(d.reviews);
     setLiveDraft(d);
   }, []);
 
@@ -125,6 +135,89 @@ export function StandaloneApp({ initialSession }: Props) {
   function commitSubtasks(next: SubTask[]) {
     setSubtasks(next);
     persistSubtasks(next);
+  }
+
+  function persistReview(nextReviewing: boolean, nextReviews: ReviewMap) {
+    const current = loadDraft(NAMESPACE);
+    saveDraft(NAMESPACE, { ...current, reviewing: nextReviewing, reviews: nextReviews });
+  }
+
+  function bake() {
+    const ids = subtasks.map((s) => s.id);
+    const next = initReviews(ids, reviews);
+    setReviews(next);
+    setReviewing(true);
+    setSelectedReviewId(ids[0] ?? null);
+    persistReview(true, next);
+  }
+
+  function exitReview() {
+    setReviewing(false);
+    persistReview(false, reviews);
+  }
+
+  function changeReview(id: string, patch: Partial<SubtaskReview>) {
+    setReviews((prev) => {
+      const next = setReview(prev, id, patch);
+      persistReview(true, next);
+      return next;
+    });
+  }
+
+  function scheduleInterference(editedId: string) {
+    if (interferenceTimer.current) clearTimeout(interferenceTimer.current);
+    interferenceTimer.current = setTimeout(async () => {
+      const all = loadDraft(NAMESPACE).subtasks ?? [];
+      const edited = all.find((s) => s.id === editedId);
+      if (!edited) return;
+      try {
+        const res = await fetch("/api/interference", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            epicDescription: (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim(),
+            editedSubtask: edited,
+            allSubtasks: all,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(json.interference)) {
+          const map: InterferenceMap = {};
+          for (const w of json.interference) map[w.affectedTaskId] = w;
+          setInterference(map);
+        }
+      } catch {
+        /* advisory; ignore */
+      }
+    }, 400);
+  }
+
+  function reviewUpdate(id: string, patch: { title?: string; description?: string }) {
+    commitSubtasks(updateSubtask(subtasks, id, patch));
+    scheduleInterference(id);
+  }
+  function reviewSetLabels(id: string, labels: string[]) {
+    commitSubtasks(setLabels(subtasks, id, labels));
+    scheduleInterference(id);
+  }
+  function reviewAddLink(blockerId: string, blockedId: string) {
+    commitSubtasks(addLink(subtasks, blockerId, blockedId));
+    scheduleInterference(blockerId);
+  }
+  function reviewRemoveLink(blockerId: string, blockedId: string) {
+    commitSubtasks(removeLink(subtasks, blockerId, blockedId));
+    scheduleInterference(blockerId);
+  }
+  function reviewDelete(id: string) {
+    const nextSubtasks = deleteSubtask(subtasks, id);
+    commitSubtasks(nextSubtasks);
+    setReviews((prev) => {
+      const next = pruneReviews(prev, nextSubtasks.map((s) => s.id));
+      persistReview(true, next);
+      return next;
+    });
+    setInterference((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    if (selectedReviewId === id) setSelectedReviewId(nextSubtasks[0]?.id ?? null);
   }
 
   const doughIsStale =
@@ -432,6 +525,10 @@ export function StandaloneApp({ initialSession }: Props) {
     setKnead(seeded);
     persistEpic(true, seeded);
     commitSubtasks([]);
+    setReviewing(false);
+    setReviews({});
+    setInterference({});
+    persistReview(false, {});
     void callKnead(seeded.rounds, false);
   }
 
@@ -586,6 +683,24 @@ export function StandaloneApp({ initialSession }: Props) {
         )}
 
         {mode.kind === "idle" || mode.kind === "running" ? (
+          epicMode && reviewing ? (
+            <ReviewerMode
+              epicTitle={liveDraft?.title ?? ""}
+              epicDescriptionHtml={liveDraft?.description ?? ""}
+              subtasks={subtasks}
+              reviews={reviews}
+              interference={interference}
+              selectedId={selectedReviewId}
+              onSelect={setSelectedReviewId}
+              onEditTasks={exitReview}
+              onUpdate={reviewUpdate}
+              onSetLabels={reviewSetLabels}
+              onAddLink={reviewAddLink}
+              onRemoveLink={reviewRemoveLink}
+              onReviewChange={changeReview}
+              onDelete={reviewDelete}
+            />
+          ) : (
           <div className="px-6 py-4 flex-1 min-h-0 flex flex-col max-w-5xl w-full">
             {submitErr && (
               <div className="mb-3 rounded-md bg-danger/5 border border-danger/30 px-4 py-2.5 shrink-0" role="alert">
@@ -620,6 +735,7 @@ export function StandaloneApp({ initialSession }: Props) {
               )}
             </div>
           </div>
+          )
         ) : (
           <div className="flex-1 min-h-0 flex flex-col">
             {diagramsErr && (
@@ -690,7 +806,7 @@ export function StandaloneApp({ initialSession }: Props) {
         />
       )}
 
-      {epicMode && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
+      {epicMode && !reviewing && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
         subtasks.length > 0 ? (
           <aside className="w-[460px] shrink-0 border-l border-rule bg-surface h-full overflow-y-auto p-5">
             {subtasksError && (
@@ -706,7 +822,7 @@ export function StandaloneApp({ initialSession }: Props) {
               onSetLabels={(id, labels) => commitSubtasks(setLabels(subtasks, id, labels))}
               onAddLink={(blockerId, blockedId) => commitSubtasks(addLink(subtasks, blockerId, blockedId))}
               onRemoveLink={(blockerId, blockedId) => commitSubtasks(removeLink(subtasks, blockerId, blockedId))}
-              onBake={() => {}}
+              onBake={bake}
             />
           </aside>
         ) : (

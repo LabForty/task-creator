@@ -76,7 +76,7 @@ export function Editor({
   // autosave never clobbers epic-mode state.
   useEffect(() => {
     const existing = loadDraft(namespace);
-    saveDraft(namespace, { ...draft, mode: existing.mode, knead: existing.knead, subtasks: existing.subtasks });
+    saveDraft(namespace, { ...draft, mode: existing.mode, knead: existing.knead, subtasks: existing.subtasks, reviewing: existing.reviewing, reviews: existing.reviews });
   }, [namespace, draft]);
 
   const onDraftChangeRef = useRef(onDraftChange);
@@ -88,7 +88,7 @@ export function Editor({
     // late here — `pagehide` is the last chance to write synchronously.
     const flush = () => {
       const existing = loadDraft(namespace);
-      saveDraft(namespace, { ...draftRef.current, mode: existing.mode, knead: existing.knead, subtasks: existing.subtasks });
+      saveDraft(namespace, { ...draftRef.current, mode: existing.mode, knead: existing.knead, subtasks: existing.subtasks, reviewing: existing.reviewing, reviews: existing.reviews });
     };
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       flush();
