@@ -13,6 +13,8 @@ import {
   type DraftInput,
 } from "@/lib/pipeline";
 import type { Draft } from "@/lib/draft/autosave";
+import { parseKneadResponse, applyCap } from "@/lib/knead/parse";
+import type { KneadOutcome, KneadRound } from "@/lib/knead/types";
 import type { AgentEvent, AgentTransport, RunArgs } from "./types";
 
 // Webapp-owned Claude Skills. Loaded from skills/<name>/SKILL.md at invocation
@@ -398,6 +400,41 @@ export async function runHelp(args: {
   return reply;
 }
 
+export async function runKnead(args: {
+  epicDescription: string;
+  rounds: KneadRound[];
+  overrideCapApproved?: boolean;
+  transport: AgentTransport;
+  signal?: AbortSignal;
+}): Promise<KneadOutcome> {
+  const systemPrompt = await loadSkillPrompt("task-knead");
+  const userMessage = JSON.stringify({
+    epicDescription: args.epicDescription,
+    rounds: args.rounds,
+    roundNumber: args.rounds.length + 1,
+    maxFreeRounds: 5,
+    overrideCapApproved: Boolean(args.overrideCapApproved),
+  });
+
+  let buffer = "";
+  let pending: Error | null = null;
+  await args.transport.runRole({
+    role: "knead",
+    systemPrompt,
+    userMessage,
+    cwd: process.cwd(),
+    signal: args.signal,
+    onEvent: (e) => {
+      if (e.type === "token") buffer += e.text;
+      else if (e.type === "error") pending = new Error(`${e.code}: ${e.message}`);
+    },
+  });
+  if (pending) throw pending;
+
+  const result = parseKneadResponse(buffer);
+  return applyCap(result, args.rounds.length, Boolean(args.overrideCapApproved));
+}
+
 // ---------------------------------------------------------------------------
 // Default transport — drives the Anthropic Claude Agent SDK.
 // JSON-only skills/roles get no tools (text-only output).
@@ -470,7 +507,7 @@ function wrapSignal(signal: AbortSignal): AbortController {
 // in production.
 export function makeStubTransport(): AgentTransport {
   return {
-    async runRole({ role, onEvent }) {
+    async runRole({ role, userMessage, onEvent }) {
       onEvent({ type: "progress", message: `${role} (stub) running` });
 
       if (role === "create-diagrams") {
@@ -488,6 +525,25 @@ export function makeStubTransport(): AgentTransport {
         onEvent({ type: "token", text: "Stub-help reply: nothing missing." });
       } else if (role === "title-suggest") {
         onEvent({ type: "token", text: JSON.stringify({ title: "Suggested task title (stub)" }) });
+      } else if (role === "knead") {
+        let priorRounds = 0;
+        try {
+          const parsed = JSON.parse(userMessage) as { rounds?: unknown[] };
+          priorRounds = Array.isArray(parsed.rounds) ? parsed.rounds.length : 0;
+        } catch {
+          /* ignore — treat as round 1 */
+        }
+        const payload =
+          priorRounds === 0
+            ? {
+                kind: "questions",
+                questions: [
+                  { id: "q-surfaces", prompt: "Which product surfaces are impacted?", section: "business", type: "multi", options: ["Web app", "Admin console", "API", "Mobile"] },
+                  { id: "q-risk", prompt: "What is the rollout risk?", section: "technical", type: "single", options: ["Low", "Medium", "High"] },
+                ],
+              }
+            : { kind: "complete" };
+        onEvent({ type: "token", text: JSON.stringify(payload) });
       } else if (role === "analyst") {
         const req = {
           title: "Stub requirement authored by TASK_AGENT_MODE=stub",
