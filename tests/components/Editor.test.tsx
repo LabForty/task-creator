@@ -59,4 +59,36 @@ describe("<Editor>", () => {
     render(<Editor namespace="t6" onFinalize={vi.fn()} disabled />);
     expect(screen.getByRole("button", { name: /finalize task/i })).toBeDisabled();
   });
+
+  it("shows 'Knead tasks' in epic mode", () => {
+    render(<Editor namespace="e1" onFinalize={vi.fn()} mode="epic" onKnead={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /knead tasks/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /finalize task/i })).not.toBeInTheDocument();
+  });
+
+  it("enables 'Knead tasks' from a description even with no title, and calls onKnead", async () => {
+    const onKnead = vi.fn();
+    render(<Editor namespace="e2" onFinalize={vi.fn()} mode="epic" onKnead={onKnead} />);
+    const btn = screen.getByRole("button", { name: /knead tasks/i });
+    expect(btn).toBeDisabled();
+    // RichTextDescription wraps the toolbar + editor in a single <label>, so the
+    // label text associates with the toolbar buttons too. Scope to the editor's
+    // own aria-labelled <div> to type into the rich-text field unambiguously.
+    await userEvent.type(
+      await screen.findByLabelText(/^description/i, { selector: "div" }),
+      "Build an onboarding wizard",
+    );
+    expect(screen.getByRole("button", { name: /knead tasks/i })).not.toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: /knead tasks/i }));
+    expect(onKnead).toHaveBeenCalled();
+  });
+
+  it("respects kneadDisabled in epic mode", async () => {
+    render(<Editor namespace="e3" onFinalize={vi.fn()} mode="epic" onKnead={vi.fn()} kneadDisabled />);
+    await userEvent.type(
+      await screen.findByLabelText(/^description/i, { selector: "div" }),
+      "Some epic",
+    );
+    expect(screen.getByRole("button", { name: /knead tasks/i })).toBeDisabled();
+  });
 });

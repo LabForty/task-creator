@@ -32,12 +32,26 @@ type Props = {
   onFinalize: (draft: Draft) => void;
   disabled?: boolean;
   onHelp?: () => void;
+  // Epic mode: relabel the primary button and gate on the epic description.
+  mode?: "single" | "epic";
+  onKnead?: (draft: Draft) => void;
+  kneadDisabled?: boolean;
+  onDraftChange?: (draft: Draft) => void;
 };
 
 const HIGHLIGHT_EVENT = "task:highlight-field";
 const HIGHLIGHT_MS = 2500;
 
-export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Props) {
+// TipTap stores rich text as HTML; strip tags to decide whether the epic
+// description has real content.
+function hasEpicDescription(html: string): boolean {
+  return html.replace(/<[^>]*>/g, "").trim().length > 0;
+}
+
+export function Editor({
+  namespace, onFinalize, disabled = false, onHelp,
+  mode = "single", onKnead, kneadDisabled = false, onDraftChange,
+}: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestErr, setSuggestErr] = useState<string | null>(null);
@@ -60,6 +74,10 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
   useEffect(() => {
     saveDraft(namespace, draft);
   }, [namespace, draft]);
+
+  const onDraftChangeRef = useRef(onDraftChange);
+  useEffect(() => { onDraftChangeRef.current = onDraftChange; }, [onDraftChange]);
+  useEffect(() => { onDraftChangeRef.current?.(draft); }, [draft]);
 
   useEffect(() => {
     // Belt-and-braces flush on tab close / hide. setTimeout(0) would be too
@@ -168,6 +186,10 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
       className="hig-card p-5 flex flex-col gap-4 h-full"
       onSubmit={(e) => {
         e.preventDefault();
+        if (mode === "epic") {
+          if (onKnead && hasEpicDescription(draft.description)) onKnead(draft);
+          return;
+        }
         if (!draft.title.trim()) return;
         onFinalize(draft);
       }}
@@ -249,9 +271,19 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
             Help
           </Button>
         )}
-        <Button type="submit" size="lg" disabled={disabled || !draft.title.trim()}>
-          Finalize task
-        </Button>
+        {mode === "epic" ? (
+          <Button
+            type="submit"
+            size="lg"
+            disabled={kneadDisabled || !hasEpicDescription(draft.description)}
+          >
+            Knead tasks
+          </Button>
+        ) : (
+          <Button type="submit" size="lg" disabled={disabled || !draft.title.trim()}>
+            Finalize task
+          </Button>
+        )}
       </div>
     </form>
   );
