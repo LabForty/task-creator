@@ -97,6 +97,17 @@ export const InterferenceBodySchema = z.object({
 });
 export type InterferenceBody = z.infer<typeof InterferenceBodySchema>;
 
+export const RefineBodySchema = z.object({
+  epicDescription: z.string().min(1),
+  draft: z.object({
+    title: z.string(),
+    description: z.string(),
+    acceptanceCriteria: z.array(z.string()),
+    constraints: z.string(),
+  }),
+});
+export type RefineBody = z.infer<typeof RefineBodySchema>;
+
 export type DraftPayload = z.infer<typeof DraftSchema>;
 export type FinalizeBody = z.infer<typeof FinalizeBodySchema>;
 export type CreateDiagramsBody = z.infer<typeof CreateDiagramsBodySchema>;
