@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { QuestionField } from "@/components/epic/QuestionField";
-import { currentRound, isCurrentRoundAnswered } from "@/lib/epic/state";
+import { currentRound, isCurrentRoundAnswered, isSkipped } from "@/lib/epic/state";
 import type { KneadState, KneadAnswerValue, KneadSection } from "@/lib/knead/types";
 
 type Props = {
@@ -11,6 +11,8 @@ type Props = {
   error: string | null;
   capPrompt: { justification: string } | null;
   onAnswer: (qid: string, value: KneadAnswerValue) => void;
+  onSkip: (qid: string) => void;
+  onUnskip: (qid: string) => void;
   onKnead: () => void;
   onApproveCap: () => void;
   onDeclineCap: () => void;
@@ -22,18 +24,18 @@ type Props = {
 const SECTION_LABEL: Record<KneadSection, string> = { business: "Business", technical: "Technical" };
 
 export function KneadingPanel({
-  state, loading, error, capPrompt, onAnswer, onKnead, onApproveCap, onDeclineCap, onRetry,
+  state, loading, error, capPrompt, onAnswer, onSkip, onUnskip, onKnead, onApproveCap, onDeclineCap, onRetry,
   onGenerate, generating = false,
 }: Props) {
   const round = currentRound(state);
 
   return (
-    <aside className="w-[420px] shrink-0 border-l border-rule bg-surface h-full overflow-y-auto p-5 flex flex-col gap-4">
-      <header className="flex flex-col gap-0.5">
-        <span className="hig-section-label">Knead</span>
-        <h2 className="text-hig-title3">
+    <aside className="w-[380px] shrink-0 border-l border-rule bg-surface h-full overflow-y-auto p-4 flex flex-col gap-3">
+      <header className="flex items-baseline justify-between gap-2">
+        <h2 className="text-hig-subhead font-semibold text-ink">
           {state.status === "complete" ? "Kneading complete" : "Refine the epic"}
         </h2>
+        <span className="hig-section-label">Knead</span>
       </header>
 
       {error && (
@@ -79,17 +81,34 @@ export function KneadingPanel({
               const sectionQs = round.questions.filter((q) => q.section === section);
               if (sectionQs.length === 0) return null;
               return (
-                <div key={section} className="flex flex-col gap-3">
+                <div key={section} className="flex flex-col gap-2">
                   <h3 className="hig-section-label">{SECTION_LABEL[section]}</h3>
-                  {sectionQs.map((q) => (
-                    <QuestionField
-                      key={q.id}
-                      question={q}
-                      value={round.answers[q.id]}
-                      onChange={(v) => onAnswer(q.id, v)}
-                      disabled={loading}
-                    />
-                  ))}
+                  {sectionQs.map((q) =>
+                    isSkipped(round, q.id) ? (
+                      <div key={q.id} className="flex items-center justify-between gap-2 text-hig-footnote text-ink-tertiary">
+                        <span className="line-through truncate">{q.prompt}</span>
+                        <button type="button" className="shrink-0 text-accent hover:underline" onClick={() => onUnskip(q.id)}>
+                          Undo
+                        </button>
+                      </div>
+                    ) : (
+                      <div key={q.id} className="flex flex-col gap-0.5">
+                        <QuestionField
+                          question={q}
+                          value={round.answers[q.id]}
+                          onChange={(v) => onAnswer(q.id, v)}
+                          disabled={loading}
+                        />
+                        <button
+                          type="button"
+                          className="self-start text-hig-caption text-ink-tertiary hover:text-ink"
+                          onClick={() => onSkip(q.id)}
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    ),
+                  )}
                 </div>
               );
             })}
@@ -97,7 +116,7 @@ export function KneadingPanel({
               type="button"
               onClick={onKnead}
               disabled={loading || !isCurrentRoundAnswered(state)}
-              className="mt-2"
+              className="mt-1"
             >
               Knead
             </Button>

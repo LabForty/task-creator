@@ -12,7 +12,7 @@ import { setReview, initReviews, pruneReviews } from "@/lib/review/state";
 import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
 import { fromProposed, addSubtask, deleteSubtask, updateSubtask, setLabels, addLink, removeLink } from "@/lib/subtasks/state";
 import type { SubTask, ProposedSubtask } from "@/lib/subtasks/types";
-import { startInterview, appendRound, setAnswer, markComplete, resetDough } from "@/lib/epic/state";
+import { startInterview, appendRound, setAnswer, skipQuestion, unskipQuestion, markComplete, resetDough } from "@/lib/epic/state";
 import { EMPTY_KNEAD, type KneadState, type KneadAnswerValue } from "@/lib/knead/types";
 import { RunSheet } from "@/components/RunSheet";
 import { Preview } from "@/components/Preview";
@@ -539,6 +539,14 @@ export function StandaloneApp({ initialSession }: Props) {
     setKnead((s) => { const next = setAnswer(s, qid, value); persistEpic(true, next); return next; });
   }
 
+  function skipQuestionHandler(qid: string) {
+    setKnead((s) => { const next = skipQuestion(s, qid); persistEpic(true, next); return next; });
+  }
+
+  function unskipQuestionHandler(qid: string) {
+    setKnead((s) => { const next = unskipQuestion(s, qid); persistEpic(true, next); return next; });
+  }
+
   async function generateSubtasks() {
     const epicDescription = (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim();
     setGenerating(true);
@@ -835,6 +843,8 @@ export function StandaloneApp({ initialSession }: Props) {
             error={kneadError}
             capPrompt={capPrompt}
             onAnswer={answerQuestion}
+            onSkip={skipQuestionHandler}
+            onUnskip={unskipQuestionHandler}
             onKnead={continueKneading}
             onApproveCap={approveCap}
             onDeclineCap={declineCap}

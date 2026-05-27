@@ -20,7 +20,7 @@ function interviewing(answers: Record<string, string | string[]> = {}): KneadSta
 const noop = () => {};
 const baseProps = {
   loading: false, error: null, capPrompt: null,
-  onAnswer: noop, onKnead: noop, onApproveCap: noop, onDeclineCap: noop, onRetry: noop,
+  onAnswer: noop, onSkip: noop, onUnskip: noop, onKnead: noop, onApproveCap: noop, onDeclineCap: noop, onRetry: noop,
 };
 
 describe("<KneadingPanel>", () => {
@@ -85,5 +85,30 @@ describe("<KneadingPanel>", () => {
     const complete: KneadState = { status: "complete", rounds: interviewing({ a: "x", b: "Low" }).rounds };
     render(<KneadingPanel {...baseProps} state={complete} onGenerate={() => {}} generating />);
     expect(screen.getByRole("button", { name: /generating/i })).toBeDisabled();
+  });
+
+  it("skips a question via its Skip button", async () => {
+    const onSkip = vi.fn();
+    render(<KneadingPanel {...baseProps} state={interviewing()} onSkip={onSkip} />);
+    // Skip the first (text) question.
+    await userEvent.click(screen.getAllByRole("button", { name: /^skip$/i })[0]);
+    expect(onSkip).toHaveBeenCalledWith("a");
+  });
+
+  it("shows a skipped question with an Undo and lets Knead proceed once all are resolved", async () => {
+    const onUnskip = vi.fn();
+    // 'a' answered, 'b' skipped → round resolved → Knead enabled.
+    const state: KneadState = {
+      status: "interviewing",
+      rounds: [{
+        questions: interviewing().rounds[0].questions,
+        answers: { a: "Admins" },
+        skipped: ["b"],
+      }],
+    };
+    render(<KneadingPanel {...baseProps} state={state} onUnskip={onUnskip} />);
+    expect(screen.getByRole("button", { name: /^knead$/i })).not.toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: /undo/i }));
+    expect(onUnskip).toHaveBeenCalledWith("b");
   });
 });

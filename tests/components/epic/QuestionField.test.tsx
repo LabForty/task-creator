@@ -27,6 +27,12 @@ function TextHarness({ question, onChange }: { question: KneadQuestion; onChange
   );
 }
 
+// Feeds the controlled value back so typed input accumulates across keystrokes.
+function Harness({ question, initial, onChange }: { question: KneadQuestion; initial?: KneadAnswerValue; onChange: (v: KneadAnswerValue) => void }) {
+  const [value, setValue] = useState<KneadAnswerValue | undefined>(initial);
+  return <QuestionField question={question} value={value} onChange={(v) => { setValue(v); onChange(v); }} />;
+}
+
 describe("<QuestionField>", () => {
   it("renders a textarea for text questions and reports changes", async () => {
     const onChange = vi.fn();
@@ -50,5 +56,19 @@ describe("<QuestionField>", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "Web" }));
     // From the original ["Web"], unchecking Web yields [].
     expect(onChange).toHaveBeenCalledWith([]);
+  });
+
+  it("lets a single question take a custom written answer", async () => {
+    const onChange = vi.fn();
+    render(<Harness question={singleQ} onChange={onChange} />);
+    await userEvent.type(screen.getByLabelText(/custom answer for rollout risk/i), "Hybrid");
+    expect(onChange).toHaveBeenLastCalledWith("Hybrid");
+  });
+
+  it("lets a multi question add a custom value on Enter", async () => {
+    const onChange = vi.fn();
+    render(<QuestionField question={multiQ} value={[]} onChange={onChange} />);
+    await userEvent.type(screen.getByLabelText(/add a custom answer for which surfaces/i), "Mobile{Enter}");
+    expect(onChange).toHaveBeenCalledWith(["Mobile"]);
   });
 });

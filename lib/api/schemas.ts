@@ -64,6 +64,7 @@ export const HelpBodySchema = z.object({
 export const KneadRoundSchema = z.object({
   questions: z.array(KneadQuestionSchema),
   answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+  skipped: z.array(z.string()).optional(),
 });
 
 export const KneadBodySchema = z.object({

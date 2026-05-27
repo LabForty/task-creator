@@ -20,6 +20,9 @@ export type KneadQuestion = {
 export type KneadRound = {
   questions: KneadQuestion[];
   answers: Record<string, KneadAnswerValue>;
+  // Questions the user explicitly skipped — counted as resolved (so they don't
+  // block kneading) but excluded from the answers sent to the AI.
+  skipped?: string[];
 };
 
 export type KneadState = {

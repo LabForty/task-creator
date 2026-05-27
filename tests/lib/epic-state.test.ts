@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   startInterview, appendRound, setAnswer, markComplete, resetDough,
   currentRound, isCurrentRoundAnswered, isAnswered,
+  skipQuestion, unskipQuestion, isSkipped,
 } from "@/lib/epic/state";
 import { EMPTY_KNEAD, type KneadQuestion } from "@/lib/knead/types";
 
@@ -78,5 +79,38 @@ describe("knead state transitions", () => {
     expect(reset.status).toBe("idle");
     expect(reset.rounds).toHaveLength(1);
     expect(currentRound(reset)?.answers).toEqual({ a: "hi" });
+  });
+});
+
+describe("skip", () => {
+  it("skipQuestion marks a question skipped and clears any answer", () => {
+    let s = appendRound(startInterview(EMPTY_KNEAD, "d"), qs);
+    s = setAnswer(s, "a", "hi");
+    s = skipQuestion(s, "a");
+    expect(isSkipped(currentRound(s), "a")).toBe(true);
+    expect(currentRound(s)?.answers.a).toBeUndefined();
+  });
+
+  it("unskipQuestion removes the skip mark", () => {
+    let s = appendRound(startInterview(EMPTY_KNEAD, "d"), qs);
+    s = skipQuestion(s, "a");
+    s = unskipQuestion(s, "a");
+    expect(isSkipped(currentRound(s), "a")).toBe(false);
+  });
+
+  it("answering a skipped question clears the skip", () => {
+    let s = appendRound(startInterview(EMPTY_KNEAD, "d"), qs);
+    s = skipQuestion(s, "a");
+    s = setAnswer(s, "a", "now answered");
+    expect(isSkipped(currentRound(s), "a")).toBe(false);
+    expect(currentRound(s)?.answers.a).toBe("now answered");
+  });
+
+  it("a round is resolved when remaining questions are skipped", () => {
+    let s = appendRound(startInterview(EMPTY_KNEAD, "d"), qs);
+    s = setAnswer(s, "a", "hi");
+    expect(isCurrentRoundAnswered(s)).toBe(false); // b still open
+    s = skipQuestion(s, "b");
+    expect(isCurrentRoundAnswered(s)).toBe(true); // a answered, b skipped
   });
 });

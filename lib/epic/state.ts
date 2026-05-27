@@ -21,23 +21,54 @@ export function appendRound(state: KneadState, questions: KneadQuestion[]): Knea
   return {
     ...state,
     status: "interviewing",
-    rounds: [...state.rounds, { questions, answers: {} }],
+    rounds: [...state.rounds, { questions, answers: {}, skipped: [] }],
   };
 }
 
 export function setAnswer(state: KneadState, qid: string, value: KneadAnswerValue): KneadState {
   const last = state.rounds.length - 1;
   if (last < 0) return state;
+  // Answering a question also clears any prior "skipped" mark on it.
   const rounds = state.rounds.map((r, i) =>
-    i === last ? { ...r, answers: { ...r.answers, [qid]: value } } : r,
+    i === last
+      ? { ...r, answers: { ...r.answers, [qid]: value }, skipped: (r.skipped ?? []).filter((id) => id !== qid) }
+      : r,
   );
   return { ...state, rounds };
 }
 
+export function isSkipped(round: KneadRound | undefined, qid: string): boolean {
+  return Boolean(round?.skipped?.includes(qid));
+}
+
+export function skipQuestion(state: KneadState, qid: string): KneadState {
+  const last = state.rounds.length - 1;
+  if (last < 0) return state;
+  const rounds = state.rounds.map((r, i) => {
+    if (i !== last) return r;
+    const answers = { ...r.answers };
+    delete answers[qid]; // skipping discards any in-progress answer
+    const skipped = (r.skipped ?? []).includes(qid) ? r.skipped ?? [] : [...(r.skipped ?? []), qid];
+    return { ...r, answers, skipped };
+  });
+  return { ...state, rounds };
+}
+
+export function unskipQuestion(state: KneadState, qid: string): KneadState {
+  const last = state.rounds.length - 1;
+  if (last < 0) return state;
+  const rounds = state.rounds.map((r, i) =>
+    i === last ? { ...r, skipped: (r.skipped ?? []).filter((id) => id !== qid) } : r,
+  );
+  return { ...state, rounds };
+}
+
+// A round is ready to knead when every question is either answered or skipped.
 export function isCurrentRoundAnswered(state: KneadState): boolean {
   const round = currentRound(state);
   if (!round || round.questions.length === 0) return false;
-  return round.questions.every((q) => isAnswered(q, round.answers[q.id]));
+  const skipped = round.skipped ?? [];
+  return round.questions.every((q) => isAnswered(q, round.answers[q.id]) || skipped.includes(q.id));
 }
 
 export function markComplete(state: KneadState): KneadState {
