@@ -94,6 +94,9 @@ export function StandaloneApp({ initialSession }: Props) {
   const [interference, setInterference] = useState<InterferenceMap>({});
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const interferenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cancel any pending debounced interference call on unmount so it can't fire
+  // setInterference after the component is gone.
+  useEffect(() => () => { if (interferenceTimer.current) clearTimeout(interferenceTimer.current); }, []);
 
   const kneadRef = useRef(knead);
   useEffect(() => { kneadRef.current = knead; }, [knead]);
