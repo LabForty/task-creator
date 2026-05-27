@@ -16,6 +16,8 @@ import type { Draft } from "@/lib/draft/autosave";
 import { extractJsonObject } from "@/lib/json/extract";
 import { parseKneadResponse, applyCap } from "@/lib/knead/parse";
 import type { KneadOutcome, KneadRound } from "@/lib/knead/types";
+import { parseSubtasksResponse } from "@/lib/subtasks/parse";
+import type { ProposedSubtask } from "@/lib/subtasks/types";
 import type { AgentEvent, AgentTransport, RunArgs } from "./types";
 
 // Webapp-owned Claude Skills. Loaded from skills/<name>/SKILL.md at invocation
@@ -411,6 +413,32 @@ export async function runKnead(args: {
   return applyCap(result, args.rounds.length, Boolean(args.overrideCapApproved));
 }
 
+export async function runGenerateSubtasks(args: {
+  epicDescription: string;
+  rounds: KneadRound[];
+  transport: AgentTransport;
+  signal?: AbortSignal;
+}): Promise<ProposedSubtask[]> {
+  const systemPrompt = await loadSkillPrompt("task-generate-subtasks");
+  const userMessage = JSON.stringify({ epicDescription: args.epicDescription, rounds: args.rounds });
+
+  let buffer = "";
+  let pending: Error | null = null;
+  await args.transport.runRole({
+    role: "generate-subtasks",
+    systemPrompt,
+    userMessage,
+    cwd: process.cwd(),
+    signal: args.signal,
+    onEvent: (e) => {
+      if (e.type === "token") buffer += e.text;
+      else if (e.type === "error") pending = new Error(`${e.code}: ${e.message}`);
+    },
+  });
+  if (pending) throw pending;
+  return parseSubtasksResponse(buffer);
+}
+
 // ---------------------------------------------------------------------------
 // Default transport — drives the Anthropic Claude Agent SDK.
 // JSON-only skills/roles get no tools (text-only output).
@@ -519,6 +547,14 @@ export function makeStubTransport(): AgentTransport {
                 ],
               }
             : { kind: "complete" };
+        onEvent({ type: "token", text: JSON.stringify(payload) });
+      } else if (role === "generate-subtasks") {
+        const payload = {
+          subtasks: [
+            { title: "Set up the data model", description: "Define the schema and migrations.", labels: ["backend"], blocks: [1] },
+            { title: "Build the list UI", description: "Render and edit the items.", labels: ["frontend"], blocks: [] },
+          ],
+        };
         onEvent({ type: "token", text: JSON.stringify(payload) });
       } else if (role === "analyst") {
         const req = {
