@@ -706,6 +706,7 @@ export function StandaloneApp({ initialSession }: Props) {
               onSetLabels={(id, labels) => commitSubtasks(setLabels(subtasks, id, labels))}
               onAddLink={(blockerId, blockedId) => commitSubtasks(addLink(subtasks, blockerId, blockedId))}
               onRemoveLink={(blockerId, blockedId) => commitSubtasks(removeLink(subtasks, blockerId, blockedId))}
+              onBake={() => {}}
             />
           </aside>
         ) : (

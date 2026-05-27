@@ -8,7 +8,7 @@ const list: SubTask[] = [
   { id: "a", title: "Alpha", description: "", labels: [], blocks: [], blockedBy: [] },
   { id: "b", title: "Beta", description: "", labels: [], blocks: [], blockedBy: [] },
 ];
-const handlers = { onUpdate: vi.fn(), onSetLabels: vi.fn(), onAddLink: vi.fn(), onRemoveLink: vi.fn(), onDelete: vi.fn(), onAdd: vi.fn() };
+const handlers = { onUpdate: vi.fn(), onSetLabels: vi.fn(), onAddLink: vi.fn(), onRemoveLink: vi.fn(), onDelete: vi.fn(), onAdd: vi.fn(), onBake: vi.fn() };
 
 describe("<SubtaskList>", () => {
   it("renders a card per sub-task", () => {
@@ -22,6 +22,13 @@ describe("<SubtaskList>", () => {
     render(<SubtaskList subtasks={list} {...handlers} onAdd={onAdd} />);
     await userEvent.click(screen.getByRole("button", { name: /add sub-task/i }));
     expect(onAdd).toHaveBeenCalled();
+  });
+
+  it("fires onBake", async () => {
+    const onBake = vi.fn();
+    render(<SubtaskList subtasks={list} {...handlers} onBake={onBake} />);
+    await userEvent.click(screen.getByRole("button", { name: /^bake$/i }));
+    expect(onBake).toHaveBeenCalled();
   });
 
   it("routes per-card callbacks with the sub-task id", async () => {

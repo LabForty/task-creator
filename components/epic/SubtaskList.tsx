@@ -12,14 +12,18 @@ type Props = {
   onRemoveLink: (blockerId: string, blockedId: string) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
+  onBake: () => void;
 };
 
-export function SubtaskList({ subtasks, onUpdate, onSetLabels, onAddLink, onRemoveLink, onDelete, onAdd }: Props) {
+export function SubtaskList({ subtasks, onUpdate, onSetLabels, onAddLink, onRemoveLink, onDelete, onAdd, onBake }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between">
         <h2 className="text-hig-title3">Sub-tasks</h2>
-        <Button type="button" size="sm" variant="secondary" onClick={onAdd}>Add sub-task</Button>
+        <div className="flex gap-2">
+          <Button type="button" size="sm" variant="secondary" onClick={onAdd}>Add sub-task</Button>
+          <Button type="button" size="sm" onClick={onBake} disabled={subtasks.length === 0}>Bake</Button>
+        </div>
       </header>
       {subtasks.map((s) => (
         <SubtaskCard
