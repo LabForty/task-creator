@@ -1,5 +1,6 @@
 import type { Diagrams, HelpMessage } from "@/lib/jobs/types";
 import type { KneadState } from "@/lib/knead/types";
+import type { ReviewMap } from "@/lib/review/types";
 import type { SubTask } from "@/lib/subtasks/types";
 
 export type Draft = {
@@ -17,6 +18,8 @@ export type Draft = {
   mode: "single" | "epic";
   knead?: KneadState;
   subtasks?: SubTask[];
+  reviewing?: boolean;
+  reviews?: ReviewMap;
 };
 
 export const EMPTY_DRAFT: Draft = {
@@ -48,6 +51,8 @@ export function loadDraft(namespace: string): Draft {
       mode: parsed.mode === "epic" ? "epic" : "single",
       knead: parsed.knead,
       subtasks: Array.isArray(parsed.subtasks) ? parsed.subtasks : undefined,
+      reviewing: parsed.reviewing === true ? true : undefined,
+      reviews: parsed.reviews && typeof parsed.reviews === "object" ? parsed.reviews : undefined,
     };
   } catch {
     return { ...EMPTY_DRAFT };
