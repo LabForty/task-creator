@@ -57,7 +57,7 @@ async function exportOne(
       payload: { story: payload.story, markdown: payload.markdown, constraints: undefined },
       metadata: {
         labels: task.labels.length ? task.labels : undefined,
-        epic: dest.parentEpicKey ? { key: dest.parentEpicKey } : undefined,
+        epic: dest.parentEpicKey ? { kind: "existing" as const, key: dest.parentEpicKey } : undefined,
       },
     }),
   });

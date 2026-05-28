@@ -102,6 +102,28 @@ describe("runBatchUpload", () => {
     expect(result.failedReason).toMatch(/cancelled/i);
   });
 
+  it("sends metadata.epic with kind:'existing' when parentEpicKey is set", async () => {
+    let exportBody: { metadata?: { epic?: { kind?: string; key?: string } } } | null = null;
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/api/finalize")) {
+        return Promise.resolve({ ok: true, json: async () => ({ jobId: "job-1" }) });
+      }
+      if (url.includes("/api/jira/export")) {
+        exportBody = JSON.parse((init?.body as string) ?? "{}");
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-99", url: "https://x/AI-99" }) });
+      }
+      return Promise.reject(new Error("unexpected"));
+    });
+    await runBatchUpload({
+      tasks: [task("a")],
+      destination: { ...dest, parentEpicKey: "AI-36" },
+      onRow: () => {},
+    });
+    expect(exportBody).not.toBeNull();
+    expect(exportBody!.metadata?.epic?.kind).toBe("existing");
+    expect(exportBody!.metadata?.epic?.key).toBe("AI-36");
+  });
+
   it("treats an empty tasks list as a no-op (returns empty uploaded)", async () => {
     const result = await runBatchUpload({ tasks: [], destination: dest, onRow: () => {} });
     expect(result.uploaded).toEqual([]);
