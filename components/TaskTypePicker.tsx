@@ -7,13 +7,16 @@ type TemplateRecord = { key: string; label: string; modified: string | null };
 type Props = {
   value: string;
   onValueChange: (next: string) => void;
+  // When set, the select is disabled and only the matching option is shown.
+  // Used by epic mode to pin the epic's own task type to "epic".
+  lockedTo?: string;
 };
 
 // Pulls /api/templates/types on mount and renders a select dropdown. The
 // endpoint kicks off a background re-sync internally so the list converges
 // toward the remote source over time. The select is purely a key picker —
 // the planner does the heavy lifting of reading the template file.
-export function TaskTypePicker({ value, onValueChange }: Props) {
+export function TaskTypePicker({ value, onValueChange, lockedTo }: Props) {
   const [types, setTypes] = useState<TemplateRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +50,13 @@ export function TaskTypePicker({ value, onValueChange }: Props) {
     return types;
   })();
 
+  // When locked, collapse the visible options to the locked entry (synthesizing
+  // one if it hasn't loaded yet) and pin the rendered value.
+  const finalList = lockedTo
+    ? [list.find((t) => t.key === lockedTo) ?? { key: lockedTo, label: lockedTo, modified: null }]
+    : list;
+  const finalValue = lockedTo ?? value;
+
   return (
     <label className="flex flex-col gap-1.5">
       <span data-label className="text-hig-subhead font-medium text-ink">
@@ -56,9 +66,12 @@ export function TaskTypePicker({ value, onValueChange }: Props) {
         Picks the template the planner follows on Finalize.
       </span>
       <select
-        value={value}
-        onChange={(e) => onValueChange(e.target.value)}
-        disabled={types === null}
+        value={finalValue}
+        onChange={(e) => {
+          if (lockedTo) return;
+          onValueChange(e.target.value);
+        }}
+        disabled={types === null || Boolean(lockedTo)}
         className={
           "h-10 px-3 rounded-md bg-surface border border-rule " +
           "text-hig-body text-ink " +
@@ -67,9 +80,9 @@ export function TaskTypePicker({ value, onValueChange }: Props) {
         }
         data-input
       >
-        {types === null && <option>Loading templates…</option>}
-        {types !== null && list.length === 0 && <option value="">(no templates synced)</option>}
-        {list.map((t) => (
+        {types === null && !lockedTo && <option>Loading templates…</option>}
+        {types !== null && finalList.length === 0 && <option value="">(no templates synced)</option>}
+        {finalList.map((t) => (
           <option key={t.key} value={t.key}>
             {t.label}
           </option>

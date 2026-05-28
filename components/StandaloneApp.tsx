@@ -903,51 +903,54 @@ export function StandaloneApp({ initialSession }: Props) {
               />
             </div>
           ) : (
-          <div className="px-6 py-4 flex-1 min-h-0 flex flex-col max-w-5xl w-full">
+          <div className="px-6 py-4 flex-1 min-h-0 flex flex-col w-full">
             {submitErr && (
               <div className="mb-3 rounded-md bg-danger/5 border border-danger/30 px-4 py-2.5 shrink-0" role="alert">
                 <p className="text-hig-footnote text-danger">{submitErr}</p>
               </div>
             )}
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              {epicMode && knead.status !== "idle" && (
-                <BackBar
-                  label="Back to editor"
-                  confirmMessage="Discard kneading rounds and return to the editor?"
-                  onBack={() => {
-                    setKnead(EMPTY_KNEAD);
-                    persistEpic(true, EMPTY_KNEAD);
-                    setCapPrompt(null);
-                    setKneadError(null);
-                  }}
+            <div className="flex-1 min-h-0 flex gap-4">
+              <div className="flex-1 min-w-0 overflow-y-auto max-w-5xl">
+                {epicMode && knead.status !== "idle" && (
+                  <BackBar
+                    label="Back to editor"
+                    confirmMessage="Discard kneading rounds and return to the editor?"
+                    onBack={() => {
+                      setKnead(EMPTY_KNEAD);
+                      persistEpic(true, EMPTY_KNEAD);
+                      setCapPrompt(null);
+                      setKneadError(null);
+                    }}
+                  />
+                )}
+                <Editor
+                  key={`standalone:${taskRefreshKey}`}
+                  namespace={NAMESPACE}
+                  onFinalize={submit}
+                  disabled={mode.kind === "running"}
+                  onHelp={() => { setAnalyzeTaskId(null); setWalking(false); setHelpOpen("editor"); }}
+                  onClear={clearVisibleDraft}
+                  mode={epicMode ? "epic" : "single"}
+                  onKnead={startKneading}
+                  kneadDisabled={kneadLoading}
+                  onDraftChange={setLiveDraft}
+                  taskTypeLocked={epicMode ? "epic" : undefined}
                 />
-              )}
-              <Editor
-                key={`standalone:${taskRefreshKey}`}
-                namespace={NAMESPACE}
-                onFinalize={submit}
-                disabled={mode.kind === "running"}
-                onHelp={() => { setAnalyzeTaskId(null); setWalking(false); setHelpOpen("editor"); }}
-                onClear={clearVisibleDraft}
-                mode={epicMode ? "epic" : "single"}
-                onKnead={startKneading}
-                kneadDisabled={kneadLoading}
-                onDraftChange={setLiveDraft}
-              />
-              {epicMode && (
-                <>
-                  {doughIsStale && !showLostDough && (
-                    <p className="mt-3 text-hig-footnote text-warning">
-                      Epic description edited — press “Knead tasks” to re-knead.
-                    </p>
-                  )}
-                  {showLostDough && (
-                    <div className="mt-3">
-                      <LostDoughWarning onConfirm={confirmReKnead} onCancel={() => setShowLostDough(false)} />
-                    </div>
-                  )}
+                {epicMode && doughIsStale && !showLostDough && (
+                  <p className="mt-3 text-hig-footnote text-warning">
+                    Epic description edited — press “Knead tasks” to re-knead.
+                  </p>
+                )}
+                {epicMode && showLostDough && (
+                  <div className="mt-3">
+                    <LostDoughWarning onConfirm={confirmReKnead} onCancel={() => setShowLostDough(false)} />
+                  </div>
+                )}
+              </div>
+              {epicMode && knead.rounds.length > 0 && (
+                <aside aria-label="Captured context" className="w-[320px] shrink-0 border-l border-rule pl-4 overflow-y-auto">
                   <CapturedContext rounds={knead.rounds} />
-                </>
+                </aside>
               )}
             </div>
           </div>

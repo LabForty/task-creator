@@ -79,6 +79,7 @@ export function EpicTabs(props: Props) {
             onFinalize={() => {}}
             hideSubmit
             onClear={() => props.onClearTask("epic")}
+            taskTypeLocked="epic"
           />
         )}
       </div>

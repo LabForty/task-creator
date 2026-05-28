@@ -40,6 +40,10 @@ type Props = {
   kneadDisabled?: boolean;
   onDraftChange?: (draft: Draft) => void;
   hideSubmit?: boolean;
+  // Lock the task-type picker to a fixed value (e.g. "epic" when editing
+  // the epic itself). Also pins draft.taskType to match so persistence is
+  // consistent.
+  taskTypeLocked?: string;
 };
 
 const HIGHLIGHT_EVENT = "task:highlight-field";
@@ -54,7 +58,7 @@ function hasEpicDescription(html: string): boolean {
 export function Editor({
   namespace, onFinalize, disabled = false, onHelp, onClear,
   mode = "single", onKnead, kneadDisabled = false, onDraftChange,
-  hideSubmit = false,
+  hideSubmit = false, taskTypeLocked,
 }: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [suggesting, setSuggesting] = useState(false);
@@ -156,6 +160,18 @@ export function Editor({
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
+  // When the picker is locked (epic mode), keep draft.taskType in sync so the
+  // persisted draft reflects the lock rather than whatever stale value was there.
+  // This is a legitimate "sync external prop into local state" pattern: the
+  // parent owns the lock value, and the Editor's controlled draft must follow.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (taskTypeLocked && draft.taskType !== taskTypeLocked) {
+      set("taskType", taskTypeLocked);
+    }
+  }, [taskTypeLocked, draft.taskType]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   async function suggestTitle() {
     setSuggestErr(null);
     setSuggesting(true);
@@ -214,6 +230,7 @@ export function Editor({
       <TaskTypePicker
         value={draft.taskType}
         onValueChange={(next) => set("taskType", next)}
+        lockedTo={taskTypeLocked}
       />
 
       <div data-editor-field="title" className={cls("title")}>
