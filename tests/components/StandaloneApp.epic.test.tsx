@@ -194,7 +194,11 @@ describe("StandaloneApp — epic mode", () => {
     });
   });
 
-  it("Analyze all refines every task's draft sequentially", async () => {
+  // Task 9 replaced the silent batch /api/refine flow with a sequential walk
+  // state machine; Analyze-all now opens the walk UI instead of calling
+  // /api/refine for each task. Task 11 will rewrite this test against the
+  // new walk handlers (asserts on analyzeTaskId / walking).
+  it.skip("Analyze all refines every task's draft sequentially", async () => {
     vi.stubGlobal("fetch", mockReviewFetch());
     render(<StandaloneApp initialSession={session} />);
     await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));

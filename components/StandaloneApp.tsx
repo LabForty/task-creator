@@ -92,9 +92,12 @@ export function StandaloneApp({ initialSession }: Props) {
   const [liveDraft, setLiveDraft] = useState<Draft | null>(null);
   const [epicTasks, setEpicTasks] = useState<EpicTask[]>([]);
   const [activeTab, setActiveTab] = useState<"epic" | string>("epic");
-  const [tasksAnalyzing, setTasksAnalyzing] = useState(false);
-  const [tasksAnalyzeProgress, setTasksAnalyzeProgress] = useState<string | null>(null);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
+  // Per-task Help chat threads (one HelpMessage[] per epic task id). Hydrated
+  // from each per-task draft's chatHistory on mount.
+  const [analyzeChatById, setAnalyzeChatById] = useState<Record<string, HelpMessage[]>>({});
+  const [analyzeTaskId, setAnalyzeTaskId] = useState<string | null>(null);
+  const [walking, setWalking] = useState(false);
   const [generating, setGenerating] = useState(false);
   // (was subtasksError) — generation errors now surface via kneadError in the
   // KneadingPanel, which is still on screen when "Generate sub-tasks" is clicked.
@@ -120,7 +123,18 @@ export function StandaloneApp({ initialSession }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setEpicMode(d.mode === "epic");
     if (d.knead) setKnead(d.knead);
-    if (d.epicTasks) setEpicTasks(d.epicTasks);
+    if (d.epicTasks) {
+      setEpicTasks(d.epicTasks);
+      // Hydrate each task's chatHistory into analyzeChatById.
+      const map: Record<string, HelpMessage[]> = {};
+      for (const t of d.epicTasks) {
+        const taskDraft = loadDraft(epicTaskNamespace(t.id));
+        if (taskDraft.chatHistory && taskDraft.chatHistory.length > 0) {
+          map[t.id] = taskDraft.chatHistory;
+        }
+      }
+      setAnalyzeChatById(map);
+    }
     if (d.reviewing) setReviewing(true);
     if (d.reviews) setReviews(d.reviews);
     setLiveDraft(d);
@@ -192,12 +206,50 @@ export function StandaloneApp({ initialSession }: Props) {
     // Force the Editor to re-hydrate from the just-cleared namespace.
     setTaskRefreshKey((k) => k + 1);
   }
+  function openAnalyzeForTask(taskId: string) {
+    // Explicit single-task analyze — silently exits any active walk.
+    setWalking(false);
+    setAnalyzeTaskId(taskId);
+    if (taskId !== activeTab) setActiveTab(taskId);
+  }
+
+  function startAnalyzeWalk() {
+    if (epicTasks.length === 0) return;
+    setWalking(true);
+    setAnalyzeTaskId(epicTasks[0].id);
+    setActiveTab(epicTasks[0].id);
+  }
+
+  function advanceWalk() {
+    if (!walking || !analyzeTaskId) return;
+    const i = epicTasks.findIndex((t) => t.id === analyzeTaskId);
+    const next = epicTasks[i + 1];
+    if (!next) { stopWalk(); return; }
+    setAnalyzeTaskId(next.id);
+    setActiveTab(next.id);
+  }
+
+  function stopWalk() {
+    setWalking(false);
+    setAnalyzeTaskId(null);
+  }
+
+  function updateAnalyzeChat(taskId: string, next: HelpMessage[]) {
+    setAnalyzeChatById((prev) => ({ ...prev, [taskId]: next }));
+    // Persist into the per-task draft so it survives reload.
+    const ns = epicTaskNamespace(taskId);
+    const existing = loadDraft(ns);
+    saveDraft(ns, { ...existing, chatHistory: next });
+  }
+
   function deleteTask(id: string) {
     clearDraft(epicTaskNamespace(id));
     const next = deleteEpicTask(epicTasks, id);
     commitEpicTasks(next);
     setReviews((prev) => { const m = { ...prev }; delete m[id]; persistReview(reviewing, m); return m; });
     setInterference((prev) => { const m = { ...prev }; delete m[id]; return m; });
+    setAnalyzeChatById((prev) => { const m = { ...prev }; delete m[id]; return m; });
+    if (analyzeTaskId === id) { setAnalyzeTaskId(null); setWalking(false); }
     if (activeTab === id) setActiveTab(next[0]?.id ?? "epic");
   }
   function taskTitleChange(id: string, title: string) {
@@ -296,6 +348,8 @@ export function StandaloneApp({ initialSession }: Props) {
     setEpicTasks((prev) => { const next = deleteEpicTask(prev, id); persistEpicTasks(next); return next; });
     setReviews((prev) => { const m = { ...prev }; delete m[id]; persistReview(reviewing, m); return m; });
     setInterference((prev) => { const m = { ...prev }; delete m[id]; return m; });
+    setAnalyzeChatById((prev) => { const m = { ...prev }; delete m[id]; return m; });
+    if (analyzeTaskId === id) { setAnalyzeTaskId(null); setWalking(false); }
     if (selectedReviewId === id) {
       const remaining = epicTasks.filter((t) => t.id !== id);
       setSelectedReviewId(remaining[0]?.id ?? null);
@@ -613,6 +667,9 @@ export function StandaloneApp({ initialSession }: Props) {
     setReviews({});
     setInterference({});
     persistReview(false, {});
+    setAnalyzeChatById({});
+    setAnalyzeTaskId(null);
+    setWalking(false);
     void callKnead(seeded.rounds, false);
   }
 
@@ -654,46 +711,14 @@ export function StandaloneApp({ initialSession }: Props) {
         });
       }
       commitEpicTasks(descriptors);
+      setAnalyzeChatById({});
+      setAnalyzeTaskId(null);
+      setWalking(false);
       setActiveTab(descriptors[0]?.id ?? "epic");
     } catch (e) {
       setKneadError(e instanceof Error ? e.message : "Network error");
     } finally {
       setGenerating(false);
-    }
-  }
-
-  async function analyzeAll() {
-    const epicDescription = (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim();
-    setTasksAnalyzing(true);
-    setKneadError(null);
-    try {
-      const tasks = epicTasks;
-      for (let i = 0; i < tasks.length; i++) {
-        setTasksAnalyzeProgress(`Analyzing ${i + 1}/${tasks.length}…`);
-        const ns = epicTaskNamespace(tasks[i].id);
-        const d = loadDraft(ns);
-        const res = await fetch("/api/refine", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            epicDescription,
-            draft: { title: d.title, description: d.description, acceptanceCriteria: d.acceptanceCriteria, constraints: d.constraints },
-          }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || typeof json.title !== "string") {
-          setKneadError(typeof json.error === "string" ? json.error : `Refine failed for task ${i + 1}.`);
-          break;
-        }
-        saveDraft(ns, { ...d, title: json.title, description: json.description, acceptanceCriteria: json.acceptanceCriteria });
-        setEpicTasks((prev) => { const next = setTitle(prev, tasks[i].id, json.title); persistEpicTasks(next); return next; });
-      }
-    } catch (e) {
-      setKneadError(e instanceof Error ? e.message : "Network error");
-    } finally {
-      setTasksAnalyzing(false);
-      setTasksAnalyzeProgress(null);
-      setTaskRefreshKey((k) => k + 1);
     }
   }
 
@@ -844,12 +869,12 @@ export function StandaloneApp({ initialSession }: Props) {
               <EpicTabs
                 tasks={epicTasks}
                 active={activeTab}
-                analyzing={tasksAnalyzing}
-                analyzeProgress={tasksAnalyzeProgress}
+                analyzing={false}
+                analyzeProgress={null}
                 refreshKey={taskRefreshKey}
                 onSelect={setActiveTab}
                 onAdd={addTask}
-                onAnalyzeAll={analyzeAll}
+                onAnalyzeAll={startAnalyzeWalk}
                 onBake={bake}
                 onTitleChange={taskTitleChange}
                 onSetLabels={taskSetLabels}
