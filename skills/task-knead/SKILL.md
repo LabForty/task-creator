@@ -21,7 +21,8 @@ message of this shape:
   ],
   "roundNumber": 2,
   "maxFreeRounds": 5,
-  "overrideCapApproved": false
+  "overrideCapApproved": false,
+  "mustAskFirstRound": false
 }
 ```
 
@@ -56,6 +57,12 @@ When you have enough context and no further questions:
 
 - Cover both `business` (users, value, surfaces, success metrics, scope) and
   `technical` (data, integrations, scalability, edge cases) dimensions.
+- **Always ask at least one round of questions before returning `complete`.**
+  Even a clearly-scoped epic benefits from a short scoping pass. On the first
+  round prefer 3–6 high-signal questions covering surfaces, users, success
+  criteria, and the biggest technical risk. If the request includes
+  `mustAskFirstRound: true`, you MUST emit a `questions` block this turn —
+  do not return `complete`.
 - At most **25** questions per round. Ask only what the prior answers leave open.
 - Each question needs a stable, unique `id` (kebab-case), a `prompt`, a
   `section` of `business` or `technical`, and a `type`:
@@ -65,4 +72,4 @@ When you have enough context and no further questions:
 - If `roundNumber` is greater than `maxFreeRounds` and `overrideCapApproved` is
   false, and you still need more questions, include a short `justification`
   string on the `questions` object explaining why more context is required.
-- Prefer `complete` over padding with low-value questions.
+- After the first round, prefer `complete` over padding with low-value questions.
