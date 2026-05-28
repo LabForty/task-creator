@@ -6,11 +6,16 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { KneadingPanel } from "@/components/epic/KneadingPanel";
 import { CapturedContext } from "@/components/epic/CapturedContext";
 import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
-import { SubtaskList } from "@/components/epic/SubtaskList";
 import { ReviewerMode } from "@/components/epic/review/ReviewerMode";
+import { EpicTabs } from "@/components/epic/EpicTabs";
+import {
+  epicTaskNamespace, descriptorsFromProposed, seedsFromProposed,
+  addEpicTask, deleteEpicTask, setTitle, setLabels as setTaskLabels,
+  addLink as addTaskLink, removeLink as removeTaskLink, type EpicTask,
+} from "@/lib/epic/tasks";
 import { setReview, initReviews, pruneReviews } from "@/lib/review/state";
 import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
-import { fromProposed, addSubtask, deleteSubtask, updateSubtask, setLabels, addLink, removeLink } from "@/lib/subtasks/state";
+import { deleteSubtask, updateSubtask, setLabels, addLink, removeLink } from "@/lib/subtasks/state";
 import type { SubTask, ProposedSubtask } from "@/lib/subtasks/types";
 import { startInterview, appendRound, setAnswer, skipQuestion, unskipQuestion, markComplete, resetDough } from "@/lib/epic/state";
 import { EMPTY_KNEAD, type KneadState, type KneadAnswerValue } from "@/lib/knead/types";
@@ -23,7 +28,7 @@ import { JiraChip, type JiraSessionInfo } from "@/components/JiraChip";
 import { JiraExport } from "@/components/JiraExport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { subscribeToJob } from "@/lib/sse/client";
-import { loadDraft, saveDraft } from "@/lib/draft/autosave";
+import { loadDraft, saveDraft, clearDraft, EMPTY_DRAFT } from "@/lib/draft/autosave";
 import { syncDiagramsInMarkdown } from "@/lib/render";
 import type { Draft } from "@/lib/draft/autosave";
 import type {
@@ -87,6 +92,12 @@ export function StandaloneApp({ initialSession }: Props) {
   const [showLostDough, setShowLostDough] = useState(false);
   const [liveDraft, setLiveDraft] = useState<Draft | null>(null);
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
+  const [epicTasks, setEpicTasks] = useState<EpicTask[]>([]);
+  const [activeTab, setActiveTab] = useState<"epic" | string>("epic");
+  // Analyze-all state — setters wired in Task 11.
+  const [tasksAnalyzing] = useState(false);
+  const [tasksAnalyzeProgress] = useState<string | null>(null);
+  const [taskRefreshKey] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [subtasksError, setSubtasksError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -112,6 +123,7 @@ export function StandaloneApp({ initialSession }: Props) {
     setEpicMode(d.mode === "epic");
     if (d.knead) setKnead(d.knead);
     if (d.subtasks) setSubtasks(d.subtasks);
+    if (d.epicTasks) setEpicTasks(d.epicTasks);
     if (d.reviewing) setReviewing(true);
     if (d.reviews) setReviews(d.reviews);
     setLiveDraft(d);
@@ -139,6 +151,42 @@ export function StandaloneApp({ initialSession }: Props) {
     setSubtasks(next);
     persistSubtasks(next);
   }
+
+  function persistEpicTasks(next: EpicTask[]) {
+    const current = loadDraft(NAMESPACE);
+    saveDraft(NAMESPACE, { ...current, epicTasks: next });
+  }
+  function commitEpicTasks(next: EpicTask[]) {
+    setEpicTasks(next);
+    persistEpicTasks(next);
+  }
+
+  function addTask() {
+    const next = addEpicTask(epicTasks);
+    const created = next[next.length - 1];
+    saveDraft(epicTaskNamespace(created.id), { ...EMPTY_DRAFT });
+    commitEpicTasks(next);
+    setActiveTab(created.id);
+  }
+  function deleteTask(id: string) {
+    clearDraft(epicTaskNamespace(id));
+    const next = deleteEpicTask(epicTasks, id);
+    commitEpicTasks(next);
+    setReviews((prev) => { const m = { ...prev }; delete m[id]; persistReview(reviewing, m); return m; });
+    setInterference((prev) => { const m = { ...prev }; delete m[id]; return m; });
+    if (activeTab === id) setActiveTab(next[0]?.id ?? "epic");
+  }
+  function taskTitleChange(id: string, title: string) {
+    setEpicTasks((prev) => {
+      if (prev.find((t) => t.id === id)?.title === title) return prev;
+      const next = setTitle(prev, id, title);
+      persistEpicTasks(next);
+      return next;
+    });
+  }
+  function taskSetLabels(id: string, labels: string[]) { commitEpicTasks(setTaskLabels(epicTasks, id, labels)); }
+  function taskAddLink(a: string, b: string) { commitEpicTasks(addTaskLink(epicTasks, a, b)); }
+  function taskRemoveLink(a: string, b: string) { commitEpicTasks(removeTaskLink(epicTasks, a, b)); }
 
   function persistReview(nextReviewing: boolean, nextReviews: ReviewMap) {
     const current = loadDraft(NAMESPACE);
@@ -528,6 +576,9 @@ export function StandaloneApp({ initialSession }: Props) {
     setKnead(seeded);
     persistEpic(true, seeded);
     commitSubtasks([]);
+    for (const t of epicTasks) clearDraft(epicTaskNamespace(t.id));
+    commitEpicTasks([]);
+    setActiveTab("epic");
     setReviewing(false);
     setReviews({});
     setInterference({});
@@ -562,7 +613,18 @@ export function StandaloneApp({ initialSession }: Props) {
         setSubtasksError(typeof json.error === "string" ? json.error : `Request failed (${res.status}).`);
         return;
       }
-      commitSubtasks(fromProposed(json.subtasks as ProposedSubtask[]));
+      const proposed = json.subtasks as ProposedSubtask[];
+      const descriptors = descriptorsFromProposed(proposed);
+      const seeds = seedsFromProposed(proposed, descriptors);
+      for (const seed of seeds) {
+        saveDraft(epicTaskNamespace(seed.id), {
+          ...EMPTY_DRAFT,
+          title: seed.title,
+          description: seed.description,
+        });
+      }
+      commitEpicTasks(descriptors);
+      setActiveTab(descriptors[0]?.id ?? "epic");
     } catch (e) {
       setSubtasksError(e instanceof Error ? e.message : "Network error");
     } finally {
@@ -711,6 +773,25 @@ export function StandaloneApp({ initialSession }: Props) {
               onReviewChange={changeReview}
               onDelete={reviewDelete}
             />
+          ) : epicMode && epicTasks.length > 0 ? (
+            <div className="px-6 py-4 flex-1 min-h-0 flex flex-col max-w-5xl w-full">
+              <EpicTabs
+                tasks={epicTasks}
+                active={activeTab}
+                analyzing={tasksAnalyzing}
+                analyzeProgress={tasksAnalyzeProgress}
+                refreshKey={taskRefreshKey}
+                onSelect={setActiveTab}
+                onAdd={addTask}
+                onAnalyzeAll={() => { /* Task 11 wires analyzeAll */ }}
+                onBake={bake}
+                onTitleChange={taskTitleChange}
+                onSetLabels={taskSetLabels}
+                onAddLink={taskAddLink}
+                onRemoveLink={taskRemoveLink}
+                onDelete={deleteTask}
+              />
+            </div>
           ) : (
           <div className="px-6 py-4 flex-1 min-h-0 flex flex-col max-w-5xl w-full">
             {submitErr && (
@@ -817,42 +898,22 @@ export function StandaloneApp({ initialSession }: Props) {
         />
       )}
 
-      {epicMode && !reviewing && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
-        subtasks.length > 0 ? (
-          <aside className="w-[460px] shrink-0 border-l border-rule bg-surface h-full overflow-y-auto p-5">
-            {subtasksError && (
-              <div className="mb-3 rounded-md bg-danger/5 border border-danger/30 px-3 py-2" role="alert">
-                <p className="text-hig-footnote text-danger">{subtasksError}</p>
-              </div>
-            )}
-            <SubtaskList
-              subtasks={subtasks}
-              onAdd={() => commitSubtasks(addSubtask(subtasks))}
-              onDelete={(id) => commitSubtasks(deleteSubtask(subtasks, id))}
-              onUpdate={(id, patch) => commitSubtasks(updateSubtask(subtasks, id, patch))}
-              onSetLabels={(id, labels) => commitSubtasks(setLabels(subtasks, id, labels))}
-              onAddLink={(blockerId, blockedId) => commitSubtasks(addLink(subtasks, blockerId, blockedId))}
-              onRemoveLink={(blockerId, blockedId) => commitSubtasks(removeLink(subtasks, blockerId, blockedId))}
-              onBake={bake}
-            />
-          </aside>
-        ) : (
-          <KneadingPanel
-            state={knead}
-            loading={kneadLoading}
-            error={kneadError}
-            capPrompt={capPrompt}
-            onAnswer={answerQuestion}
-            onSkip={skipQuestionHandler}
-            onUnskip={unskipQuestionHandler}
-            onKnead={continueKneading}
-            onApproveCap={approveCap}
-            onDeclineCap={declineCap}
-            onRetry={continueKneading}
-            onGenerate={generateSubtasks}
-            generating={generating}
-          />
-        )
+      {epicMode && !reviewing && epicTasks.length === 0 && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
+        <KneadingPanel
+          state={knead}
+          loading={kneadLoading}
+          error={kneadError}
+          capPrompt={capPrompt}
+          onAnswer={answerQuestion}
+          onSkip={skipQuestionHandler}
+          onUnskip={unskipQuestionHandler}
+          onKnead={continueKneading}
+          onApproveCap={approveCap}
+          onDeclineCap={declineCap}
+          onRetry={continueKneading}
+          onGenerate={generateSubtasks}
+          generating={generating}
+        />
       )}
 
       {helpOpen && (
