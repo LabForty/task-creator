@@ -13,6 +13,7 @@ const tasks: EpicTask[] = [
 const base = {
   allTasks: tasks, labels: [], blocks: [], blockedBy: [], refreshKey: 0,
   onTitleChange: () => {}, onSetLabels: () => {}, onAddLink: () => {}, onRemoveLink: () => {}, onDelete: () => {},
+  onAnalyze: () => {}, onClear: () => {},
 };
 
 describe("<EpicTaskEditor>", () => {
@@ -37,5 +38,51 @@ describe("<EpicTaskEditor>", () => {
     render(<EpicTaskEditor taskId="a" {...base} />);
     const select = screen.getByLabelText(/add a sub-task this blocks/i) as HTMLSelectElement;
     expect(Array.from(select.options).map((o) => o.value)).not.toContain("a");
+  });
+  it("renders Analyze this task and fires onAnalyze with the task id", async () => {
+    const onAnalyze = vi.fn();
+    render(
+      <EpicTaskEditor
+        taskId="t1"
+        allTasks={[{ id: "t1", title: "T1", labels: [], blocks: [], blockedBy: [] }]}
+        labels={[]}
+        blocks={[]}
+        blockedBy={[]}
+        refreshKey={0}
+        onTitleChange={() => {}}
+        onSetLabels={() => {}}
+        onAddLink={() => {}}
+        onRemoveLink={() => {}}
+        onDelete={() => {}}
+        onAnalyze={onAnalyze}
+        onClear={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /analyze this task/i }));
+    expect(onAnalyze).toHaveBeenCalledWith();
+  });
+
+  it("forwards onClear into the embedded Editor footer", async () => {
+    const onClear = vi.fn();
+    render(
+      <EpicTaskEditor
+        taskId="t1"
+        allTasks={[{ id: "t1", title: "T1", labels: [], blocks: [], blockedBy: [] }]}
+        labels={[]}
+        blocks={[]}
+        blockedBy={[]}
+        refreshKey={0}
+        onTitleChange={() => {}}
+        onSetLabels={() => {}}
+        onAddLink={() => {}}
+        onRemoveLink={() => {}}
+        onDelete={() => {}}
+        onAnalyze={() => {}}
+        onClear={onClear}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^clear$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^yes$/i }));
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });

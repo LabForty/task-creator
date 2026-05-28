@@ -19,27 +19,34 @@ type Props = {
   onAddLink: (blockerId: string, blockedId: string) => void;
   onRemoveLink: (blockerId: string, blockedId: string) => void;
   onDelete: () => void;
+  onAnalyze: () => void;
+  onClear: () => void;
 };
 
 export function EpicTaskEditor({
   taskId, allTasks, labels, blocks, blockedBy, refreshKey,
   onTitleChange, onSetLabels, onAddLink, onRemoveLink, onDelete,
+  onAnalyze, onClear,
 }: Props) {
-  // SubtaskLinksField wants SubTask-shaped objects; the descriptors carry the
-  // ids/titles/links it needs (description/labels unused for link options).
   const self: SubTask = { id: taskId, title: "", description: "", labels, blocks, blockedBy };
   const allAsSubtasks: SubTask[] = allTasks.map((t) => ({ id: t.id, title: t.title, description: "", labels: t.labels, blocks: t.blocks, blockedBy: t.blockedBy }));
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button type="button" variant="ghost" size="sm" aria-label="Delete task" onClick={onDelete}>Delete task</Button>
+      <div className="flex justify-between items-center">
+        <Button type="button" variant="secondary" size="sm" onClick={() => onAnalyze()}>
+          Analyze this task
+        </Button>
+        <Button type="button" variant="ghost" size="sm" aria-label="Delete task" onClick={onDelete}>
+          Delete task
+        </Button>
       </div>
       <Editor
         key={`${taskId}:${refreshKey}`}
         namespace={epicTaskNamespace(taskId)}
         onFinalize={() => {}}
         hideSubmit
+        onClear={onClear}
         onDraftChange={(d) => onTitleChange(d.title)}
       />
       <div className="hig-card p-4 flex flex-col gap-3">

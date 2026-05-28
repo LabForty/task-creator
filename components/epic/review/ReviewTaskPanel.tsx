@@ -42,6 +42,8 @@ export function ReviewTaskPanel({
         onAddLink={onAddLink}
         onRemoveLink={onRemoveLink}
         onDelete={onDelete}
+        onAnalyze={() => {}}
+        onClear={() => {}}
       />
       <div className="hig-card p-4">
         <h3 className="hig-section-label mb-2">Review</h3>

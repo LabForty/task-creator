@@ -59,6 +59,8 @@ export function EpicTabs(props: Props) {
             onAddLink={props.onAddLink}
             onRemoveLink={props.onRemoveLink}
             onDelete={() => props.onDelete(activeTask.id)}
+            onAnalyze={() => {}}
+            onClear={() => {}}
           />
         ) : (
           // Epic tab — edit the epic/main task itself.
