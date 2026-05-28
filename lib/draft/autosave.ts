@@ -1,7 +1,6 @@
 import type { Diagrams, HelpMessage } from "@/lib/jobs/types";
 import type { KneadState } from "@/lib/knead/types";
 import type { ReviewMap } from "@/lib/review/types";
-import type { SubTask } from "@/lib/subtasks/types";
 import type { EpicTask } from "@/lib/epic/tasks";
 
 export type Draft = {
@@ -18,7 +17,6 @@ export type Draft = {
   // Epic-mode extensions. mode defaults to "single" for v1 drafts.
   mode: "single" | "epic";
   knead?: KneadState;
-  subtasks?: SubTask[];
   epicTasks?: EpicTask[];
   reviewing?: boolean;
   reviews?: ReviewMap;
@@ -52,7 +50,6 @@ export function loadDraft(namespace: string): Draft {
       chatHistory: Array.isArray(parsed.chatHistory) ? parsed.chatHistory : undefined,
       mode: parsed.mode === "epic" ? "epic" : "single",
       knead: parsed.knead,
-      subtasks: Array.isArray(parsed.subtasks) ? parsed.subtasks : undefined,
       epicTasks: Array.isArray(parsed.epicTasks) ? parsed.epicTasks : undefined,
       reviewing: parsed.reviewing === true ? true : undefined,
       reviews: parsed.reviews && typeof parsed.reviews === "object" ? parsed.reviews : undefined,
