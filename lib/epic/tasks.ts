@@ -13,6 +13,10 @@ export type EpicTask = {
   labels: string[];
   blocks: string[];
   blockedBy: string[];
+  // SP4: created Jira issue key + URL after a successful batch upload.
+  // Persisted alongside the descriptor in the standalone draft.
+  uploadedIssueKey?: string;
+  uploadedIssueUrl?: string;
 };
 
 export const epicTaskNamespace = (id: string) => `standalone:epic:${id}`;

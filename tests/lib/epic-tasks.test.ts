@@ -53,3 +53,25 @@ describe("epic task descriptors", () => {
     expect(list[1].blockedBy).toEqual([]);
   });
 });
+
+describe("EpicTask uploadedIssueKey persistence", () => {
+  it("setTitle preserves uploadedIssueKey + uploadedIssueUrl", () => {
+    const list = [
+      { id: "a", title: "T", labels: [], blocks: [], blockedBy: [], uploadedIssueKey: "AI-100", uploadedIssueUrl: "https://example/AI-100" },
+    ];
+    const next = setTitle(list, "a", "T2");
+    expect(next[0].uploadedIssueKey).toBe("AI-100");
+    expect(next[0].uploadedIssueUrl).toBe("https://example/AI-100");
+    expect(next[0].title).toBe("T2");
+  });
+
+  it("addLink preserves uploadedIssueKey on both endpoints", () => {
+    const list = [
+      { id: "a", title: "A", labels: [], blocks: [], blockedBy: [], uploadedIssueKey: "AI-1" },
+      { id: "b", title: "B", labels: [], blocks: [], blockedBy: [], uploadedIssueKey: "AI-2" },
+    ];
+    const next = addLink(list, "a", "b");
+    expect(next.find((t) => t.id === "a")?.uploadedIssueKey).toBe("AI-1");
+    expect(next.find((t) => t.id === "b")?.uploadedIssueKey).toBe("AI-2");
+  });
+});
