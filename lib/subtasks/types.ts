@@ -13,6 +13,7 @@ export type SubTask = {
 export type ProposedSubtask = {
   title: string;
   description: string;
+  acceptanceCriteria: string[];
   labels: string[];
   blocks: number[];
 };

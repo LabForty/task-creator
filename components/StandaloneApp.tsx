@@ -369,8 +369,9 @@ export function StandaloneApp({ initialSession }: Props) {
   // the user already resolved. Later proposals with the same id supersede
   // earlier ones (so a refreshed Skill response keeps a single live entry).
   const pendingEdits = useMemo<ProposedEdit[]>(() => {
+    const source = analyzeTaskId ? (analyzeChatById[analyzeTaskId] ?? []) : chatHistory;
     const byId = new Map<string, ProposedEdit>();
-    for (const msg of chatHistory) {
+    for (const msg of source) {
       if (msg.role !== "assistant") continue;
       for (const s of msg.suggestions ?? []) {
         if (s.proposedEdit) byId.set(s.proposedEdit.id, s.proposedEdit);
@@ -378,7 +379,7 @@ export function StandaloneApp({ initialSession }: Props) {
       if (msg.proposedEdit) byId.set(msg.proposedEdit.id, msg.proposedEdit);
     }
     return Array.from(byId.values()).filter((e) => !resolvedEditIds.has(e.id));
-  }, [chatHistory, resolvedEditIds]);
+  }, [analyzeTaskId, analyzeChatById, chatHistory, resolvedEditIds]);
 
   function applyEdit(edit: ProposedEdit) {
     // The Editor component listens for this event and mutates its own
@@ -712,6 +713,7 @@ export function StandaloneApp({ initialSession }: Props) {
           ...EMPTY_DRAFT,
           title: seed.title,
           description: seed.description,
+          acceptanceCriteria: seed.acceptanceCriteria,
         });
       }
       commitEpicTasks(descriptors);
@@ -1081,7 +1083,7 @@ export function StandaloneApp({ initialSession }: Props) {
       )}
       {reviewOpen && (
         <EditReviewSheet
-          draft={loadDraft(NAMESPACE)}
+          draft={analyzeTaskId ? loadDraft(epicTaskNamespace(analyzeTaskId)) : loadDraft(NAMESPACE)}
           edits={pendingEdits}
           onApply={applyEdit}
           onApplyAll={applyAllEdits}

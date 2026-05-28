@@ -639,8 +639,8 @@ export function makeStubTransport(): AgentTransport {
       } else if (role === "generate-subtasks") {
         const payload = {
           subtasks: [
-            { title: "Set up the data model", description: "Define the schema and migrations.", labels: ["backend"], blocks: [1] },
-            { title: "Build the list UI", description: "Render and edit the items.", labels: ["frontend"], blocks: [] },
+            { title: "Set up the data model", description: "Define the schema and migrations.", acceptanceCriteria: ["Schema includes a primary key", "Migration runs idempotently"], labels: ["backend"], blocks: [1] },
+            { title: "Build the list UI", description: "Render and edit the items.", acceptanceCriteria: ["Items render in alphabetical order", "Add and remove work without page reload"], labels: ["frontend"], blocks: [] },
           ],
         };
         onEvent({ type: "token", text: JSON.stringify(payload) });

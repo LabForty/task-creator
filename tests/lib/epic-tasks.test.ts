@@ -7,8 +7,8 @@ import {
 describe("epic task descriptors", () => {
   it("descriptorsFromProposed assigns ids and resolves blocks indices symmetrically", () => {
     const list = descriptorsFromProposed([
-      { title: "A", description: "", labels: ["x"], blocks: [1] },
-      { title: "B", description: "", labels: [], blocks: [] },
+      { title: "A", description: "", acceptanceCriteria: [], labels: ["x"], blocks: [1] },
+      { title: "B", description: "", acceptanceCriteria: [], labels: [], blocks: [] },
     ]);
     expect(list).toHaveLength(2);
     expect(list[0].title).toBe("A");
@@ -25,7 +25,7 @@ describe("epic task descriptors", () => {
     expect(addEpicTask([]).length).toBe(1);
   });
   it("deleteEpicTask removes it and strips dangling links", () => {
-    let list = descriptorsFromProposed([{ title: "A", description: "", labels: [], blocks: [1] }, { title: "B", description: "", labels: [], blocks: [] }]);
+    let list = descriptorsFromProposed([{ title: "A", description: "", acceptanceCriteria: [], labels: [], blocks: [1] }, { title: "B", description: "", acceptanceCriteria: [], labels: [], blocks: [] }]);
     list = deleteEpicTask(list, list[1].id);
     expect(list).toHaveLength(1);
     expect(list[0].blocks).toEqual([]);

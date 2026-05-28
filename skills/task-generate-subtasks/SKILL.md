@@ -21,14 +21,24 @@ You receive a JSON user message describing an epic and the answers gathered whil
 ```json
 {
   "subtasks": [
-    { "title": "Set up the data model", "description": "Define the schema and migrations.", "labels": ["backend"], "blocks": [1] },
-    { "title": "Build the list UI", "description": "Render and edit the items.", "labels": ["frontend"], "blocks": [] }
+    {
+      "title": "Set up the data model",
+      "description": "Define the schema and migrations.",
+      "acceptanceCriteria": [
+        "Schema includes a primary key + created_at",
+        "Migration runs idempotently on a clean DB",
+        "Existing rows are preserved on re-run"
+      ],
+      "labels": ["backend"],
+      "blocks": [1]
+    }
   ]
 }
 ```
 
 **Rules:**
 - Each sub-task needs a short imperative `title` and a `description` (≤1500 characters).
+- Each sub-task needs 2–6 `acceptanceCriteria` bullets — short imperative outcomes the engineer can verify against. No fluff; each must be independently testable.
 - `labels`: 0+ short kebab/lowercase labels you propose from the epic context; propose new ones freely.
 - `blocks`: 0-based indices of OTHER sub-tasks in this same array that this sub-task blocks
   (i.e. they cannot start until it is done). Use it to make sequencing explicit; omit/empty for parallel work.

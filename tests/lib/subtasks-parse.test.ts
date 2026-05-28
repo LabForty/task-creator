@@ -6,8 +6,21 @@ describe("parseSubtasksResponse", () => {
     const raw = JSON.stringify({ subtasks: [{ title: "A" }, { title: "B", description: "d", labels: ["x"], blocks: [0] }] });
     const r = parseSubtasksResponse(raw);
     expect(r).toHaveLength(2);
-    expect(r[0]).toEqual({ title: "A", description: "", labels: [], blocks: [] });
+    expect(r[0]).toEqual({ title: "A", description: "", acceptanceCriteria: [], labels: [], blocks: [] });
     expect(r[1].blocks).toEqual([0]);
+    expect(r[1].acceptanceCriteria).toEqual([]);
+  });
+
+  it("preserves acceptanceCriteria and trims/filters empty entries", () => {
+    const r = parseSubtasksResponse(JSON.stringify({
+      subtasks: [{ title: "A", acceptanceCriteria: ["  bullet 1  ", "", "bullet 2"] }],
+    }));
+    expect(r[0].acceptanceCriteria).toEqual(["bullet 1", "bullet 2"]);
+  });
+
+  it("defaults acceptanceCriteria to [] when omitted", () => {
+    const r = parseSubtasksResponse(JSON.stringify({ subtasks: [{ title: "A" }] }));
+    expect(r[0].acceptanceCriteria).toEqual([]);
   });
 
   it("tolerates fences/prose", () => {

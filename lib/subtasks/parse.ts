@@ -5,6 +5,7 @@ import { type ProposedSubtask, MAX_DESCRIPTION, MAX_SUBTASKS } from "./types";
 export const ProposedSubtaskSchema = z.object({
   title: z.string(),
   description: z.string().optional().default(""),
+  acceptanceCriteria: z.array(z.string()).optional().default([]),
   labels: z.array(z.string()).optional().default([]),
   blocks: z.array(z.number().int()).optional().default([]),
 });
@@ -26,6 +27,7 @@ export function parseSubtasksResponse(raw: string): ProposedSubtask[] {
   return capped.map((s) => ({
     title: s.title,
     description: s.description.slice(0, MAX_DESCRIPTION),
+    acceptanceCriteria: s.acceptanceCriteria.map((ac) => ac.trim()).filter((ac) => ac.length > 0),
     labels: s.labels,
     blocks: s.blocks.filter((i) => i >= 0 && i < n),
   }));

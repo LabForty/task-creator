@@ -56,7 +56,12 @@ export function removeLink(list: EpicTask[], blockerId: string, blockedId: strin
   });
 }
 
-export type ProposedSeed = { id: string; title: string; description: string };
+export type ProposedSeed = {
+  id: string;
+  title: string;
+  description: string;
+  acceptanceCriteria: string[];
+};
 
 export function descriptorsFromProposed(proposed: ProposedSubtask[]): EpicTask[] {
   const list: EpicTask[] = proposed.map((p) => ({
@@ -79,5 +84,10 @@ export function descriptorsFromProposed(proposed: ProposedSubtask[]): EpicTask[]
 }
 
 export function seedsFromProposed(proposed: ProposedSubtask[], descriptors: EpicTask[]): ProposedSeed[] {
-  return descriptors.map((d, i) => ({ id: d.id, title: d.title, description: (proposed[i]?.description ?? "").slice(0, MAX_DESCRIPTION) }));
+  return descriptors.map((d, i) => ({
+    id: d.id,
+    title: d.title,
+    description: (proposed[i]?.description ?? "").slice(0, MAX_DESCRIPTION),
+    acceptanceCriteria: proposed[i]?.acceptanceCriteria ?? [],
+  }));
 }
