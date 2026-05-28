@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getReview, setReview, initReviews, pruneReviews, allReviewed } from "@/lib/review/state";
+import { getReview, setReview, initReviews, pruneReviews, allReviewed, nonDeniedTaskIds } from "@/lib/review/state";
 import { EMPTY_REVIEW, type ReviewMap } from "@/lib/review/types";
 
 describe("review reducer", () => {
@@ -30,5 +30,28 @@ describe("review reducer", () => {
     expect(allReviewed(["a", "b"], m)).toBe(true);
     expect(allReviewed(["a", "b"], { ...m, b: EMPTY_REVIEW })).toBe(false);
     expect(allReviewed([], m)).toBe(false);
+  });
+});
+
+describe("nonDeniedTaskIds", () => {
+  it("returns only ids whose review status is not 'denied'", () => {
+    const m = {
+      a: { status: "approved", comment: "", assignee: null } as const,
+      b: { status: "denied", comment: "", assignee: null } as const,
+      c: { status: "pending", comment: "", assignee: null } as const,
+    };
+    expect(nonDeniedTaskIds(m, ["a", "b", "c"])).toEqual(["a", "c"]);
+  });
+
+  it("treats missing ids as not-denied (pass through)", () => {
+    expect(nonDeniedTaskIds({}, ["x", "y"])).toEqual(["x", "y"]);
+  });
+
+  it("preserves input order", () => {
+    const m = {
+      a: { status: "denied", comment: "", assignee: null } as const,
+      b: { status: "approved", comment: "", assignee: null } as const,
+    };
+    expect(nonDeniedTaskIds(m, ["b", "a", "c"])).toEqual(["b", "c"]);
   });
 });

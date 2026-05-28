@@ -28,3 +28,11 @@ export function allReviewed(ids: string[], map: ReviewMap): boolean {
     return s === "approved" || s === "denied";
   });
 }
+
+// Filter task ids by removing those whose review is marked "denied".
+// Missing entries (no review at all) are treated as not-denied so the
+// list stays in input order; the gate check (allReviewed) is what
+// actually requires every task to be approved or denied.
+export function nonDeniedTaskIds(map: ReviewMap, ids: string[]): string[] {
+  return ids.filter((id) => map[id]?.status !== "denied");
+}
