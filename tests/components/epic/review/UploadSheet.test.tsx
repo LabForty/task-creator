@@ -50,6 +50,8 @@ describe("<UploadSheet> destination phase", () => {
       <UploadSheet
         tasks={tasks}
         denied={denied}
+        epicTitle="My Epic"
+        epicDescriptionHtml="<p>do stuff</p>"
         onCancel={() => {}}
         onPersistUploaded={() => {}}
       />,
@@ -66,6 +68,8 @@ describe("<UploadSheet> destination phase", () => {
       <UploadSheet
         tasks={tasks}
         denied={denied}
+        epicTitle="My Epic"
+        epicDescriptionHtml="<p>do stuff</p>"
         onCancel={onCancel}
         onPersistUploaded={() => {}}
       />,
@@ -88,6 +92,9 @@ describe("<UploadSheet> running + results phases", () => {
       if (typeof url === "string" && url.includes("/api/jira/issue-types")) {
         return Promise.resolve({ ok: true, json: async () => ({ issueTypes: [{ id: "10001", name: "Story", iconUrl: null, description: null }] }) });
       }
+      if (typeof url === "string" && url.includes("/api/jira/epic/create")) {
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-EPIC", url: "https://x/AI-EPIC" }) });
+      }
       if (typeof url === "string" && url.includes("/api/finalize")) {
         return Promise.resolve({ ok: true, json: async () => ({ jobId: "job-1" }) });
       }
@@ -108,6 +115,8 @@ describe("<UploadSheet> running + results phases", () => {
           { id: "b", draft: { ...EMPTY_DRAFT, title: "Bravo" }, labels: [] },
         ]}
         denied={[]}
+        epicTitle="My Epic"
+        epicDescriptionHtml="<p>do stuff</p>"
         onCancel={() => {}}
         onPersistUploaded={onPersistUploaded}
       />,

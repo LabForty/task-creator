@@ -39,10 +39,32 @@ async function finalizeOne(task: UploadTask, signal?: AbortSignal): Promise<Fina
   });
 }
 
+async function createEpicIfNeeded(dest: UploadDestination, signal?: AbortSignal): Promise<{ key: string; url: string } | null> {
+  if (dest.epic.kind === "existing") return null;
+  const res = await fetch("/api/jira/epic/create", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "same-origin",
+    signal,
+    body: JSON.stringify({
+      cloudId: dest.cloudId,
+      projectKey: dest.projectKey,
+      title: dest.epic.title,
+      descriptionHtml: dest.epic.descriptionHtml,
+    }),
+  });
+  const j = (await res.json().catch(() => ({}))) as { key?: string; url?: string; error?: string };
+  if (!res.ok || !j.key || !j.url) {
+    throw new Error(j.error || `epic create failed (${res.status})`);
+  }
+  return { key: j.key, url: j.url };
+}
+
 async function exportOne(
   payload: FinalizedPayload,
   task: UploadTask,
   dest: UploadDestination,
+  resolvedEpicKey: string,
   signal?: AbortSignal,
 ): Promise<{ key: string; url: string }> {
   const res = await fetch("/api/jira/export", {
@@ -57,7 +79,7 @@ async function exportOne(
       payload: { story: payload.story, markdown: payload.markdown, constraints: undefined },
       metadata: {
         labels: task.labels.length ? task.labels : undefined,
-        epic: dest.parentEpicKey ? { kind: "existing" as const, key: dest.parentEpicKey } : undefined,
+        epic: { kind: "existing" as const, key: resolvedEpicKey },
       },
     }),
   });
@@ -70,6 +92,30 @@ async function exportOne(
 
 export async function runBatchUpload(args: Args): Promise<BatchResult> {
   const uploaded: string[] = [];
+
+  // Step 1: resolve the epic key — either the user-picked existing one or
+  // a freshly-created Epic in Jira. Failure here aborts before any sub-task
+  // is touched, so we never leave orphan sub-tasks pointing at nothing.
+  let resolvedEpicKey: string;
+  try {
+    if (args.destination.epic.kind === "existing") {
+      resolvedEpicKey = args.destination.epic.key;
+    } else {
+      const created = await createEpicIfNeeded(args.destination, args.signal);
+      if (!created) throw new Error("epic creation returned no key");
+      resolvedEpicKey = created.key;
+    }
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    // Surface as a synthetic failure on the first task so the sheet can show
+    // a results view; if there is no first task, just return.
+    if (args.tasks.length > 0) {
+      args.onRow(args.tasks[0].id, { kind: "failed", reason: `epic create: ${reason}` });
+      return { uploaded, failedId: args.tasks[0].id, failedReason: `epic create: ${reason}` };
+    }
+    return { uploaded, failedId: undefined, failedReason: `epic create: ${reason}` };
+  }
+
   for (const task of args.tasks) {
     if (args.signal?.aborted) {
       args.onRow(task.id, { kind: "failed", reason: "cancelled" });
@@ -85,7 +131,7 @@ export async function runBatchUpload(args: Args): Promise<BatchResult> {
       }
 
       args.onRow(task.id, { kind: "uploading" });
-      const { key, url } = await exportOne(payload, task, args.destination, args.signal);
+      const { key, url } = await exportOne(payload, task, args.destination, resolvedEpicKey, args.signal);
       args.onRow(task.id, { kind: "uploaded", issueKey: key, issueUrl: url });
       uploaded.push(task.id);
     } catch (e) {

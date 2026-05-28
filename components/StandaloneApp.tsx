@@ -1128,6 +1128,8 @@ export function StandaloneApp({ initialSession }: Props) {
           <UploadSheet
             tasks={uploadTasks}
             denied={denied}
+            epicTitle={liveDraft?.title ?? ""}
+            epicDescriptionHtml={liveDraft?.description ?? ""}
             onCancel={() => setUploadOpen(false)}
             onPersistUploaded={persistUploadedKey}
           />

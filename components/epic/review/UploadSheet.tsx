@@ -14,6 +14,8 @@ type Phase = "destination" | "running" | "results";
 export type UploadSheetProps = {
   tasks: UploadTask[];                                  // pre-filtered (non-Denied, not already uploaded)
   denied: { id: string; title: string }[];              // shown in the results "Excluded" list
+  epicTitle: string;             // from liveDraft.title — read-only confirmation for "Create new"
+  epicDescriptionHtml: string;   // from liveDraft.description — passed to the new-epic endpoint
   onCancel: () => void;
   onPersistUploaded: (id: string, issueKey: string, issueUrl: string) => void;
 };
@@ -25,7 +27,9 @@ async function jsonGet<T>(url: string): Promise<T> {
   return j as T;
 }
 
-export function UploadSheet({ tasks, denied, onCancel, onPersistUploaded }: UploadSheetProps) {
+type EpicMode = "new" | "existing";
+
+export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, onCancel, onPersistUploaded }: UploadSheetProps) {
   const [phase, setPhase] = useState<Phase>("destination");
   const [sites, setSites] = useState<Site[] | null>(null);
   const [sitesErr, setSitesErr] = useState<string | null>(null);
@@ -36,7 +40,10 @@ export function UploadSheet({ tasks, denied, onCancel, onPersistUploaded }: Uplo
   const [issueTypes, setIssueTypes] = useState<IssueType[] | null>(null);
   const [issueTypesErr, setIssueTypesErr] = useState<string | null>(null);
   const [issueTypeId, setIssueTypeId] = useState<string>("");
-  const [parentEpicKey, setParentEpicKey] = useState<string>("");
+  const [epicMode, setEpicMode] = useState<EpicMode>("new");
+  const [epics, setEpics] = useState<Array<{ key: string; title: string }> | null>(null);
+  const [epicsErr, setEpicsErr] = useState<string | null>(null);
+  const [existingEpicKey, setExistingEpicKey] = useState<string>("");
 
   const [rows, setRows] = useState<RowsState>(() => Object.fromEntries(tasks.map((t) => [t.id, { kind: "pending" } as RowState])));
   const [batchResult, setBatchResult] = useState<BatchResult | null>(null);
@@ -97,9 +104,34 @@ export function UploadSheet({ tasks, denied, onCancel, onPersistUploaded }: Uplo
     return () => { cancelled = true; };
   }, [siteId, projectKey]);
 
+  // Epics on project/mode change. Only fetches when the user has chosen
+  // "Attach to an existing epic" so the default-new-epic flow is one network
+  // call lighter.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!siteId || !projectKey || epicMode !== "existing") { setEpics(null); return; }
+      setExistingEpicKey("");
+      setEpicsErr(null);
+      try {
+        const d = await jsonGet<{ epics: Array<{ key: string; title: string }> }>(
+          `/api/jira/epics?cloudId=${encodeURIComponent(siteId)}&projectKey=${encodeURIComponent(projectKey)}`,
+        );
+        if (cancelled) return;
+        setEpics(d.epics);
+      } catch (e) {
+        if (!cancelled) setEpicsErr(e instanceof Error ? e.message : "failed to load epics");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [siteId, projectKey, epicMode]);
+
   const canStart = useMemo(
-    () => Boolean(siteId && projectKey && issueTypeId) && tasks.length > 0,
-    [siteId, projectKey, issueTypeId, tasks.length],
+    () =>
+      Boolean(siteId && projectKey && issueTypeId) &&
+      tasks.length > 0 &&
+      (epicMode === "new" ? Boolean(epicTitle.trim()) : Boolean(existingEpicKey)),
+    [siteId, projectKey, issueTypeId, tasks.length, epicMode, epicTitle, existingEpicKey],
   );
 
   async function startUpload() {
@@ -111,7 +143,10 @@ export function UploadSheet({ tasks, denied, onCancel, onPersistUploaded }: Uplo
       cloudId: siteId,
       projectKey,
       issueTypeId,
-      parentEpicKey: parentEpicKey.trim() || undefined,
+      epic:
+        epicMode === "new"
+          ? { kind: "new", title: epicTitle, descriptionHtml: epicDescriptionHtml }
+          : { kind: "existing", key: existingEpicKey },
     };
     const result = await runBatchUpload({
       tasks,
@@ -190,16 +225,54 @@ export function UploadSheet({ tasks, denied, onCancel, onPersistUploaded }: Uplo
             </select>
           </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-hig-subhead font-medium text-ink">Parent epic key (optional)</span>
-            <input
-              type="text"
-              value={parentEpicKey}
-              onChange={(e) => setParentEpicKey(e.target.value)}
-              placeholder="e.g. AI-36"
-              className="h-10 px-3 rounded-md bg-surface border border-rule text-hig-body"
-            />
-          </label>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-hig-subhead font-medium text-ink">Epic</legend>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="epicMode"
+                value="new"
+                checked={epicMode === "new"}
+                onChange={() => setEpicMode("new")}
+                className="mt-1"
+              />
+              <span className="flex-1">
+                <span className="block text-hig-body text-ink">Create a new epic from this batch</span>
+                <span className="block text-hig-footnote text-ink-secondary mt-0.5">
+                  {epicTitle ? `Title: "${epicTitle}"` : "Will use the kneaded epic title and description."}
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="epicMode"
+                value="existing"
+                checked={epicMode === "existing"}
+                onChange={() => setEpicMode("existing")}
+                className="mt-1"
+              />
+              <span className="flex-1">
+                <span className="block text-hig-body text-ink">Attach to an existing epic</span>
+                {epicMode === "existing" && (
+                  <span className="block mt-1.5">
+                    {epicsErr && <span className="text-hig-footnote text-danger">{epicsErr}</span>}
+                    <select
+                      value={existingEpicKey}
+                      onChange={(e) => setExistingEpicKey(e.target.value)}
+                      disabled={!epics}
+                      className="h-9 px-2 rounded-md bg-surface border border-rule text-hig-body w-full"
+                    >
+                      <option value="">{epics ? "Pick an epic" : (projectKey ? "Loading epics…" : "Pick a project first")}</option>
+                      {(epics ?? []).map((e) => (
+                        <option key={e.key} value={e.key}>{e.key} — {e.title}</option>
+                      ))}
+                    </select>
+                  </span>
+                )}
+              </span>
+            </label>
+          </fieldset>
 
           <div className="mt-auto pt-4 border-t border-rule flex justify-end">
             <Button onClick={startUpload} disabled={!canStart}>Start upload</Button>

@@ -22,7 +22,7 @@ export type UploadDestination = {
   cloudId: string;
   projectKey: string;
   issueTypeId: string;
-  parentEpicKey?: string;
+  epic: { kind: "new"; title: string; descriptionHtml?: string } | { kind: "existing"; key: string };
 };
 
 export type BatchResult = {

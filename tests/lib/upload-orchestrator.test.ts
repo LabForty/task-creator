@@ -3,7 +3,12 @@ import { runBatchUpload } from "@/lib/upload/orchestrator";
 import type { UploadTask, UploadDestination, RowState } from "@/lib/upload/types";
 import { EMPTY_DRAFT } from "@/lib/draft/autosave";
 
-const dest: UploadDestination = { cloudId: "cid", projectKey: "AI", issueTypeId: "10001" };
+const dest: UploadDestination = {
+  cloudId: "cid",
+  projectKey: "AI",
+  issueTypeId: "10001",
+  epic: { kind: "existing", key: "AI-36" },
+};
 
 function task(id: string): UploadTask {
   return { id, draft: { ...EMPTY_DRAFT, title: `T-${id}`, description: `desc ${id}` }, labels: [] };
@@ -102,7 +107,7 @@ describe("runBatchUpload", () => {
     expect(result.failedReason).toMatch(/cancelled/i);
   });
 
-  it("sends metadata.epic with kind:'existing' when parentEpicKey is set", async () => {
+  it("sends metadata.epic with kind:'existing' when destination carries an existing epic", async () => {
     let exportBody: { metadata?: { epic?: { kind?: string; key?: string } } } | null = null;
     (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string, init?: RequestInit) => {
       if (url.includes("/api/finalize")) {
@@ -116,7 +121,7 @@ describe("runBatchUpload", () => {
     });
     await runBatchUpload({
       tasks: [task("a")],
-      destination: { ...dest, parentEpicKey: "AI-36" },
+      destination: dest,
       onRow: () => {},
     });
     expect(exportBody).not.toBeNull();
@@ -128,5 +133,65 @@ describe("runBatchUpload", () => {
     const result = await runBatchUpload({ tasks: [], destination: dest, onRow: () => {} });
     expect(result.uploaded).toEqual([]);
     expect(result.failedId).toBeUndefined();
+  });
+
+  it("pre-creates a new epic before the sub-task loop when epic.kind === 'new'", async () => {
+    let epicCreated = false;
+    let exportEpicKey: string | undefined;
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/api/jira/epic/create")) {
+        epicCreated = true;
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-EPIC", url: "https://x/AI-EPIC" }) });
+      }
+      if (url.includes("/api/finalize")) {
+        return Promise.resolve({ ok: true, json: async () => ({ jobId: "job-1" }) });
+      }
+      if (url.includes("/api/jira/export")) {
+        const body = JSON.parse((init?.body as string) ?? "{}") as { metadata?: { epic?: { kind?: string; key?: string } } };
+        exportEpicKey = body.metadata?.epic?.key;
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-99", url: "https://x/AI-99" }) });
+      }
+      return Promise.reject(new Error("unexpected"));
+    });
+    const result = await runBatchUpload({
+      tasks: [task("a")],
+      destination: {
+        cloudId: "cid",
+        projectKey: "AI",
+        issueTypeId: "10001",
+        epic: { kind: "new", title: "Big Epic", descriptionHtml: "<p>hi</p>" },
+      },
+      onRow: () => {},
+    });
+    expect(epicCreated).toBe(true);
+    expect(exportEpicKey).toBe("AI-EPIC");
+    expect(result.uploaded).toEqual(["a"]);
+  });
+
+  it("aborts the batch when epic pre-creation fails (no sub-tasks attempted)", async () => {
+    let finalizeCalls = 0;
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string) => unknown) => void }).mockImplementation((url: string) => {
+      if (url.includes("/api/jira/epic/create")) {
+        return Promise.resolve({ ok: false, json: async () => ({ error: "no epic type" }) });
+      }
+      if (url.includes("/api/finalize")) {
+        finalizeCalls += 1;
+        return Promise.resolve({ ok: true, json: async () => ({ jobId: "job-1" }) });
+      }
+      return Promise.reject(new Error("unexpected"));
+    });
+    const result = await runBatchUpload({
+      tasks: [task("a"), task("b")],
+      destination: {
+        cloudId: "cid",
+        projectKey: "AI",
+        issueTypeId: "10001",
+        epic: { kind: "new", title: "T" },
+      },
+      onRow: () => {},
+    });
+    expect(finalizeCalls).toBe(0);
+    expect(result.uploaded).toEqual([]);
+    expect(result.failedReason).toMatch(/epic create/i);
   });
 });
