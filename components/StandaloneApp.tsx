@@ -869,18 +869,31 @@ export function StandaloneApp({ initialSession }: Props) {
               <EpicTabs
                 tasks={epicTasks}
                 active={activeTab}
-                analyzing={false}
-                analyzeProgress={null}
                 refreshKey={taskRefreshKey}
                 onSelect={setActiveTab}
                 onAdd={addTask}
                 onAnalyzeAll={startAnalyzeWalk}
+                onAnalyzeTask={openAnalyzeForTask}
                 onBake={bake}
+                onBack={() => confirmReKnead(false)}
                 onTitleChange={taskTitleChange}
                 onSetLabels={taskSetLabels}
                 onAddLink={taskAddLink}
                 onRemoveLink={taskRemoveLink}
                 onDelete={deleteTask}
+                onClearTask={(id) => {
+                  if (id === "epic") {
+                    clearVisibleDraft(); // Epic-tab path → standalone draft
+                  } else {
+                    saveDraft(epicTaskNamespace(id), { ...EMPTY_DRAFT });
+                    setEpicTasks((prev) => {
+                      const next = setTitle(prev, id, "");
+                      persistEpicTasks(next);
+                      return next;
+                    });
+                    setTaskRefreshKey((k) => k + 1);
+                  }
+                }}
               />
             </div>
           ) : (

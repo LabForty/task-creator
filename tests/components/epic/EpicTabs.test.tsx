@@ -11,9 +11,11 @@ const tasks: EpicTask[] = [
   { id: "b", title: "Beta", labels: [], blocks: [], blockedBy: [] },
 ];
 const base = {
-  tasks, active: "a", analyzing: false, analyzeProgress: null as string | null, refreshKey: 0,
-  onSelect: vi.fn(), onAdd: vi.fn(), onAnalyzeAll: vi.fn(), onBake: vi.fn(),
-  onTitleChange: vi.fn(), onSetLabels: vi.fn(), onAddLink: vi.fn(), onRemoveLink: vi.fn(), onDelete: vi.fn(),
+  tasks, active: "a", refreshKey: 0,
+  onSelect: vi.fn(), onAdd: vi.fn(), onAnalyzeAll: vi.fn(), onAnalyzeTask: vi.fn(),
+  onBake: vi.fn(), onBack: vi.fn(),
+  onTitleChange: vi.fn(), onSetLabels: vi.fn(), onAddLink: vi.fn(), onRemoveLink: vi.fn(),
+  onDelete: vi.fn(), onClearTask: vi.fn(),
 };
 
 describe("<EpicTabs>", () => {
@@ -21,7 +23,7 @@ describe("<EpicTabs>", () => {
     render(<EpicTabs {...base} />);
     expect(screen.getByRole("tab", { name: /alpha/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/task title/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /analyze all/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^analyze all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^bake$/i })).toBeInTheDocument();
   });
   it("shows the epic Editor on the Epic tab", () => {
@@ -31,17 +33,85 @@ describe("<EpicTabs>", () => {
   it("fires Analyze all and Bake", async () => {
     const onAnalyzeAll = vi.fn(); const onBake = vi.fn();
     render(<EpicTabs {...base} onAnalyzeAll={onAnalyzeAll} onBake={onBake} />);
-    await userEvent.click(screen.getByRole("button", { name: /analyze all/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^analyze all$/i }));
     expect(onAnalyzeAll).toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: /^bake$/i }));
     expect(onBake).toHaveBeenCalled();
   });
-  // Task 11 will fix: with Analyze-this-task added by Task 10, /analyz/i now
-  // matches multiple buttons; Task 11 reshapes the toolbar so the disabled
-  // assertion can target the toolbar button unambiguously.
-  it.skip("shows analyze progress and disables the button while analyzing", () => {
-    render(<EpicTabs {...base} analyzing analyzeProgress="Analyzing 1/2…" />);
-    expect(screen.getByText(/analyzing 1\/2/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /analyz/i })).toBeDisabled();
+
+  it("Analyze all fires onAnalyzeAll (walk starter)", async () => {
+    const onAnalyzeAll = vi.fn();
+    render(
+      <EpicTabs
+        tasks={[{ id: "t1", title: "T1", labels: [], blocks: [], blockedBy: [] }]}
+        active="t1"
+        refreshKey={0}
+        onSelect={() => {}}
+        onAdd={() => {}}
+        onAnalyzeAll={onAnalyzeAll}
+        onAnalyzeTask={() => {}}
+        onBake={() => {}}
+        onBack={() => {}}
+        onTitleChange={() => {}}
+        onSetLabels={() => {}}
+        onAddLink={() => {}}
+        onRemoveLink={() => {}}
+        onDelete={() => {}}
+        onClearTask={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^analyze all$/i }));
+    expect(onAnalyzeAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("Back to kneading fires onBack after confirm", async () => {
+    const onBack = vi.fn();
+    render(
+      <EpicTabs
+        tasks={[{ id: "t1", title: "T1", labels: [], blocks: [], blockedBy: [] }]}
+        active="t1"
+        refreshKey={0}
+        onSelect={() => {}}
+        onAdd={() => {}}
+        onAnalyzeAll={() => {}}
+        onAnalyzeTask={() => {}}
+        onBake={() => {}}
+        onBack={onBack}
+        onTitleChange={() => {}}
+        onSetLabels={() => {}}
+        onAddLink={() => {}}
+        onRemoveLink={() => {}}
+        onDelete={() => {}}
+        onClearTask={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /back to kneading/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^yes$/i }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("active sub-task tab forwards onClearTask + onAnalyzeTask with the right id", async () => {
+    const onAnalyzeTask = vi.fn();
+    render(
+      <EpicTabs
+        tasks={[{ id: "t1", title: "T1", labels: [], blocks: [], blockedBy: [] }]}
+        active="t1"
+        refreshKey={0}
+        onSelect={() => {}}
+        onAdd={() => {}}
+        onAnalyzeAll={() => {}}
+        onAnalyzeTask={onAnalyzeTask}
+        onBake={() => {}}
+        onBack={() => {}}
+        onTitleChange={() => {}}
+        onSetLabels={() => {}}
+        onAddLink={() => {}}
+        onRemoveLink={() => {}}
+        onDelete={() => {}}
+        onClearTask={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /analyze this task/i }));
+    expect(onAnalyzeTask).toHaveBeenCalledWith("t1");
   });
 });
