@@ -156,6 +156,42 @@ export function StandaloneApp({ initialSession }: Props) {
     commitEpicTasks(next);
     setActiveTab(created.id);
   }
+
+  function clearVisibleDraft() {
+    // Decide which namespace the visible Editor is pointed at.
+    // Single mode OR Epic tab → the main standalone namespace.
+    // Epic sub-task tab → that task's per-task namespace.
+    const ns =
+      epicMode && epicTasks.length > 0 && activeTab !== "epic"
+        ? epicTaskNamespace(activeTab)
+        : NAMESPACE;
+
+    if (ns === NAMESPACE) {
+      const existing = loadDraft(NAMESPACE);
+      // Preserve epic-mode metadata (mode/knead/epicTasks/reviewing/reviews/chatHistory)
+      // so clearing the visible draft doesn't blow away surrounding state.
+      saveDraft(NAMESPACE, {
+        ...EMPTY_DRAFT,
+        mode: existing.mode,
+        knead: existing.knead,
+        epicTasks: existing.epicTasks,
+        reviewing: existing.reviewing,
+        reviews: existing.reviews,
+        chatHistory: existing.chatHistory,
+      });
+      setLiveDraft(loadDraft(NAMESPACE));
+    } else {
+      saveDraft(ns, { ...EMPTY_DRAFT });
+      // Mirror the cleared title back into the descriptor so the tab label updates.
+      setEpicTasks((prev) => {
+        const next = setTitle(prev, activeTab, "");
+        persistEpicTasks(next);
+        return next;
+      });
+    }
+    // Force the Editor to re-hydrate from the just-cleared namespace.
+    setTaskRefreshKey((k) => k + 1);
+  }
   function deleteTask(id: string) {
     clearDraft(epicTaskNamespace(id));
     const next = deleteEpicTask(epicTasks, id);
@@ -831,10 +867,12 @@ export function StandaloneApp({ initialSession }: Props) {
             )}
             <div className="flex-1 min-h-0 overflow-y-auto">
               <Editor
+                key={`standalone:${taskRefreshKey}`}
                 namespace={NAMESPACE}
                 onFinalize={submit}
                 disabled={mode.kind === "running"}
                 onHelp={() => setHelpOpen("editor")}
+                onClear={clearVisibleDraft}
                 mode={epicMode ? "epic" : "single"}
                 onKnead={startKneading}
                 kneadDisabled={kneadLoading}
