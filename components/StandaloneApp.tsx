@@ -1050,6 +1050,11 @@ export function StandaloneApp({ initialSession }: Props) {
         const idx = epicTasks.findIndex((t) => t.id === analyzeTaskId);
         return (
           <HelpPanel
+            // Force-remount on task change so the panel resets its internal
+            // didScanRef + input/dismissed state and re-runs the auto-scan
+            // for the new task. Without this, advancing the walk keeps the
+            // same HelpPanel instance and the user sees no visible change.
+            key={analyzeTaskId}
             surface="editor"
             draft={taskDraft}
             history={analyzeChatById[analyzeTaskId] ?? []}
