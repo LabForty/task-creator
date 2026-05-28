@@ -15,7 +15,7 @@ describe("buildTaskGraphMermaid", () => {
       { id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [] },
     ];
     const out = buildTaskGraphMermaid({ tasks, reviews: blank });
-    expect(out.startsWith("graph TD")).toBe(true);
+    expect(out).toMatch(/graph TD/);
     expect(out).toMatch(/classDef\s+approved/);
     expect(out).toMatch(/classDef\s+denied/);
     expect(out).toMatch(/classDef\s+change_requested/);
@@ -75,5 +75,13 @@ describe("buildTaskGraphMermaid", () => {
     ];
     const out = buildTaskGraphMermaid({ tasks, reviews: blank });
     expect(out).toMatch(/t_a\["x{39}…"\]/);
+  });
+
+  it("emits an init directive with flowchart spacing settings", () => {
+    const tasks: EpicTask[] = [{ id: "a", title: "A", labels: [], blocks: [], blockedBy: [] }];
+    const out = buildTaskGraphMermaid({ tasks, reviews: blank });
+    expect(out).toMatch(/%%\{init:\s*\{\s*'flowchart':\s*\{[^}]*'useMaxWidth':\s*true/);
+    expect(out).toMatch(/'nodeSpacing':\s*28/);
+    expect(out).toMatch(/'rankSpacing':\s*40/);
   });
 });

@@ -16,7 +16,13 @@ export function TaskGraph({ tasks, reviews, assignees }: Props) {
   const source = buildTaskGraphMermaid({ tasks, reviews, assignees });
   if (!source) return null;
   return (
-    <div className="rounded-md border border-rule bg-surface p-2">
+    <div
+      // Force the mermaid-rendered SVG to fill the sidebar width. mermaid
+      // emits an inline width/height on the SVG by default; overriding with
+      // `width: 100% !important` via the arbitrary-variant selector pins it
+      // to the container.
+      className="rounded-md border border-rule bg-surface p-2 overflow-x-auto [&_svg]:!w-full [&_svg]:!h-auto"
+    >
       <MermaidDiagram source={source} />
     </div>
   );

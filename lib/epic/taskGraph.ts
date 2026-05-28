@@ -34,13 +34,18 @@ function statusClass(reviews: ReviewMap, id: string): string {
 export function buildTaskGraphMermaid(input: TaskGraphInput): string {
   if (input.tasks.length === 0) return "";
 
-  const lines: string[] = ["graph TD"];
-
-  // Class definitions — same palette used elsewhere for the four review states.
-  lines.push("  classDef approved fill:#dcfce7,stroke:#16a34a,color:#065f46;");
-  lines.push("  classDef denied fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;");
-  lines.push("  classDef change_requested fill:#fef9c3,stroke:#ca8a04,color:#713f12;");
-  lines.push("  classDef pending fill:#f1f5f9,stroke:#64748b,color:#0f172a;");
+  const lines: string[] = [
+    // Spacing / curve directives. useMaxWidth lets the rendered SVG scale
+    // down to the sidebar; nodeSpacing/rankSpacing give breathing room
+    // between siblings and between rows respectively.
+    "%%{init: { 'flowchart': { 'nodeSpacing': 28, 'rankSpacing': 40, 'curve': 'basis', 'padding': 12, 'useMaxWidth': true } } }%%",
+    "graph TD",
+    // Deeper saturated tints so the status reads on first glance.
+    "  classDef approved fill:#bbf7d0,stroke:#15803d,stroke-width:1.5px,color:#064e3b;",
+    "  classDef denied fill:#fecaca,stroke:#b91c1c,stroke-width:1.5px,color:#7f1d1d;",
+    "  classDef change_requested fill:#fde68a,stroke:#a16207,stroke-width:1.5px,color:#713f12;",
+    "  classDef pending fill:#e2e8f0,stroke:#475569,stroke-width:1.5px,color:#0f172a;",
+  ];
 
   for (const t of input.tasks) {
     const title = escapeMermaid(truncate(t.title || "(untitled)"));
