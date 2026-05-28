@@ -22,6 +22,7 @@ type Props = {
   // header shows a "Review N changes" button; clicking it calls onOpenReview.
   pendingEditCount?: number;
   onOpenReview?: () => void;
+  walkInfo?: { index: number; total: number; onNext: () => void; onStop: () => void };
 };
 
 const SUGGESTION_KIND_LABEL: Record<HelpSuggestionKind, string> = {
@@ -47,6 +48,7 @@ export function HelpPanel({
   onClose,
   pendingEditCount = 0,
   onOpenReview,
+  walkInfo,
 }: Props) {
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -196,6 +198,23 @@ export function HelpPanel({
             <Button size="sm" onClick={onOpenReview}>
               Review {pendingEditCount} {pendingEditCount === 1 ? "change" : "changes"}
             </Button>
+          )}
+          {walkInfo && (
+            <>
+              <span className="text-hig-footnote font-medium text-ink-secondary">
+                Walk {walkInfo.index + 1}/{walkInfo.total}
+              </span>
+              <Button
+                size="sm"
+                onClick={walkInfo.onNext}
+                disabled={walkInfo.index >= walkInfo.total - 1}
+              >
+                Next task
+              </Button>
+              <Button size="sm" variant="secondary" onClick={walkInfo.onStop}>
+                Stop walk
+              </Button>
+            </>
           )}
           <Button variant="ghost" size="sm" onClick={onClose}>
             Close
