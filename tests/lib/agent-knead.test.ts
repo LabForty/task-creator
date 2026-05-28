@@ -21,10 +21,13 @@ describe("runKnead", () => {
     if (out.kind === "questions") expect(out.round.questions[0].id).toBe("q1");
   });
 
-  it("maps a complete reply to a complete outcome", async () => {
+  it("maps a complete reply to a complete outcome on rounds >= 1", async () => {
+    // After Task 3 (AI-36), `complete` on rounds: [] is intercepted by the
+    // "must ask >=1 round" guard. Pass a single answered round so the guard
+    // skips and the model's `complete` flows through unchanged.
     const out = await runKnead({
       epicDescription: "Epic",
-      rounds: [],
+      rounds: [{ questions: [{ id: "q1", prompt: "P", section: "business", type: "text" }], answers: { q1: "yes" } }],
       transport: textTransport('{"kind":"complete"}'),
     });
     expect(out.kind).toBe("complete");
