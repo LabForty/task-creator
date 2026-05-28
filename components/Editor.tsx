@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import dynamic from "next/dynamic";
 import { TextField, TextArea } from "@/components/ui/TextField";
 import { ACList } from "@/components/ACList";
+import { ClearDraftButton } from "@/components/ClearDraftButton";
 import { TaskTypePicker } from "@/components/TaskTypePicker";
 import { applyEditToDraft } from "@/lib/draft/applyEdit";
 import type { ProposedEdit } from "@/lib/jobs/types";
@@ -32,6 +33,7 @@ type Props = {
   onFinalize: (draft: Draft) => void;
   disabled?: boolean;
   onHelp?: () => void;
+  onClear?: () => void;
   // Epic mode: relabel the primary button and gate on the epic description.
   mode?: "single" | "epic";
   onKnead?: (draft: Draft) => void;
@@ -50,7 +52,7 @@ function hasEpicDescription(html: string): boolean {
 }
 
 export function Editor({
-  namespace, onFinalize, disabled = false, onHelp,
+  namespace, onFinalize, disabled = false, onHelp, onClear,
   mode = "single", onKnead, kneadDisabled = false, onDraftChange,
   hideSubmit = false,
 }: Props) {
@@ -281,6 +283,7 @@ export function Editor({
             Help
           </Button>
         )}
+        {onClear && <ClearDraftButton onConfirm={onClear} />}
         {!hideSubmit && (mode === "epic" ? (
           <Button
             type="submit"

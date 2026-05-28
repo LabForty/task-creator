@@ -98,4 +98,19 @@ describe("<Editor>", () => {
     expect(screen.queryByRole("button", { name: /knead tasks/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/task title/i)).toBeInTheDocument();
   });
+
+  it("renders a Clear button when onClear is provided and fires after confirm", async () => {
+    const onClear = vi.fn();
+    render(
+      <Editor namespace="standalone:test:editor-clear" onFinalize={() => {}} onClear={onClear} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^clear$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^yes$/i }));
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render Clear when onClear is omitted", () => {
+    render(<Editor namespace="standalone:test:editor-no-clear" onFinalize={() => {}} />);
+    expect(screen.queryByRole("button", { name: /^clear$/i })).toBeNull();
+  });
 });
