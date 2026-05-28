@@ -123,3 +123,67 @@ describe("lib/agent", () => {
     }
   });
 });
+
+import { runKnead } from "@/lib/agent";
+import { FALLBACK_FIRST_ROUND } from "@/lib/knead/fallback";
+
+function scriptedTransport(replies: string[]): import("@/lib/agent/types").AgentTransport {
+  let i = 0;
+  return {
+    async runRole({ onEvent }) {
+      const text = replies[Math.min(i, replies.length - 1)];
+      i++;
+      onEvent({ type: "token", text });
+    },
+  };
+}
+
+describe("runKnead guard", () => {
+  it("retries once with mustAskFirstRound when first call returns complete on empty rounds", async () => {
+    const transport = scriptedTransport([
+      JSON.stringify({ kind: "complete" }),
+      JSON.stringify({
+        kind: "questions",
+        questions: [
+          { id: "q-a", prompt: "A?", section: "business", type: "text" },
+        ],
+      }),
+    ]);
+    const outcome = await runKnead({ epicDescription: "do a thing", rounds: [], transport });
+    expect(outcome.kind).toBe("questions");
+    if (outcome.kind === "questions") {
+      expect(outcome.round.questions[0].id).toBe("q-a");
+    }
+  });
+
+  it("falls back to FALLBACK_FIRST_ROUND when retry also returns complete", async () => {
+    const transport = scriptedTransport([
+      JSON.stringify({ kind: "complete" }),
+      JSON.stringify({ kind: "complete" }),
+    ]);
+    const outcome = await runKnead({ epicDescription: "do a thing", rounds: [], transport });
+    expect(outcome.kind).toBe("questions");
+    if (outcome.kind === "questions") {
+      expect(outcome.round.questions.map((q) => q.id)).toEqual(
+        FALLBACK_FIRST_ROUND.map((q) => q.id),
+      );
+    }
+  });
+
+  it("does not retry when rounds is non-empty (subsequent calls may legitimately return complete)", async () => {
+    const calls: string[] = [];
+    const transport: import("@/lib/agent/types").AgentTransport = {
+      async runRole({ userMessage, onEvent }) {
+        calls.push(userMessage);
+        onEvent({ type: "token", text: JSON.stringify({ kind: "complete" }) });
+      },
+    };
+    const outcome = await runKnead({
+      epicDescription: "x",
+      rounds: [{ questions: [{ id: "q1", prompt: "?", section: "business", type: "text" }], answers: { q1: "yes" } }],
+      transport,
+    });
+    expect(outcome.kind).toBe("complete");
+    expect(calls.length).toBe(1);
+  });
+});

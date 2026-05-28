@@ -16,6 +16,7 @@ import type { Draft } from "@/lib/draft/autosave";
 import { extractJsonObject } from "@/lib/json/extract";
 import { parseKneadResponse, applyCap } from "@/lib/knead/parse";
 import type { KneadOutcome, KneadRound } from "@/lib/knead/types";
+import { FALLBACK_FIRST_ROUND } from "@/lib/knead/fallback";
 import { parseSubtasksResponse } from "@/lib/subtasks/parse";
 import type { ProposedSubtask, SubTask } from "@/lib/subtasks/types";
 import { parseInterferenceResponse } from "@/lib/interference/parse";
@@ -389,30 +390,53 @@ export async function runKnead(args: {
   signal?: AbortSignal;
 }): Promise<KneadOutcome> {
   const systemPrompt = await loadSkillPrompt("task-knead");
-  const userMessage = JSON.stringify({
-    epicDescription: args.epicDescription,
-    rounds: args.rounds,
-    roundNumber: args.rounds.length + 1,
-    maxFreeRounds: 5,
-    overrideCapApproved: Boolean(args.overrideCapApproved),
-  });
+  const buildMessage = (mustAskFirstRound: boolean) =>
+    JSON.stringify({
+      epicDescription: args.epicDescription,
+      rounds: args.rounds,
+      roundNumber: args.rounds.length + 1,
+      maxFreeRounds: 5,
+      overrideCapApproved: Boolean(args.overrideCapApproved),
+      mustAskFirstRound,
+    });
 
-  let buffer = "";
-  let pending: Error | null = null;
-  await args.transport.runRole({
-    role: "knead",
-    systemPrompt,
-    userMessage,
-    cwd: process.cwd(),
-    signal: args.signal,
-    onEvent: (e) => {
-      if (e.type === "token") buffer += e.text;
-      else if (e.type === "error") pending = new Error(`${e.code}: ${e.message}`);
-    },
-  });
-  if (pending) throw pending;
+  async function callModel(userMessage: string): Promise<string> {
+    let buffer = "";
+    let pending: Error | null = null;
+    await args.transport.runRole({
+      role: "knead",
+      systemPrompt,
+      userMessage,
+      cwd: process.cwd(),
+      signal: args.signal,
+      onEvent: (e) => {
+        if (e.type === "token") buffer += e.text;
+        else if (e.type === "error") pending = new Error(`${e.code}: ${e.message}`);
+      },
+    });
+    if (pending) throw pending;
+    return buffer;
+  }
 
-  const result = parseKneadResponse(buffer);
+  // First call.
+  let raw = await callModel(buildMessage(false));
+  let result = parseKneadResponse(raw);
+
+  // Guard: never let the very first round return `complete` without questions.
+  // Try once more with mustAskFirstRound=true; if the model still misbehaves,
+  // emit the deterministic fallback round so the UI is never stranded.
+  if (args.rounds.length === 0 && result.kind === "complete") {
+    raw = await callModel(buildMessage(true));
+    try {
+      result = parseKneadResponse(raw);
+    } catch {
+      result = { kind: "questions", questions: [...FALLBACK_FIRST_ROUND] };
+    }
+    if (result.kind === "complete") {
+      result = { kind: "questions", questions: [...FALLBACK_FIRST_ROUND] };
+    }
+  }
+
   return applyCap(result, args.rounds.length, Boolean(args.overrideCapApproved));
 }
 
