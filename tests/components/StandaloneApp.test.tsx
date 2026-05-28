@@ -78,3 +78,57 @@ describe("<StandaloneApp>", () => {
     expect(stored.knead.rounds).toEqual([]);
   });
 });
+
+// Mock MermaidDiagram + subscribeToJob so the reviewer renders cleanly in jsdom.
+vi.mock("@/components/MermaidDiagram", () => ({
+  MermaidDiagram: ({ source }: { source: string }) => <pre data-testid="md-source">{source}</pre>,
+}));
+vi.mock("@/lib/sse/client", () => ({
+  subscribeToJob: () => () => {},
+}));
+
+it("clicking Finalize opens the UploadSheet when every task is reviewed", async () => {
+  // Seed an epic-mode draft with two tasks, both reviewed, in reviewer mode.
+  window.localStorage.setItem(
+    "task-creator:draft:standalone",
+    JSON.stringify({
+      ...EMPTY_DRAFT,
+      mode: "epic",
+      title: "Epic",
+      description: "<p>epic</p>",
+      epicTasks: [
+        { id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [] },
+        { id: "b", title: "Bravo", labels: [], blocks: [], blockedBy: [] },
+      ],
+      reviewing: true,
+      reviews: {
+        a: { status: "approved", comment: "", assignee: null },
+        b: { status: "denied", comment: "", assignee: null },
+      },
+    }),
+  );
+  // Seed per-task drafts so the orchestrator has descriptions to send.
+  window.localStorage.setItem(
+    "task-creator:draft:standalone:epic:a",
+    JSON.stringify({ ...EMPTY_DRAFT, title: "Alpha", description: "do A" }),
+  );
+
+  // Stub the Jira resources endpoints minimally — the sheet must be reachable
+  // without actually starting an upload.
+  global.fetch = vi.fn().mockImplementation((url: string) => {
+    if (typeof url === "string" && url.includes("/api/jira/resources")) {
+      return Promise.resolve({ ok: true, json: async () => ({ resources: [] }) });
+    }
+    if (typeof url === "string" && url.includes("/api/jira/session")) {
+      return Promise.resolve({ ok: true, json: async () => ({ configured: false, connected: false }) });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  }) as unknown as typeof fetch;
+
+  render(<StandaloneApp initialSession={{ configured: false, connected: false }} />);
+  const btn = await screen.findByRole("button", { name: /^finalize$/i });
+  expect(btn).not.toBeDisabled();
+  await userEvent.click(btn);
+
+  expect(await screen.findByRole("heading", { name: /upload to jira/i })).toBeInTheDocument();
+});

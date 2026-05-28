@@ -14,7 +14,9 @@ import {
   addEpicTask, deleteEpicTask, setTitle, setLabels as setTaskLabels,
   addLink as addTaskLink, removeLink as removeTaskLink, type EpicTask,
 } from "@/lib/epic/tasks";
-import { setReview, initReviews } from "@/lib/review/state";
+import { setReview, initReviews, nonDeniedTaskIds } from "@/lib/review/state";
+import { UploadSheet } from "@/components/epic/review/UploadSheet";
+import type { UploadTask } from "@/lib/upload/types";
 import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
 import type { ProposedSubtask } from "@/lib/subtasks/types";
 import { startInterview, appendRound, setAnswer, skipQuestion, unskipQuestion, markComplete, resetDough } from "@/lib/epic/state";
@@ -106,6 +108,7 @@ export function StandaloneApp({ initialSession }: Props) {
   const [reviews, setReviews] = useState<ReviewMap>({});
   const [interference, setInterference] = useState<InterferenceMap>({});
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const interferenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Cancel any pending debounced interference call on unmount so it can't fire
   // setInterference after the component is gone.
@@ -285,6 +288,18 @@ export function StandaloneApp({ initialSession }: Props) {
   function exitReview() {
     setReviewing(false);
     persistReview(false, reviews);
+  }
+
+  function startFinalize() {
+    setUploadOpen(true);
+  }
+
+  function persistUploadedKey(id: string, issueKey: string, issueUrl: string) {
+    setEpicTasks((prev) => {
+      const next = prev.map((t) => (t.id === id ? { ...t, uploadedIssueKey: issueKey, uploadedIssueUrl: issueUrl } : t));
+      persistEpicTasks(next);
+      return next;
+    });
   }
 
   function changeReview(id: string, patch: Partial<SubtaskReview>) {
@@ -863,6 +878,7 @@ export function StandaloneApp({ initialSession }: Props) {
               refreshKey={taskRefreshKey}
               onSelect={setSelectedReviewId}
               onEditTasks={exitReview}
+              onFinalize={startFinalize}
               onTitleChange={reviewTitleChange}
               onSetLabels={reviewSetLabels}
               onAddLink={reviewAddLink}
@@ -1096,6 +1112,27 @@ export function StandaloneApp({ initialSession }: Props) {
           onClose={() => setReviewOpen(false)}
         />
       )}
+      {uploadOpen && (() => {
+        const denied = epicTasks
+          .filter((t) => reviews[t.id]?.status === "denied")
+          .map((t) => ({ id: t.id, title: t.title }));
+        const ids = nonDeniedTaskIds(reviews, epicTasks.map((t) => t.id))
+          .filter((id) => !epicTasks.find((t) => t.id === id)?.uploadedIssueKey);
+        const uploadTasks: UploadTask[] = ids
+          .map((id) => {
+            const t = epicTasks.find((x) => x.id === id)!;
+            const d = loadDraft(epicTaskNamespace(id));
+            return { id, draft: d, assignee: reviews[id]?.assignee ?? undefined, labels: t.labels };
+          });
+        return (
+          <UploadSheet
+            tasks={uploadTasks}
+            denied={denied}
+            onCancel={() => setUploadOpen(false)}
+            onPersistUploaded={persistUploadedKey}
+          />
+        );
+      })()}
     </main>
   );
 }
