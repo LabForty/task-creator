@@ -13,7 +13,7 @@ const base = {
   epicTitle: "My Epic", epicDescriptionHtml: "<p>desc</p>", tasks,
   reviews: initReviews(["a", "b"]), interference: {},
   refreshKey: 0,
-  onSelect: vi.fn(), onEditTasks: vi.fn(), onTitleChange: vi.fn(), onSetLabels: vi.fn(),
+  onSelect: vi.fn(), onEditTasks: vi.fn(), onFinalize: vi.fn(), onTitleChange: vi.fn(), onSetLabels: vi.fn(),
   onAddLink: vi.fn(), onRemoveLink: vi.fn(), onReviewChange: vi.fn(), onDelete: vi.fn(),
 };
 
@@ -51,4 +51,92 @@ describe("<ReviewerMode>", () => {
     expect(screen.getByRole("button", { name: /back to tabs/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^edit tasks$/i })).toBeNull();
   });
+});
+
+// Stub MermaidDiagram so jsdom doesn't try to lazy-import mermaid.
+vi.mock("@/components/MermaidDiagram", () => ({
+  MermaidDiagram: ({ source }: { source: string }) => <pre data-testid="md-source">{source}</pre>,
+}));
+
+it("renders the TaskGraph when tasks exist and removes the placeholder", () => {
+  render(
+    <ReviewerMode
+      epicTitle="E"
+      epicDescriptionHtml=""
+      tasks={[{ id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [] }]}
+      reviews={{}}
+      interference={{}}
+      selectedId={null}
+      refreshKey={0}
+      onSelect={() => {}}
+      onEditTasks={() => {}}
+      onFinalize={() => {}}
+      onTitleChange={() => {}}
+      onSetLabels={() => {}}
+      onAddLink={() => {}}
+      onRemoveLink={() => {}}
+      onReviewChange={() => {}}
+      onDelete={() => {}}
+    />,
+  );
+  expect(screen.queryByText(/diagram from tasks arrives in a later phase\./i)).toBeNull();
+  expect(screen.getByTestId("md-source").textContent ?? "").toContain("t_a[\"Alpha\"]");
+});
+
+it("Finalize is disabled when not all tasks are approved/denied", () => {
+  render(
+    <ReviewerMode
+      epicTitle="E"
+      epicDescriptionHtml=""
+      tasks={[{ id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [] }]}
+      reviews={{ a: { status: "pending", comment: "", assignee: null } }}
+      interference={{}}
+      selectedId={null}
+      refreshKey={0}
+      onSelect={() => {}}
+      onEditTasks={() => {}}
+      onFinalize={() => {}}
+      onTitleChange={() => {}}
+      onSetLabels={() => {}}
+      onAddLink={() => {}}
+      onRemoveLink={() => {}}
+      onReviewChange={() => {}}
+      onDelete={() => {}}
+    />,
+  );
+  expect(screen.getByRole("button", { name: /^finalize$/i })).toBeDisabled();
+});
+
+it("Finalize is enabled and fires onFinalize when every task is approved or denied", async () => {
+  const onFinalize = vi.fn();
+  render(
+    <ReviewerMode
+      epicTitle="E"
+      epicDescriptionHtml=""
+      tasks={[
+        { id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [] },
+        { id: "b", title: "Bravo", labels: [], blocks: [], blockedBy: [] },
+      ]}
+      reviews={{
+        a: { status: "approved", comment: "", assignee: null },
+        b: { status: "denied", comment: "", assignee: null },
+      }}
+      interference={{}}
+      selectedId={null}
+      refreshKey={0}
+      onSelect={() => {}}
+      onEditTasks={() => {}}
+      onFinalize={onFinalize}
+      onTitleChange={() => {}}
+      onSetLabels={() => {}}
+      onAddLink={() => {}}
+      onRemoveLink={() => {}}
+      onReviewChange={() => {}}
+      onDelete={() => {}}
+    />,
+  );
+  const btn = screen.getByRole("button", { name: /^finalize$/i });
+  expect(btn).not.toBeDisabled();
+  await userEvent.click(btn);
+  expect(onFinalize).toHaveBeenCalledTimes(1);
 });

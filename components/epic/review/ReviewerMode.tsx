@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/Button";
 import { EpicPreview } from "@/components/epic/review/EpicPreview";
 import { ReviewNav } from "@/components/epic/review/ReviewNav";
 import { ReviewTaskPanel } from "@/components/epic/review/ReviewTaskPanel";
-import { getReview } from "@/lib/review/state";
+import { TaskGraph } from "@/components/epic/review/TaskGraph";
+import { allReviewed, getReview } from "@/lib/review/state";
 import type { EpicTask } from "@/lib/epic/tasks";
 import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
 
@@ -18,6 +19,7 @@ type Props = {
   refreshKey: number;
   onSelect: (id: string | null) => void;
   onEditTasks: () => void;
+  onFinalize: () => void;
   onTitleChange: (id: string, title: string) => void;
   onSetLabels: (id: string, labels: string[]) => void;
   onAddLink: (blockerId: string, blockedId: string) => void;
@@ -28,6 +30,12 @@ type Props = {
 
 export function ReviewerMode(props: Props) {
   const selected = props.tasks.find((s) => s.id === props.selectedId) ?? null;
+  const finalizeReady = allReviewed(props.tasks.map((t) => t.id), props.reviews);
+  const assignees = Object.fromEntries(
+    Object.entries(props.reviews)
+      .filter(([, r]) => r.assignee)
+      .map(([id, r]) => [id, r.assignee as string]),
+  );
 
   return (
     <div className="flex-1 min-h-0 flex">
@@ -41,11 +49,16 @@ export function ReviewerMode(props: Props) {
           interference={props.interference}
         />
         <div>
-          <h3 className="hig-section-label">Diagrams</h3>
-          <p className="text-hig-footnote text-ink-tertiary">Diagram from tasks arrives in a later phase.</p>
+          <h3 className="hig-section-label">Task graph</h3>
+          <TaskGraph tasks={props.tasks} reviews={props.reviews} assignees={assignees} />
         </div>
         <div className="mt-auto flex flex-col gap-2 pt-2 border-t border-rule">
-          <Button type="button" disabled title="You need to review all the tasks and resolve requested changes">
+          <Button
+            type="button"
+            disabled={!finalizeReady}
+            title={finalizeReady ? undefined : "You need to review all the tasks and resolve requested changes"}
+            onClick={props.onFinalize}
+          >
             Finalize
           </Button>
           <Button type="button" variant="secondary" size="sm" onClick={props.onEditTasks}><span aria-hidden="true">←</span> Back to tabs</Button>
