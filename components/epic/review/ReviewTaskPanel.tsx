@@ -1,16 +1,17 @@
 "use client";
 
-import { SubtaskCard } from "@/components/epic/SubtaskCard";
+import { EpicTaskEditor } from "@/components/epic/EpicTaskEditor";
 import { ReviewControls } from "@/components/epic/review/ReviewControls";
-import type { SubTask } from "@/lib/subtasks/types";
+import type { EpicTask } from "@/lib/epic/tasks";
 import type { SubtaskReview, InterferenceWarning } from "@/lib/review/types";
 
 type Props = {
-  subtask: SubTask;
-  allSubtasks: SubTask[];
+  task: EpicTask;
+  allTasks: EpicTask[];
   review: SubtaskReview;
   warning?: InterferenceWarning;
-  onUpdate: (patch: { title?: string; description?: string }) => void;
+  refreshKey: number;
+  onTitleChange: (title: string) => void;
   onSetLabels: (labels: string[]) => void;
   onAddLink: (blockerId: string, blockedId: string) => void;
   onRemoveLink: (blockerId: string, blockedId: string) => void;
@@ -19,7 +20,8 @@ type Props = {
 };
 
 export function ReviewTaskPanel({
-  subtask, allSubtasks, review, warning, onUpdate, onSetLabels, onAddLink, onRemoveLink, onReviewChange, onDelete,
+  task, allTasks, review, warning, refreshKey,
+  onTitleChange, onSetLabels, onAddLink, onRemoveLink, onReviewChange, onDelete,
 }: Props) {
   return (
     <div className="flex flex-col gap-4">
@@ -28,10 +30,14 @@ export function ReviewTaskPanel({
           <p className="text-hig-footnote text-ink">Possible interference: {warning.reason}</p>
         </div>
       )}
-      <SubtaskCard
-        subtask={subtask}
-        allSubtasks={allSubtasks}
-        onUpdate={onUpdate}
+      <EpicTaskEditor
+        taskId={task.id}
+        allTasks={allTasks}
+        labels={task.labels}
+        blocks={task.blocks}
+        blockedBy={task.blockedBy}
+        refreshKey={refreshKey}
+        onTitleChange={onTitleChange}
         onSetLabels={onSetLabels}
         onAddLink={onAddLink}
         onRemoveLink={onRemoveLink}

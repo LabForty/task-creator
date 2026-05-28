@@ -1,7 +1,7 @@
 "use client";
 
 import { getReview } from "@/lib/review/state";
-import type { SubTask } from "@/lib/subtasks/types";
+import type { EpicTask } from "@/lib/epic/tasks";
 import type { ReviewMap, ReviewStatus, InterferenceMap } from "@/lib/review/types";
 
 const STATUS_CLASS: Record<ReviewStatus, string> = {
@@ -12,14 +12,14 @@ const STATUS_CLASS: Record<ReviewStatus, string> = {
 };
 
 type Props = {
-  subtasks: SubTask[];
+  tasks: EpicTask[];
   reviews: ReviewMap;
   selectedId: string | null; // null = epic
   onSelect: (id: string | null) => void;
   interference: InterferenceMap;
 };
 
-export function ReviewNav({ subtasks, reviews, selectedId, onSelect, interference }: Props) {
+export function ReviewNav({ tasks, reviews, selectedId, onSelect, interference }: Props) {
   return (
     <nav aria-label="Review navigation" className="flex flex-col gap-1">
       <button
@@ -30,7 +30,7 @@ export function ReviewNav({ subtasks, reviews, selectedId, onSelect, interferenc
       >
         Epic
       </button>
-      {subtasks.map((s) => {
+      {tasks.map((s) => {
         const status = getReview(reviews, s.id).status;
         const warned = Boolean(interference[s.id]);
         return (

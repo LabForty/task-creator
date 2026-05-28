@@ -13,10 +13,9 @@ import {
   addEpicTask, deleteEpicTask, setTitle, setLabels as setTaskLabels,
   addLink as addTaskLink, removeLink as removeTaskLink, type EpicTask,
 } from "@/lib/epic/tasks";
-import { setReview, initReviews, pruneReviews } from "@/lib/review/state";
+import { setReview, initReviews } from "@/lib/review/state";
 import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
-import { deleteSubtask, updateSubtask, setLabels, addLink, removeLink } from "@/lib/subtasks/state";
-import type { SubTask, ProposedSubtask } from "@/lib/subtasks/types";
+import type { ProposedSubtask } from "@/lib/subtasks/types";
 import { startInterview, appendRound, setAnswer, skipQuestion, unskipQuestion, markComplete, resetDough } from "@/lib/epic/state";
 import { EMPTY_KNEAD, type KneadState, type KneadAnswerValue } from "@/lib/knead/types";
 import { RunSheet } from "@/components/RunSheet";
@@ -91,7 +90,6 @@ export function StandaloneApp({ initialSession }: Props) {
   const [capPrompt, setCapPrompt] = useState<{ justification: string } | null>(null);
   const [showLostDough, setShowLostDough] = useState(false);
   const [liveDraft, setLiveDraft] = useState<Draft | null>(null);
-  const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [epicTasks, setEpicTasks] = useState<EpicTask[]>([]);
   const [activeTab, setActiveTab] = useState<"epic" | string>("epic");
   const [tasksAnalyzing, setTasksAnalyzing] = useState(false);
@@ -122,7 +120,6 @@ export function StandaloneApp({ initialSession }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setEpicMode(d.mode === "epic");
     if (d.knead) setKnead(d.knead);
-    if (d.subtasks) setSubtasks(d.subtasks);
     if (d.epicTasks) setEpicTasks(d.epicTasks);
     if (d.reviewing) setReviewing(true);
     if (d.reviews) setReviews(d.reviews);
@@ -141,15 +138,6 @@ export function StandaloneApp({ initialSession }: Props) {
   function persistEpic(nextMode: boolean, nextKnead: KneadState) {
     const current = loadDraft(NAMESPACE);
     saveDraft(NAMESPACE, { ...current, mode: nextMode ? "epic" : "single", knead: nextKnead });
-  }
-
-  function persistSubtasks(next: SubTask[]) {
-    const current = loadDraft(NAMESPACE);
-    saveDraft(NAMESPACE, { ...current, subtasks: next });
-  }
-  function commitSubtasks(next: SubTask[]) {
-    setSubtasks(next);
-    persistSubtasks(next);
   }
 
   function persistEpicTasks(next: EpicTask[]) {
@@ -194,7 +182,7 @@ export function StandaloneApp({ initialSession }: Props) {
   }
 
   function bake() {
-    const ids = subtasks.map((s) => s.id);
+    const ids = epicTasks.map((t) => t.id);
     const next = initReviews(ids, reviews);
     setReviews(next);
     setReviewing(true);
@@ -218,7 +206,10 @@ export function StandaloneApp({ initialSession }: Props) {
   function scheduleInterference(editedId: string) {
     if (interferenceTimer.current) clearTimeout(interferenceTimer.current);
     interferenceTimer.current = setTimeout(async () => {
-      const all = loadDraft(NAMESPACE).subtasks ?? [];
+      const all = (loadDraft(NAMESPACE).epicTasks ?? []).map((t) => {
+        const d = loadDraft(epicTaskNamespace(t.id));
+        return { id: t.id, title: d.title, description: d.description, labels: t.labels, blocks: t.blocks, blockedBy: t.blockedBy };
+      });
       const edited = all.find((s) => s.id === editedId);
       if (!edited) return;
       try {
@@ -243,32 +234,36 @@ export function StandaloneApp({ initialSession }: Props) {
     }, 400);
   }
 
-  function reviewUpdate(id: string, patch: { title?: string; description?: string }) {
-    commitSubtasks(updateSubtask(subtasks, id, patch));
+  function reviewTitleChange(id: string, title: string) {
+    setEpicTasks((prev) => {
+      if (prev.find((t) => t.id === id)?.title === title) return prev;
+      const next = setTitle(prev, id, title);
+      persistEpicTasks(next);
+      return next;
+    });
     scheduleInterference(id);
   }
   function reviewSetLabels(id: string, labels: string[]) {
-    commitSubtasks(setLabels(subtasks, id, labels));
+    setEpicTasks((prev) => { const next = setTaskLabels(prev, id, labels); persistEpicTasks(next); return next; });
     scheduleInterference(id);
   }
   function reviewAddLink(blockerId: string, blockedId: string) {
-    commitSubtasks(addLink(subtasks, blockerId, blockedId));
+    setEpicTasks((prev) => { const next = addTaskLink(prev, blockerId, blockedId); persistEpicTasks(next); return next; });
     scheduleInterference(blockerId);
   }
   function reviewRemoveLink(blockerId: string, blockedId: string) {
-    commitSubtasks(removeLink(subtasks, blockerId, blockedId));
+    setEpicTasks((prev) => { const next = removeTaskLink(prev, blockerId, blockedId); persistEpicTasks(next); return next; });
     scheduleInterference(blockerId);
   }
   function reviewDelete(id: string) {
-    const nextSubtasks = deleteSubtask(subtasks, id);
-    commitSubtasks(nextSubtasks);
-    setReviews((prev) => {
-      const next = pruneReviews(prev, nextSubtasks.map((s) => s.id));
-      persistReview(true, next);
-      return next;
-    });
-    setInterference((prev) => { const n = { ...prev }; delete n[id]; return n; });
-    if (selectedReviewId === id) setSelectedReviewId(nextSubtasks[0]?.id ?? null);
+    clearDraft(epicTaskNamespace(id));
+    setEpicTasks((prev) => { const next = deleteEpicTask(prev, id); persistEpicTasks(next); return next; });
+    setReviews((prev) => { const m = { ...prev }; delete m[id]; persistReview(reviewing, m); return m; });
+    setInterference((prev) => { const m = { ...prev }; delete m[id]; return m; });
+    if (selectedReviewId === id) {
+      const remaining = epicTasks.filter((t) => t.id !== id);
+      setSelectedReviewId(remaining[0]?.id ?? null);
+    }
   }
 
   const doughIsStale =
@@ -575,7 +570,6 @@ export function StandaloneApp({ initialSession }: Props) {
     const seeded: KneadState = keepAnswers ? { ...fresh, rounds: kept.rounds } : fresh;
     setKnead(seeded);
     persistEpic(true, seeded);
-    commitSubtasks([]);
     for (const t of epicTasks) clearDraft(epicTaskNamespace(t.id));
     commitEpicTasks([]);
     setActiveTab("epic");
@@ -795,13 +789,14 @@ export function StandaloneApp({ initialSession }: Props) {
             <ReviewerMode
               epicTitle={liveDraft?.title ?? ""}
               epicDescriptionHtml={liveDraft?.description ?? ""}
-              subtasks={subtasks}
+              tasks={epicTasks}
               reviews={reviews}
               interference={interference}
               selectedId={selectedReviewId}
+              refreshKey={taskRefreshKey}
               onSelect={setSelectedReviewId}
               onEditTasks={exitReview}
-              onUpdate={reviewUpdate}
+              onTitleChange={reviewTitleChange}
               onSetLabels={reviewSetLabels}
               onAddLink={reviewAddLink}
               onRemoveLink={reviewRemoveLink}

@@ -5,19 +5,20 @@ import { EpicPreview } from "@/components/epic/review/EpicPreview";
 import { ReviewNav } from "@/components/epic/review/ReviewNav";
 import { ReviewTaskPanel } from "@/components/epic/review/ReviewTaskPanel";
 import { getReview } from "@/lib/review/state";
-import type { SubTask } from "@/lib/subtasks/types";
+import type { EpicTask } from "@/lib/epic/tasks";
 import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
 
 type Props = {
   epicTitle: string;
   epicDescriptionHtml: string;
-  subtasks: SubTask[];
+  tasks: EpicTask[];
   reviews: ReviewMap;
   interference: InterferenceMap;
   selectedId: string | null;
+  refreshKey: number;
   onSelect: (id: string | null) => void;
   onEditTasks: () => void;
-  onUpdate: (id: string, patch: { title?: string; description?: string }) => void;
+  onTitleChange: (id: string, title: string) => void;
   onSetLabels: (id: string, labels: string[]) => void;
   onAddLink: (blockerId: string, blockedId: string) => void;
   onRemoveLink: (blockerId: string, blockedId: string) => void;
@@ -26,14 +27,14 @@ type Props = {
 };
 
 export function ReviewerMode(props: Props) {
-  const selected = props.subtasks.find((s) => s.id === props.selectedId) ?? null;
+  const selected = props.tasks.find((s) => s.id === props.selectedId) ?? null;
 
   return (
     <div className="flex-1 min-h-0 flex">
       <aside className="w-[320px] shrink-0 border-r border-rule bg-surface overflow-y-auto p-4 flex flex-col gap-4">
-        <EpicPreview title={props.epicTitle} descriptionHtml={props.epicDescriptionHtml} subtasks={props.subtasks} />
+        <EpicPreview title={props.epicTitle} descriptionHtml={props.epicDescriptionHtml} tasks={props.tasks} />
         <ReviewNav
-          subtasks={props.subtasks}
+          tasks={props.tasks}
           reviews={props.reviews}
           selectedId={props.selectedId}
           onSelect={props.onSelect}
@@ -55,11 +56,12 @@ export function ReviewerMode(props: Props) {
         {selected ? (
           <ReviewTaskPanel
             key={selected.id}
-            subtask={selected}
-            allSubtasks={props.subtasks}
+            task={selected}
+            allTasks={props.tasks}
             review={getReview(props.reviews, selected.id)}
             warning={props.interference[selected.id]}
-            onUpdate={(patch) => props.onUpdate(selected.id, patch)}
+            refreshKey={props.refreshKey}
+            onTitleChange={(title) => props.onTitleChange(selected.id, title)}
             onSetLabels={(labels) => props.onSetLabels(selected.id, labels)}
             onAddLink={props.onAddLink}
             onRemoveLink={props.onRemoveLink}

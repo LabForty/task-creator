@@ -1,28 +1,40 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReviewerMode } from "@/components/epic/review/ReviewerMode";
 import { initReviews } from "@/lib/review/state";
-import type { SubTask } from "@/lib/subtasks/types";
+import { epicTaskNamespace, type EpicTask } from "@/lib/epic/tasks";
 
-const subtasks: SubTask[] = [
-  { id: "a", title: "Alpha", description: "", labels: [], blocks: [], blockedBy: [] },
-  { id: "b", title: "Beta", description: "", labels: [], blocks: [], blockedBy: [] },
+const tasks: EpicTask[] = [
+  { id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [] },
+  { id: "b", title: "Beta", labels: [], blocks: [], blockedBy: [] },
 ];
 const base = {
-  epicTitle: "My Epic", epicDescriptionHtml: "<p>desc</p>", subtasks,
+  epicTitle: "My Epic", epicDescriptionHtml: "<p>desc</p>", tasks,
   reviews: initReviews(["a", "b"]), interference: {},
-  onSelect: vi.fn(), onEditTasks: vi.fn(), onUpdate: vi.fn(), onSetLabels: vi.fn(),
+  refreshKey: 0,
+  onSelect: vi.fn(), onEditTasks: vi.fn(), onTitleChange: vi.fn(), onSetLabels: vi.fn(),
   onAddLink: vi.fn(), onRemoveLink: vi.fn(), onReviewChange: vi.fn(), onDelete: vi.fn(),
 };
 
+beforeEach(() => {
+  window.localStorage.clear();
+  // Seed per-task drafts for the EpicTaskEditor (renders inside the panel).
+  for (const t of tasks) {
+    window.localStorage.setItem(
+      `task-creator:draft:${epicTaskNamespace(t.id)}`,
+      JSON.stringify({ title: t.title, description: "", acceptanceCriteria: [], constraints: "", taskType: "story", mode: "single" }),
+    );
+  }
+});
+
 describe("<ReviewerMode>", () => {
-  it("renders epic preview, nav, a disabled Finalize, and the selected task panel", () => {
+  it("renders epic preview, nav, a disabled Finalize, and the selected task panel", async () => {
     render(<ReviewerMode {...base} selectedId="a" />);
     expect(screen.getByText("My Epic")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: /review navigation/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /finalize/i })).toBeDisabled();
-    expect(screen.getByDisplayValue("Alpha")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Alpha")).toBeInTheDocument();
   });
   it("shows a placeholder when nothing is selected", () => {
     render(<ReviewerMode {...base} selectedId={null} />);

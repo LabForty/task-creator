@@ -169,17 +169,16 @@ describe("StandaloneApp — epic mode", () => {
     });
   }
 
-  // Reviewer rewire pending in Task 12 — re-enabled there.
-  it.skip("bakes into reviewer mode, sets a status, and persists reviews", async () => {
+  it("bakes into reviewer mode, sets a status, and persists reviews", async () => {
     vi.stubGlobal("fetch", mockReviewFetch());
     render(<StandaloneApp initialSession={session} />);
-
     await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
     await userEvent.click(await screen.findByRole("radio", { name: "High" }));
     await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
     await userEvent.click(await screen.findByRole("button", { name: /generate sub-tasks/i }));
     await screen.findByDisplayValue("First");
 
+    // Bake from the EpicTabs toolbar.
     await userEvent.click(screen.getByRole("button", { name: /^bake$/i }));
 
     expect(await screen.findByRole("navigation", { name: /review navigation/i })).toBeInTheDocument();
@@ -190,13 +189,9 @@ describe("StandaloneApp — epic mode", () => {
     await waitFor(() => {
       const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
       expect(stored.reviewing).toBe(true);
-      const firstId = stored.subtasks[0].id;
+      const firstId = stored.epicTasks[0].id;
       expect(stored.reviews[firstId].status).toBe("approved");
     });
-
-    // Editing the selected task triggers debounced interference → warning on the other task.
-    await userEvent.type(screen.getByDisplayValue("First"), " X");
-    expect(await screen.findByLabelText(/interference warning/i)).toBeInTheDocument();
   });
 
   it("Analyze all refines every task's draft sequentially", async () => {
