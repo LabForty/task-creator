@@ -99,7 +99,8 @@ export function StandaloneApp({ initialSession }: Props) {
   const [tasksAnalyzeProgress] = useState<string | null>(null);
   const [taskRefreshKey] = useState(0);
   const [generating, setGenerating] = useState(false);
-  const [subtasksError, setSubtasksError] = useState<string | null>(null);
+  // (was subtasksError) — generation errors now surface via kneadError in the
+  // KneadingPanel, which is still on screen when "Generate sub-tasks" is clicked.
   const [reviewing, setReviewing] = useState(false);
   const [reviews, setReviews] = useState<ReviewMap>({});
   const [interference, setInterference] = useState<InterferenceMap>({});
@@ -601,7 +602,7 @@ export function StandaloneApp({ initialSession }: Props) {
   async function generateSubtasks() {
     const epicDescription = (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim();
     setGenerating(true);
-    setSubtasksError(null);
+    setKneadError(null);
     try {
       const res = await fetch("/api/subtasks", {
         method: "POST",
@@ -610,7 +611,7 @@ export function StandaloneApp({ initialSession }: Props) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !Array.isArray(json.subtasks)) {
-        setSubtasksError(typeof json.error === "string" ? json.error : `Request failed (${res.status}).`);
+        setKneadError(typeof json.error === "string" ? json.error : `Request failed (${res.status}).`);
         return;
       }
       const proposed = json.subtasks as ProposedSubtask[];
@@ -626,7 +627,7 @@ export function StandaloneApp({ initialSession }: Props) {
       commitEpicTasks(descriptors);
       setActiveTab(descriptors[0]?.id ?? "epic");
     } catch (e) {
-      setSubtasksError(e instanceof Error ? e.message : "Network error");
+      setKneadError(e instanceof Error ? e.message : "Network error");
     } finally {
       setGenerating(false);
     }
