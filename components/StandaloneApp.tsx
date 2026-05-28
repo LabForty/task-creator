@@ -94,10 +94,9 @@ export function StandaloneApp({ initialSession }: Props) {
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [epicTasks, setEpicTasks] = useState<EpicTask[]>([]);
   const [activeTab, setActiveTab] = useState<"epic" | string>("epic");
-  // Analyze-all state — setters wired in Task 11.
-  const [tasksAnalyzing] = useState(false);
-  const [tasksAnalyzeProgress] = useState<string | null>(null);
-  const [taskRefreshKey] = useState(0);
+  const [tasksAnalyzing, setTasksAnalyzing] = useState(false);
+  const [tasksAnalyzeProgress, setTasksAnalyzeProgress] = useState<string | null>(null);
+  const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [generating, setGenerating] = useState(false);
   // (was subtasksError) — generation errors now surface via kneadError in the
   // KneadingPanel, which is still on screen when "Generate sub-tasks" is clicked.
@@ -633,6 +632,41 @@ export function StandaloneApp({ initialSession }: Props) {
     }
   }
 
+  async function analyzeAll() {
+    const epicDescription = (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim();
+    setTasksAnalyzing(true);
+    setKneadError(null);
+    try {
+      const tasks = epicTasks;
+      for (let i = 0; i < tasks.length; i++) {
+        setTasksAnalyzeProgress(`Analyzing ${i + 1}/${tasks.length}…`);
+        const ns = epicTaskNamespace(tasks[i].id);
+        const d = loadDraft(ns);
+        const res = await fetch("/api/refine", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            epicDescription,
+            draft: { title: d.title, description: d.description, acceptanceCriteria: d.acceptanceCriteria, constraints: d.constraints },
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || typeof json.title !== "string") {
+          setKneadError(typeof json.error === "string" ? json.error : `Refine failed for task ${i + 1}.`);
+          break;
+        }
+        saveDraft(ns, { ...d, title: json.title, description: json.description, acceptanceCriteria: json.acceptanceCriteria });
+        setEpicTasks((prev) => { const next = setTitle(prev, tasks[i].id, json.title); persistEpicTasks(next); return next; });
+      }
+    } catch (e) {
+      setKneadError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setTasksAnalyzing(false);
+      setTasksAnalyzeProgress(null);
+      setTaskRefreshKey((k) => k + 1);
+    }
+  }
+
   function continueKneading() { void callKnead(kneadRef.current.rounds, false); }
   function approveCap() { void callKnead(kneadRef.current.rounds, true); }
   function declineCap() { setCapPrompt(null); }
@@ -784,7 +818,7 @@ export function StandaloneApp({ initialSession }: Props) {
                 refreshKey={taskRefreshKey}
                 onSelect={setActiveTab}
                 onAdd={addTask}
-                onAnalyzeAll={() => { /* Task 11 wires analyzeAll */ }}
+                onAnalyzeAll={analyzeAll}
                 onBake={bake}
                 onTitleChange={taskTitleChange}
                 onSetLabels={taskSetLabels}

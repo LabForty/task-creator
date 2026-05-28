@@ -161,6 +161,10 @@ describe("StandaloneApp — epic mode", () => {
         const other = (reqBody.allSubtasks ?? []).find((s: { id: string }) => s.id !== editedId);
         return { ok: true, json: async () => ({ interference: other ? [{ affectedTaskId: other.id, sourceTaskId: editedId, reason: "shares scope" }] : [] }) } as unknown as Response;
       }
+      if (typeof url === "string" && url.includes("/api/refine")) {
+        const b = JSON.parse(String(init?.body ?? "{}"));
+        return { ok: true, json: async () => ({ title: `${b.draft?.title ?? "Task"} refined`, description: "Refined.", acceptanceCriteria: ["AC1", "AC2"] }) } as unknown as Response;
+      }
       return { ok: true, json: async () => ({}) } as unknown as Response;
     });
   }
@@ -193,5 +197,24 @@ describe("StandaloneApp — epic mode", () => {
     // Editing the selected task triggers debounced interference → warning on the other task.
     await userEvent.type(screen.getByDisplayValue("First"), " X");
     expect(await screen.findByLabelText(/interference warning/i)).toBeInTheDocument();
+  });
+
+  it("Analyze all refines every task's draft sequentially", async () => {
+    vi.stubGlobal("fetch", mockReviewFetch());
+    render(<StandaloneApp initialSession={session} />);
+    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
+    await userEvent.click(await screen.findByRole("radio", { name: "High" }));
+    await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /generate sub-tasks/i }));
+    await screen.findByDisplayValue("First");
+
+    await userEvent.click(screen.getByRole("button", { name: /analyze all/i }));
+
+    await waitFor(() => {
+      const std = JSON.parse(localStorage.getItem("task-creator:draft:standalone")!);
+      const t0 = JSON.parse(localStorage.getItem(`task-creator:draft:standalone:epic:${std.epicTasks[0].id}`)!);
+      expect(t0.acceptanceCriteria.length).toBeGreaterThan(0);
+      expect(t0.title).toMatch(/refined/i);
+    });
   });
 });
