@@ -42,6 +42,11 @@ export function ReviewNav({ tasks, reviews, selectedId, onSelect, interference }
             className={`text-left px-2 py-1 rounded border-l-2 text-hig-footnote ${STATUS_CLASS[status]} ${selectedId === s.id ? "bg-surface-inset" : ""}`}
           >
             {s.title || "(untitled)"}
+            {s.uploadedIssueKey && (
+              <span className="ml-1 inline-flex items-center px-1.5 rounded-sm bg-success/10 text-success text-[10px] font-semibold uppercase tracking-wide">
+                {s.uploadedIssueKey}
+              </span>
+            )}
             {warned && <span aria-label="interference warning" title="Possible interference" className="ml-1 text-warning">⚠</span>}
           </button>
         );

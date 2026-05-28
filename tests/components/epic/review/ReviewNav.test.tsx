@@ -32,4 +32,31 @@ describe("<ReviewNav>", () => {
     render(<ReviewNav tasks={tasks} reviews={reviews} selectedId={null} onSelect={vi.fn()} interference={{ a: { affectedTaskId: "a", sourceTaskId: "b", reason: "x" } }} />);
     expect(screen.getByLabelText(/interference warning/i)).toBeInTheDocument();
   });
+  it("renders the uploadedIssueKey chip when set on the descriptor", () => {
+    render(
+      <ReviewNav
+        tasks={[
+          { id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [], uploadedIssueKey: "AI-42" },
+          { id: "b", title: "Bravo", labels: [], blocks: [], blockedBy: [] },
+        ]}
+        reviews={{}}
+        selectedId={null}
+        onSelect={() => {}}
+        interference={{}}
+      />,
+    );
+    expect(screen.getByText("AI-42")).toBeInTheDocument();
+  });
+  it("does not render any chip when no task has uploadedIssueKey", () => {
+    render(
+      <ReviewNav
+        tasks={[{ id: "a", title: "Alpha", labels: [], blocks: [], blockedBy: [] }]}
+        reviews={{}}
+        selectedId={null}
+        onSelect={() => {}}
+        interference={{}}
+      />,
+    );
+    expect(screen.queryByText(/^AI-/)).toBeNull();
+  });
 });
