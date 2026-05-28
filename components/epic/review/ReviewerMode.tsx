@@ -48,7 +48,7 @@ export function ReviewerMode(props: Props) {
           <Button type="button" disabled title="You need to review all the tasks and resolve requested changes">
             Finalize
           </Button>
-          <Button type="button" variant="secondary" size="sm" onClick={props.onEditTasks}>Edit tasks</Button>
+          <Button type="button" variant="secondary" size="sm" onClick={props.onEditTasks}><span aria-hidden="true">←</span> Back to tabs</Button>
         </div>
       </aside>
 

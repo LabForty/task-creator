@@ -43,7 +43,12 @@ describe("<ReviewerMode>", () => {
   it("fires onEditTasks", async () => {
     const onEditTasks = vi.fn();
     render(<ReviewerMode {...base} selectedId="a" onEditTasks={onEditTasks} />);
-    await userEvent.click(screen.getByRole("button", { name: /edit tasks/i }));
+    await userEvent.click(screen.getByRole("button", { name: /back to tabs/i }));
     expect(onEditTasks).toHaveBeenCalled();
+  });
+  it("shows '← Back to tabs' instead of 'Edit tasks'", () => {
+    render(<ReviewerMode {...base} selectedId={null} />);
+    expect(screen.getByRole("button", { name: /back to tabs/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^edit tasks$/i })).toBeNull();
   });
 });
