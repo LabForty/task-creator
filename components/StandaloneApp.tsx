@@ -209,12 +209,14 @@ export function StandaloneApp({ initialSession }: Props) {
   function openAnalyzeForTask(taskId: string) {
     // Explicit single-task analyze — silently exits any active walk.
     setWalking(false);
+    setHelpOpen(null);
     setAnalyzeTaskId(taskId);
     if (taskId !== activeTab) setActiveTab(taskId);
   }
 
   function startAnalyzeWalk() {
     if (epicTasks.length === 0) return;
+    setHelpOpen(null);
     setWalking(true);
     setAnalyzeTaskId(epicTasks[0].id);
     setActiveTab(epicTasks[0].id);
@@ -909,7 +911,7 @@ export function StandaloneApp({ initialSession }: Props) {
                 namespace={NAMESPACE}
                 onFinalize={submit}
                 disabled={mode.kind === "running"}
-                onHelp={() => setHelpOpen("editor")}
+                onHelp={() => { setAnalyzeTaskId(null); setWalking(false); setHelpOpen("editor"); }}
                 onClear={clearVisibleDraft}
                 mode={epicMode ? "epic" : "single"}
                 onKnead={startKneading}
@@ -1021,6 +1023,26 @@ export function StandaloneApp({ initialSession }: Props) {
           generating={generating}
         />
       )}
+
+      {analyzeTaskId && (() => {
+        const taskDraft = loadDraft(epicTaskNamespace(analyzeTaskId));
+        const idx = epicTasks.findIndex((t) => t.id === analyzeTaskId);
+        return (
+          <HelpPanel
+            surface="editor"
+            draft={taskDraft}
+            history={analyzeChatById[analyzeTaskId] ?? []}
+            onUpdateHistory={(next) => updateAnalyzeChat(analyzeTaskId, next)}
+            onClose={() => {
+              if (walking) stopWalk();
+              else setAnalyzeTaskId(null);
+            }}
+            pendingEditCount={pendingEdits.length}
+            onOpenReview={() => setReviewOpen(true)}
+            walkInfo={walking && idx >= 0 ? { index: idx, total: epicTasks.length, onNext: advanceWalk, onStop: stopWalk } : undefined}
+          />
+        );
+      })()}
 
       {helpOpen && (
         <HelpPanel
