@@ -19,8 +19,8 @@ type Props = {
   onAddLink: (blockerId: string, blockedId: string) => void;
   onRemoveLink: (blockerId: string, blockedId: string) => void;
   onDelete: () => void;
-  onAnalyze: () => void;
-  onClear: () => void;
+  onAnalyze?: () => void;
+  onClear?: () => void;
 };
 
 export function EpicTaskEditor({
@@ -34,9 +34,11 @@ export function EpicTaskEditor({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
-        <Button type="button" variant="secondary" size="sm" onClick={() => onAnalyze()}>
-          Analyze this task
-        </Button>
+        {onAnalyze ? (
+          <Button type="button" variant="secondary" size="sm" onClick={() => onAnalyze()}>
+            Analyze this task
+          </Button>
+        ) : <span />}
         <Button type="button" variant="ghost" size="sm" aria-label="Delete task" onClick={onDelete}>
           Delete task
         </Button>

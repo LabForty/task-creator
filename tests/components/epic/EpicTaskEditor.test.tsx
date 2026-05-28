@@ -85,4 +85,24 @@ describe("<EpicTaskEditor>", () => {
     await userEvent.click(screen.getByRole("button", { name: /^yes$/i }));
     expect(onClear).toHaveBeenCalledTimes(1);
   });
+
+  it("hides Analyze this task when onAnalyze is omitted", () => {
+    render(
+      <EpicTaskEditor
+        taskId="t1"
+        allTasks={[{ id: "t1", title: "T1", labels: [], blocks: [], blockedBy: [] }]}
+        labels={[]}
+        blocks={[]}
+        blockedBy={[]}
+        refreshKey={0}
+        onTitleChange={() => {}}
+        onSetLabels={() => {}}
+        onAddLink={() => {}}
+        onRemoveLink={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /analyze this task/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^clear$/i })).toBeNull();
+  });
 });

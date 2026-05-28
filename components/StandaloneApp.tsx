@@ -196,7 +196,8 @@ export function StandaloneApp({ initialSession }: Props) {
       });
       setLiveDraft(loadDraft(NAMESPACE));
     } else {
-      saveDraft(ns, { ...EMPTY_DRAFT });
+      const existing = loadDraft(ns);
+      saveDraft(ns, { ...EMPTY_DRAFT, chatHistory: existing.chatHistory });
       // Mirror the cleared title back into the descriptor so the tab label updates.
       setEpicTasks((prev) => {
         const next = setTitle(prev, activeTab, "");
@@ -888,7 +889,9 @@ export function StandaloneApp({ initialSession }: Props) {
                   if (id === "epic") {
                     clearVisibleDraft(); // Epic-tab path → standalone draft
                   } else {
-                    saveDraft(epicTaskNamespace(id), { ...EMPTY_DRAFT });
+                    const ns = epicTaskNamespace(id);
+                    const existing = loadDraft(ns);
+                    saveDraft(ns, { ...EMPTY_DRAFT, chatHistory: existing.chatHistory });
                     setEpicTasks((prev) => {
                       const next = setTitle(prev, id, "");
                       persistEpicTasks(next);
