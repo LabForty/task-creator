@@ -47,4 +47,34 @@ describe("<StandaloneApp>", () => {
     const stored = JSON.parse(window.localStorage.getItem("task-creator:draft:standalone")!);
     expect(stored.title).toBe("");
   });
+
+  it("Back to editor from kneading clears knead state and hides the panel", async () => {
+    window.localStorage.setItem(
+      "task-creator:draft:standalone",
+      JSON.stringify({
+        ...EMPTY_DRAFT,
+        mode: "epic",
+        description: "<p>An epic</p>",
+        knead: {
+          status: "interviewing",
+          rounds: [{
+            questions: [{ id: "q-a", prompt: "?", section: "business", type: "text" }],
+            answers: {},
+            skipped: [],
+          }],
+          sourceDescription: "An epic",
+        },
+      }),
+    );
+    render(<StandaloneApp initialSession={{ configured: false, connected: false }} />);
+
+    await screen.findByRole("button", { name: /back to editor/i });
+    await userEvent.click(screen.getByRole("button", { name: /back to editor/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^yes$/i }));
+
+    expect(screen.queryByRole("button", { name: /back to editor/i })).toBeNull();
+    const stored = JSON.parse(window.localStorage.getItem("task-creator:draft:standalone")!);
+    expect(stored.knead.status).toBe("idle");
+    expect(stored.knead.rounds).toEqual([]);
+  });
 });

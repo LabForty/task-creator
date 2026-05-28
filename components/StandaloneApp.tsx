@@ -8,6 +8,7 @@ import { CapturedContext } from "@/components/epic/CapturedContext";
 import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
 import { ReviewerMode } from "@/components/epic/review/ReviewerMode";
 import { EpicTabs } from "@/components/epic/EpicTabs";
+import { BackBar } from "@/components/epic/BackBar";
 import {
   epicTaskNamespace, descriptorsFromProposed, seedsFromProposed,
   addEpicTask, deleteEpicTask, setTitle, setLabels as setTaskLabels,
@@ -906,6 +907,18 @@ export function StandaloneApp({ initialSession }: Props) {
               </div>
             )}
             <div className="flex-1 min-h-0 overflow-y-auto">
+              {epicMode && knead.status !== "idle" && (
+                <BackBar
+                  label="Back to editor"
+                  confirmMessage="Discard kneading rounds and return to the editor?"
+                  onBack={() => {
+                    setKnead(EMPTY_KNEAD);
+                    persistEpic(true, EMPTY_KNEAD);
+                    setCapPrompt(null);
+                    setKneadError(null);
+                  }}
+                />
+              )}
               <Editor
                 key={`standalone:${taskRefreshKey}`}
                 namespace={NAMESPACE}
