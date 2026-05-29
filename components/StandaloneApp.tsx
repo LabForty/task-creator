@@ -899,6 +899,14 @@ export function StandaloneApp({ initialSession }: Props) {
     setCreatingDiagrams(false);
   }
 
+  // Layout rule: the editor pane caps + centers ONLY when no side panel is on
+  // screen. Help, kneading, captured-context, and analyze panels all qualify.
+  const hasSidePanel =
+    helpOpen != null ||
+    knead.status !== "idle" ||
+    knead.rounds.length > 0 ||
+    analyzeTaskId != null;
+
   return (
     <main className="h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
       <div className="flex flex-col min-w-0 min-h-0">
@@ -1040,7 +1048,12 @@ export function StandaloneApp({ initialSession }: Props) {
               </div>
             )}
             <div className="flex-1 min-h-0 flex gap-4">
-              <div className="flex-1 min-w-0 overflow-y-auto max-w-5xl">
+              <div
+                className={
+                  "flex-1 min-w-0 overflow-y-auto transition-[max-width] duration-150 ease-out " +
+                  (hasSidePanel ? "" : "max-w-5xl mx-auto")
+                }
+              >
                 {epicMode && knead.status !== "idle" && (
                   <BackBar
                     label="Back to editor"
