@@ -73,4 +73,25 @@ describe("<EpicTaskEditor>", () => {
     await userEvent.click(screen.getByRole("button", { name: /^yes$/i }));
     expect(onClear).toHaveBeenCalledTimes(1);
   });
+
+  it("passes nested=true to the embedded Editor (no h-full on the form)", () => {
+    render(
+      <EpicTaskEditor
+        taskId="t1"
+        allTasks={[{ id: "t1", title: "T1", labels: [], blocks: [], blockedBy: [] }]}
+        labels={[]}
+        blocks={[]}
+        blockedBy={[]}
+        refreshKey={0}
+        onTitleChange={() => {}}
+        onSetLabels={() => {}}
+        onAddLink={() => {}}
+        onRemoveLink={() => {}}
+        onClear={() => {}}
+      />,
+    );
+    const form = document.querySelector("form");
+    expect(form).toBeTruthy();
+    expect(form!.className.includes("h-full")).toBe(false);
+  });
 });

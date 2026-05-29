@@ -34,6 +34,7 @@ export function EpicTaskEditor({
         namespace={epicTaskNamespace(taskId)}
         onFinalize={() => {}}
         hideSubmit
+        nested
         onClear={onClear}
         onDraftChange={(d) => onTitleChange(d.title)}
       />
