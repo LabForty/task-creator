@@ -40,6 +40,7 @@ type Props = {
   kneadDisabled?: boolean;
   onDraftChange?: (draft: Draft) => void;
   hideSubmit?: boolean;
+  nested?: boolean;
   // Lock the task-type picker to a fixed value (e.g. "epic" when editing
   // the epic itself). Also pins draft.taskType to match so persistence is
   // consistent.
@@ -58,7 +59,7 @@ function hasEpicDescription(html: string): boolean {
 export function Editor({
   namespace, onFinalize, disabled = false, onHelp, onClear,
   mode = "single", onKnead, kneadDisabled = false, onDraftChange,
-  hideSubmit = false, taskTypeLocked,
+  hideSubmit = false, nested = false, taskTypeLocked,
 }: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [suggesting, setSuggesting] = useState(false);
@@ -234,7 +235,7 @@ export function Editor({
 
   return (
     <form
-      className="hig-card p-5 flex flex-col gap-4 h-full"
+      className={"hig-card p-5 flex flex-col gap-4 " + (nested ? "" : "h-full")}
       onSubmit={(e) => {
         e.preventDefault();
         if (hideSubmit) return;
@@ -285,7 +286,7 @@ export function Editor({
         )}
       </div>
 
-      <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto">
+      <div className={"flex flex-col gap-4 " + (nested ? "" : "flex-1 min-h-0 overflow-y-auto")}>
         <div data-editor-field="description" className={cls("description")}>
           <RichTextDescription
             label="Description"
