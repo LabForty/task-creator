@@ -6,7 +6,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { KneadingPanel } from "@/components/epic/KneadingPanel";
 import { CapturedContext } from "@/components/epic/CapturedContext";
 import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
-import { EpicTabs } from "@/components/epic/EpicTabs";
+import { EpicEditingView } from "@/components/epic/EpicEditingView";
 import { BackBar } from "@/components/epic/BackBar";
 import {
   epicTaskNamespace, descriptorsFromProposed, seedsFromProposed,
@@ -196,14 +196,6 @@ export function StandaloneApp({ initialSession }: Props) {
     // Force the Editor to re-hydrate from the just-cleared namespace.
     setTaskRefreshKey((k) => k + 1);
   }
-  function openAnalyzeForTask(taskId: string) {
-    // Explicit single-task analyze — silently exits any active walk.
-    setWalking(false);
-    setHelpOpen(null);
-    setAnalyzeTaskId(taskId);
-    if (taskId !== activeTab) setActiveTab(taskId);
-  }
-
   function startAnalyzeWalk() {
     if (epicTasks.length === 0) return;
     setHelpOpen(null);
@@ -270,6 +262,13 @@ export function StandaloneApp({ initialSession }: Props) {
     knead.rounds.length > 0 &&
     knead.sourceDescription !== undefined &&
     (liveDraft?.description ?? "") !== knead.sourceDescription;
+
+  // Phase C will replace these with the real bake state + handlers.
+  const bakeStatus: "idle" | "baking" | "baked" = "idle";
+  const bakeProgress: Record<string, "pending" | "baking" | "baked" | "failed"> = {};
+  const bakeErrors: Record<string, string> = {};
+  function startBake() { /* Phase C */ }
+  function cancelBake() { /* Phase C */ }
 
   // Derive the live list of pending edits from chatHistory minus the ones
   // the user already resolved. Later proposals with the same id supersede
@@ -755,39 +754,50 @@ export function StandaloneApp({ initialSession }: Props) {
 
         {mode.kind === "idle" || mode.kind === "running" ? (
           epicMode && epicTasks.length > 0 ? (
-            <div className="px-6 py-4 flex-1 min-h-0 flex flex-col max-w-5xl w-full">
-              <EpicTabs
-                tasks={epicTasks}
-                active={activeTab}
-                refreshKey={taskRefreshKey}
-                onSelect={setActiveTab}
-                onAdd={addTask}
-                onAnalyzeAll={startAnalyzeWalk}
-                onAnalyzeTask={openAnalyzeForTask}
-                onBake={() => {}}
-                onBack={() => confirmReKnead(false)}
-                onTitleChange={taskTitleChange}
-                onSetLabels={taskSetLabels}
-                onAddLink={taskAddLink}
-                onRemoveLink={taskRemoveLink}
-                onDelete={deleteTask}
-                onClearTask={(id) => {
-                  if (id === "epic") {
-                    clearVisibleDraft(); // Epic-tab path → standalone draft
-                  } else {
-                    const ns = epicTaskNamespace(id);
-                    const existing = loadDraft(ns);
-                    saveDraft(ns, { ...EMPTY_DRAFT, chatHistory: existing.chatHistory });
-                    setEpicTasks((prev) => {
-                      const next = setTitle(prev, id, "");
-                      persistEpicTasks(next);
-                      return next;
-                    });
-                    setTaskRefreshKey((k) => k + 1);
-                  }
-                }}
-              />
-            </div>
+            <EpicEditingView
+              epicTitle={liveDraft?.title ?? ""}
+              epicDescriptionHtml={liveDraft?.description ?? ""}
+              tasks={epicTasks}
+              activeId={activeTab}
+              refreshKey={taskRefreshKey}
+              bakeStatus={bakeStatus}
+              bakeProgress={bakeProgress}
+              bakeErrors={bakeErrors}
+              bakeDone={Object.values(bakeProgress).filter((s) => s === "baked").length}
+              bakeTotal={epicTasks.length}
+              analyzePanelOpen={Boolean(analyzeTaskId)}
+              onSelectCard={(id) => {
+                setActiveTab(id);
+                // Closing the analyze panel when switching tasks is intentional — the
+                // user can re-open it for the new task via Analyze all or Analyze this.
+                if (analyzeTaskId && analyzeTaskId !== id) setAnalyzeTaskId(null);
+              }}
+              onAdd={addTask}
+              onDelete={deleteTask}
+              onCancelBake={cancelBake}
+              onBack={() => confirmReKnead(false)}
+              onAnalyzeAll={startAnalyzeWalk}
+              onBake={startBake}
+              onTitleChange={taskTitleChange}
+              onSetLabels={taskSetLabels}
+              onAddLink={taskAddLink}
+              onRemoveLink={taskRemoveLink}
+              onClearTask={(id) => {
+                if (id === "epic") {
+                  clearVisibleDraft();
+                } else {
+                  const ns = epicTaskNamespace(id);
+                  const existing = loadDraft(ns);
+                  saveDraft(ns, { ...EMPTY_DRAFT, chatHistory: existing.chatHistory });
+                  setEpicTasks((prev) => {
+                    const next = setTitle(prev, id, "");
+                    persistEpicTasks(next);
+                    return next;
+                  });
+                  setTaskRefreshKey((k) => k + 1);
+                }
+              }}
+            />
           ) : (
           <div className="px-6 py-4 flex-1 min-h-0 flex flex-col w-full">
             {submitErr && (

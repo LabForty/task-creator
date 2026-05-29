@@ -126,9 +126,10 @@ describe("StandaloneApp — epic mode", () => {
     await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
 
     await userEvent.click(await screen.findByRole("button", { name: /generate sub-tasks/i }));
-    // First task tab active → its Editor title field shows the seeded title.
+    // First task active → its Editor title field shows the seeded title.
     expect(await screen.findByDisplayValue("First")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /second/i })).toBeInTheDocument();
+    // The second task is reachable from the cards column as a button.
+    expect(screen.getByRole("button", { name: /second.*open task/i })).toBeInTheDocument();
     await waitFor(() => {
       const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
       expect(stored.epicTasks?.length).toBe(2);
