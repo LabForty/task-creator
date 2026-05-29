@@ -44,6 +44,7 @@ type Props = {
   onRemoveLink: (blockerId: string, blockedId: string) => void;
   onClearTask: (id: "epic" | string) => void;
   descriptionPreviewsById?: Record<string, string>;
+  taskTypesById?: Record<string, string>;
 };
 
 function stripHtml(html: string): string {
@@ -123,6 +124,7 @@ export function EpicEditingView(props: Props) {
             onDelete={props.onDelete}
             onCancelBake={props.onCancelBake}
             descriptionPreviewsById={props.descriptionPreviewsById}
+            taskTypesById={props.taskTypesById}
           />
         </div>
 
