@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createIssue, getValidSession, isJiraError, listCreatableIssueTypes } from "@/lib/jira";
+import { markdownToAdf } from "@/lib/markdown/toAdf";
 
 export const runtime = "nodejs";
 
@@ -11,30 +12,22 @@ const BodySchema = z.object({
   descriptionHtml: z.string().optional(),
 });
 
-// Convert sloppy HTML (TipTap output) to a single ADF document. We don't run
-// it through the full markdown -> ADF pipeline here — we just want the user's
-// description text to land in Jira. Anything richer should go through the
-// per-task export flow.
-function descriptionAdf(html: string | undefined): unknown {
-  const text = (html ?? "")
-    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+function htmlToMarkdown(html: string | undefined): string {
+  if (!html) return "Created from task creator.";
+  const text = html
+    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, "\n\n")
     .replace(/<br\s*\/?>(\s|\n)*/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
     .replace(/<[^>]*>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
-  const paragraphs = text.length > 0 ? text.split(/\n+/).filter((p) => p.length > 0) : ["Created from task creator."];
-  return {
-    type: "doc",
-    version: 1,
-    content: paragraphs.map((p) => ({
-      type: "paragraph",
-      content: [{ type: "text", text: p }],
-    })),
-  };
+  return text.length > 0 ? text : "Created from task creator.";
 }
 
 export async function POST(req: Request) {
@@ -63,7 +56,7 @@ export async function POST(req: Request) {
       summary: parsed.data.title.slice(0, 250),
       project: { key: parsed.data.projectKey },
       issuetype: { id: epicType.id },
-      description: descriptionAdf(parsed.data.descriptionHtml),
+      description: markdownToAdf(htmlToMarkdown(parsed.data.descriptionHtml)),
     });
     // Build a browse URL. The existing exportToJira already does this via the
     // session's `url` field on Site. We mirror that pattern minimally here.
