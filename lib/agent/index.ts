@@ -18,9 +18,7 @@ import { parseKneadResponse, applyCap } from "@/lib/knead/parse";
 import type { KneadOutcome, KneadRound } from "@/lib/knead/types";
 import { FALLBACK_FIRST_ROUND } from "@/lib/knead/fallback";
 import { parseSubtasksResponse } from "@/lib/subtasks/parse";
-import type { ProposedSubtask, SubTask } from "@/lib/subtasks/types";
-import { parseInterferenceResponse } from "@/lib/interference/parse";
-import type { InterferenceWarning } from "@/lib/review/types";
+import type { ProposedSubtask } from "@/lib/subtasks/types";
 import { parseRefineResponse, type RefineResult } from "@/lib/refine/parse";
 import type { AgentEvent, AgentTransport, RunArgs } from "./types";
 
@@ -466,41 +464,6 @@ export async function runGenerateSubtasks(args: {
   return parseSubtasksResponse(buffer);
 }
 
-export async function runInterferenceAnalysis(args: {
-  epicDescription: string;
-  editedSubtask: SubTask;
-  allSubtasks: SubTask[];
-  transport: AgentTransport;
-  signal?: AbortSignal;
-}): Promise<InterferenceWarning[]> {
-  const systemPrompt = await loadSkillPrompt("task-interference");
-  const userMessage = JSON.stringify({
-    epicDescription: args.epicDescription,
-    editedSubtask: args.editedSubtask,
-    allSubtasks: args.allSubtasks,
-  });
-
-  let buffer = "";
-  let pending: Error | null = null;
-  await args.transport.runRole({
-    role: "interference",
-    systemPrompt,
-    userMessage,
-    cwd: process.cwd(),
-    signal: args.signal,
-    onEvent: (e) => {
-      if (e.type === "token") buffer += e.text;
-      else if (e.type === "error") pending = new Error(`${e.code}: ${e.message}`);
-    },
-  });
-  if (pending) throw pending;
-
-  const validIds = new Set(args.allSubtasks.map((s) => s.id));
-  return parseInterferenceResponse(buffer)
-    .filter((w) => w.affectedTaskId !== args.editedSubtask.id && validIds.has(w.affectedTaskId))
-    .map((w) => ({ affectedTaskId: w.affectedTaskId, sourceTaskId: args.editedSubtask.id, reason: w.reason }));
-}
-
 export async function runRefine(args: {
   epicDescription: string;
   draft: { title: string; description: string; acceptanceCriteria: string[]; constraints: string };
@@ -644,16 +607,6 @@ export function makeStubTransport(): AgentTransport {
           ],
         };
         onEvent({ type: "token", text: JSON.stringify(payload) });
-      } else if (role === "interference") {
-        let interference: Array<{ affectedTaskId: string; reason: string }> = [];
-        try {
-          const parsed = JSON.parse(userMessage) as { editedSubtask?: { id?: string; title?: string }; allSubtasks?: Array<{ id: string }> };
-          const other = (parsed.allSubtasks ?? []).find((s) => s.id !== parsed.editedSubtask?.id);
-          if (other) interference = [{ affectedTaskId: other.id, reason: `May be affected by changes to "${parsed.editedSubtask?.title ?? "a task"}".` }];
-        } catch {
-          /* ignore — empty interference */
-        }
-        onEvent({ type: "token", text: JSON.stringify({ interference }) });
       } else if (role === "refine") {
         let title = "Refined sub-task";
         try {
