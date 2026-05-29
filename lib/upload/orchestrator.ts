@@ -77,17 +77,16 @@ async function exportOne(
       projectKey: dest.projectKey,
       issueTypeId: dest.issueTypeId,
       payload: { story: payload.story, markdown: payload.markdown, constraints: undefined },
+      diagrams: task.diagrams && Object.fromEntries(Object.entries(task.diagrams).filter(([, v]) => v && v.trim())),
       metadata: {
         labels: task.labels.length ? task.labels : undefined,
         epic: { kind: "existing" as const, key: resolvedEpicKey },
       },
     }),
   });
-  const json = (await res.json().catch(() => ({}))) as { key?: string; url?: string; error?: string };
-  if (!res.ok || !json.key || !json.url) {
-    throw new Error(json.error || `Jira export failed (${res.status})`);
-  }
-  return { key: json.key, url: json.url };
+  const j = (await res.json().catch(() => ({}))) as { key?: string; url?: string; error?: string };
+  if (!res.ok || !j.key || !j.url) throw new Error(j.error || `Jira export failed (${res.status})`);
+  return { key: j.key, url: j.url };
 }
 
 export async function runBatchUpload(args: Args): Promise<BatchResult> {
@@ -123,7 +122,7 @@ export async function runBatchUpload(args: Args): Promise<BatchResult> {
     }
     try {
       args.onRow(task.id, { kind: "finalizing" });
-      const payload = await finalizeOne(task, args.signal);
+      const payload = task.finalizedPayload ?? await finalizeOne(task, args.signal);
 
       if (args.signal?.aborted) {
         args.onRow(task.id, { kind: "failed", reason: "cancelled" });

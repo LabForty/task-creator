@@ -14,6 +14,7 @@ const finalized: FinalizedPayload = {
   markdown: "## body",
   requirement: { title: "Build the thing" } as never,
   gates: { schema: { ok: true }, consistency: { ok: true } } as never,
+  downloadUrls: { requirement: "", story: "", markdown: "" },
 };
 
 describe("<BakeTaskPreview>", () => {

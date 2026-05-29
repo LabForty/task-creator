@@ -168,6 +168,44 @@ describe("runBatchUpload", () => {
     expect(result.uploaded).toEqual(["a"]);
   });
 
+  it("skips POST /api/finalize when task.finalizedPayload is provided", async () => {
+    const calls: string[] = [];
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string) => {
+      calls.push(url);
+      if (url.includes("/api/jira/export")) {
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-1", url: "https://x/AI-1" }) });
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const cachedPayload = { story: { title: "Cached", markdown: "" }, markdown: "", requirement: {}, gates: { schema: { ok: true }, consistency: { ok: true } } } as never;
+    const result = await runBatchUpload({
+      tasks: [{ ...task("a"), finalizedPayload: cachedPayload }],
+      destination: dest,
+      onRow: () => {},
+    });
+    expect(result.uploaded).toEqual(["a"]);
+    expect(calls.some((u) => u.includes("/api/finalize"))).toBe(false);
+    expect(calls.some((u) => u.includes("/api/jira/export"))).toBe(true);
+  });
+
+  it("passes task.diagrams through to the export body when set", async () => {
+    let body: { diagrams?: Record<string, string> } = {};
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/api/jira/export")) {
+        body = JSON.parse((init?.body as string) ?? "{}");
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-1", url: "https://x/AI-1" }) });
+      }
+      return Promise.reject(new Error("unexpected"));
+    });
+    const cachedPayload = { story: { title: "C", markdown: "" }, markdown: "", requirement: {}, gates: { schema: { ok: true }, consistency: { ok: true } } } as never;
+    await runBatchUpload({
+      tasks: [{ ...task("a"), finalizedPayload: cachedPayload, diagrams: { flow: "flowchart TD\nA-->B" } }],
+      destination: dest,
+      onRow: () => {},
+    });
+    expect(body.diagrams).toEqual({ flow: "flowchart TD\nA-->B" });
+  });
+
   it("aborts the batch when epic pre-creation fails (no sub-tasks attempted)", async () => {
     let finalizeCalls = 0;
     (global.fetch as unknown as { mockImplementation: (fn: (url: string) => unknown) => void }).mockImplementation((url: string) => {
