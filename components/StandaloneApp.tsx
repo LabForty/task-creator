@@ -7,6 +7,7 @@ import { KneadingPanel } from "@/components/epic/KneadingPanel";
 import { CapturedContext } from "@/components/epic/CapturedContext";
 import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
 import { EpicEditingView } from "@/components/epic/EpicEditingView";
+import { BakeView } from "@/components/epic/bake/BakeView";
 import { BackBar } from "@/components/epic/BackBar";
 import {
   epicTaskNamespace, descriptorsFromProposed, seedsFromProposed,
@@ -110,6 +111,13 @@ export function StandaloneApp({ initialSession }: Props) {
   const [diagramsById, setDiagramsById] = useState<Record<string, Diagrams>>({});
   const [bakeSelectedId, setBakeSelectedId] = useState<"epic" | string>("epic");
   const bakeAbortRef = useRef<AbortController | null>(null);
+
+  const [creatingForId, setCreatingForId] = useState<string | null>(null);
+  const [regeneratingForId, setRegeneratingForId] = useState<string | null>(null);
+  const [regeneratingFormatForTask, setRegeneratingFormatForTask] = useState<MermaidFormat | null>(null);
+  const [analyzingForId, setAnalyzingForId] = useState<string | null>(null);
+  const [applyingForId, setApplyingForId] = useState<string | null>(null);
+  const [analysisFindingsById, setAnalysisFindingsById] = useState<Record<string, AnalyzeFinding[] | null>>({});
 
   const kneadRef = useRef(knead);
   useEffect(() => { kneadRef.current = knead; }, [knead]);
@@ -309,6 +317,141 @@ export function StandaloneApp({ initialSession }: Props) {
 
   function cancelBake() {
     bakeAbortRef.current?.abort();
+  }
+
+  async function createDiagramsForTask(id: string) {
+    const payload = finalizedById[id];
+    if (!payload) return;
+    setCreatingForId(id);
+    try {
+      const res = await fetch("/api/diagrams/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          requirement: payload.requirement,
+          story: payload.story,
+          draft: loadDraft(epicTaskNamespace(id)),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.jobId) {
+        setCreatingForId(null);
+        return;
+      }
+      const unsub = subscribeToJob(json.jobId, (e) => {
+        if (e.type === "diagrams_created") {
+          setDiagramsById((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...e.payload } }));
+          setCreatingForId(null);
+          unsub();
+        } else if (e.type === "error") {
+          setCreatingForId(null);
+          unsub();
+        }
+      });
+    } catch {
+      setCreatingForId(null);
+    }
+  }
+
+  function editDiagramForTask(id: string, format: MermaidFormat, source: string) {
+    setDiagramsById((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), [format]: source } }));
+  }
+
+  async function regenerateDiagramForTask(id: string, format: MermaidFormat) {
+    const payload = finalizedById[id];
+    if (!payload) return;
+    setRegeneratingForId(id);
+    setRegeneratingFormatForTask(format);
+    try {
+      const res = await fetch("/api/diagrams/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          requirement: payload.requirement,
+          story: payload.story,
+          draft: loadDraft(epicTaskNamespace(id)),
+          formats: [format],
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.jobId) {
+        setRegeneratingForId(null);
+        setRegeneratingFormatForTask(null);
+        return;
+      }
+      const unsub = subscribeToJob(json.jobId, (e) => {
+        if (e.type === "diagrams_created") {
+          setDiagramsById((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...e.payload } }));
+          setRegeneratingForId(null);
+          setRegeneratingFormatForTask(null);
+          unsub();
+        } else if (e.type === "error") {
+          setRegeneratingForId(null);
+          setRegeneratingFormatForTask(null);
+          unsub();
+        }
+      });
+    } catch {
+      setRegeneratingForId(null);
+      setRegeneratingFormatForTask(null);
+    }
+  }
+
+  async function analyzeDiagramsForTask(id: string) {
+    const payload = finalizedById[id];
+    const diagrams = diagramsById[id];
+    if (!payload || !diagrams) return;
+    setAnalyzingForId(id);
+    try {
+      const res = await fetch("/api/diagrams/analyze", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requirement: payload.requirement, story: payload.story, mermaid: diagrams }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.jobId) { setAnalyzingForId(null); return; }
+      const unsub = subscribeToJob(json.jobId, (e) => {
+        if (e.type === "diagrams_analyzed") {
+          setAnalysisFindingsById((prev) => ({ ...prev, [id]: e.payload.findings }));
+          setAnalyzingForId(null);
+          unsub();
+        } else if (e.type === "error") {
+          setAnalyzingForId(null);
+          unsub();
+        }
+      });
+    } catch {
+      setAnalyzingForId(null);
+    }
+  }
+
+  function applyAnalysisForTask(id: string, acceptedIds: string[]) {
+    const findings = analysisFindingsById[id];
+    if (!findings) return;
+    setApplyingForId(id);
+    try {
+      let nextDiagrams: Diagrams = { ...(diagramsById[id] ?? {}) };
+      for (const fid of acceptedIds) {
+        const f = findings.find((x) => x.id === fid);
+        if (f?.proposedSync?.mermaid) nextDiagrams = { ...nextDiagrams, ...f.proposedSync.mermaid };
+      }
+      setDiagramsById((prev) => ({ ...prev, [id]: nextDiagrams }));
+      setAnalysisFindingsById((prev) => ({ ...prev, [id]: null }));
+    } finally {
+      setApplyingForId(null);
+    }
+  }
+
+  function dismissAnalysisForTask(id: string) {
+    setAnalysisFindingsById((prev) => ({ ...prev, [id]: null }));
+  }
+
+  function onMarkdownChangeForTask(id: string, next: string) {
+    setFinalizedById((prev) => {
+      const cur = prev[id];
+      if (!cur) return prev;
+      return { ...prev, [id]: { ...cur, markdown: next } };
+    });
   }
 
   // Derive the live list of pending edits from chatHistory minus the ones
@@ -794,7 +937,31 @@ export function StandaloneApp({ initialSession }: Props) {
         )}
 
         {mode.kind === "idle" || mode.kind === "running" ? (
-          epicMode && epicTasks.length > 0 ? (
+          epicMode && bakeStatus === "baked" ? (
+            <BakeView
+              tasks={epicTasks}
+              selectedId={bakeSelectedId}
+              finalizedById={finalizedById}
+              diagramsById={diagramsById}
+              failedIds={bakeErrors}
+              onSelect={setBakeSelectedId}
+              onUploadAll={() => setUploadOpen(true)}
+              onBackToEditing={() => setBakeStatus("idle")}
+              onCreateDiagrams={createDiagramsForTask}
+              creatingForId={creatingForId}
+              onEditDiagram={editDiagramForTask}
+              onRegenerateDiagram={regenerateDiagramForTask}
+              regeneratingForId={regeneratingForId}
+              regeneratingFormat={regeneratingFormatForTask}
+              onAnalyzeDiagrams={analyzeDiagramsForTask}
+              analyzingForId={analyzingForId}
+              analysisFindings={analysisFindingsById}
+              onApplyAnalysis={applyAnalysisForTask}
+              applyingForId={applyingForId}
+              onDismissAnalysis={dismissAnalysisForTask}
+              onMarkdownChange={onMarkdownChangeForTask}
+            />
+          ) : epicMode && epicTasks.length > 0 ? (
             <EpicEditingView
               epicTitle={liveDraft?.title ?? ""}
               epicDescriptionHtml={liveDraft?.description ?? ""}
@@ -1036,6 +1203,8 @@ export function StandaloneApp({ initialSession }: Props) {
           id: t.id,
           draft: loadDraft(epicTaskNamespace(t.id)),
           labels: t.labels,
+          finalizedPayload: finalizedById[t.id],
+          diagrams: diagramsById[t.id],
         }));
         return (
           <UploadSheet
