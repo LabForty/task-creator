@@ -44,7 +44,7 @@ export function EpicTaskCard({
   return (
     <div
       className={
-        "group relative rounded-md border bg-surface px-3 py-2.5 transition-colors " +
+        "group relative rounded-md border bg-surface px-4 py-3.5 transition-colors " +
         (active ? "border-accent ring-1 ring-accent/30" : "border-rule hover:border-rule-strong")
       }
     >
@@ -54,17 +54,17 @@ export function EpicTaskCard({
         aria-label={`${title || "(untitled)"} — open ${kind === "epic" ? "epic" : "task"}`}
         className="block w-full text-left"
       >
-        <div className="flex items-baseline gap-2 mb-0.5">
+        <div className="flex items-baseline gap-2 mb-1.5">
           {kind === "epic" && (
             <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-tertiary shrink-0">Epic</span>
           )}
-          <span className="text-hig-subhead font-medium text-ink truncate flex-1">{title || "(untitled)"}</span>
+          <span className="text-hig-headline font-semibold text-ink truncate flex-1">{title || "(untitled)"}</span>
         </div>
         {descriptionPreview && (
-          <p className="text-hig-footnote text-ink-secondary line-clamp-2">{descriptionPreview}</p>
+          <p className="text-hig-footnote text-ink-secondary line-clamp-3">{descriptionPreview}</p>
         )}
         {kind === "task" && ((labelsCount ?? 0) > 0 || (linksCount ?? 0) > 0 || bakeState) && (
-          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
             {(labelsCount ?? 0) > 0 && (
               <span className="text-[10px] text-ink-tertiary">{labelsCount} label{labelsCount === 1 ? "" : "s"}</span>
             )}
@@ -88,7 +88,7 @@ export function EpicTaskCard({
           type="button"
           aria-label="Delete task"
           onClick={() => setConfirming(true)}
-          className="absolute top-1 right-1 w-6 h-6 inline-flex items-center justify-center rounded text-ink-tertiary hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          className="absolute top-1.5 right-1.5 w-6 h-6 inline-flex items-center justify-center rounded text-ink-tertiary hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
         >
           ×
         </button>

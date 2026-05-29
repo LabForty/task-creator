@@ -55,8 +55,8 @@ export function EpicEditingView(props: Props) {
   const activeTask = props.activeId === "epic" ? null : props.tasks.find((t) => t.id === props.activeId) ?? null;
   const baking = props.bakeStatus === "baking";
   const cardsCols = props.analyzePanelOpen
-    ? "w-[300px] shrink-0"
-    : "flex-[0.5] min-w-[280px] max-w-[420px] shrink-0";
+    ? "w-[360px] shrink-0"
+    : "flex-[0.7] min-w-[360px] max-w-[480px] shrink-0";
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0 px-6 py-4">
