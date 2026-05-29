@@ -284,15 +284,19 @@ export function StandaloneApp({ initialSession }: Props) {
     if (epicTasks.length === 0) return;
     setBakeStatus("baking");
     setBakeErrors({});
-    // Seed pending for every task that isn't already baked.
+    // Seed pending for every task PLUS the epic.
     setBakeProgress(() => {
       const next: Record<string, "pending" | "baking" | "baked" | "failed"> = {};
+      next["epic"] = finalizedById["epic"] ? "baked" : "pending";
       for (const t of epicTasks) next[t.id] = finalizedById[t.id] ? "baked" : "pending";
       return next;
     });
     const ac = new AbortController();
     bakeAbortRef.current = ac;
-    const tasks = epicTasks.map((t) => ({ id: t.id, draft: loadDraft(epicTaskNamespace(t.id)) }));
+    const tasks = [
+      { id: "epic", draft: loadDraft(NAMESPACE) },
+      ...epicTasks.map((t) => ({ id: t.id, draft: loadDraft(epicTaskNamespace(t.id)) })),
+    ];
     const { runBakeAll } = await import("@/lib/epic/bake");
     const result = await runBakeAll({
       tasks,
@@ -942,6 +946,7 @@ export function StandaloneApp({ initialSession }: Props) {
               tasks={epicTasks}
               selectedId={bakeSelectedId}
               finalizedById={finalizedById}
+              finalizedEpic={finalizedById["epic"]}
               diagramsById={diagramsById}
               failedIds={bakeErrors}
               onSelect={setBakeSelectedId}
@@ -986,7 +991,7 @@ export function StandaloneApp({ initialSession }: Props) {
               bakeProgress={bakeProgress}
               bakeErrors={bakeErrors}
               bakeDone={Object.values(bakeProgress).filter((s) => s === "baked").length}
-              bakeTotal={epicTasks.length}
+              bakeTotal={epicTasks.length + 1}
               analyzePanelOpen={Boolean(analyzeTaskId)}
               onSelectCard={(id) => {
                 setActiveTab(id);
@@ -1233,6 +1238,7 @@ export function StandaloneApp({ initialSession }: Props) {
             denied={[]}
             epicTitle={liveDraft?.title ?? ""}
             epicDescriptionHtml={liveDraft?.description ?? ""}
+            epicDescriptionMarkdown={finalizedById["epic"]?.markdown}
             onCancel={() => setUploadOpen(false)}
             onPersistUploaded={persistUploadedKey}
           />

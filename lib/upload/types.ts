@@ -28,7 +28,9 @@ export type UploadDestination = {
   cloudId: string;
   projectKey: string;
   issueTypeId: string;
-  epic: { kind: "new"; title: string; descriptionHtml?: string } | { kind: "existing"; key: string };
+  epic:
+    | { kind: "new"; title: string; descriptionHtml?: string; descriptionMarkdown?: string }
+    | { kind: "existing"; key: string };
 };
 
 export type BatchResult = {

@@ -29,7 +29,10 @@ export function BakeNav(props: Props) {
           onClick={() => props.onSelect("epic")}
           className={entryClass(props.selectedId === "epic")}
         >
-          Epic overview
+          <span className="flex items-center gap-2">
+            <span className="flex-1 truncate">Epic overview</span>
+            {props.finalizedIds.has("epic") && <span className="text-success text-[12px]" aria-label="baked">✓</span>}
+          </span>
         </button>
         <div className="mt-2 px-3 hig-section-label">Tasks</div>
         {props.tasks.map((t) => {

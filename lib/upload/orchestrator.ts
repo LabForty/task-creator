@@ -51,6 +51,7 @@ async function createEpicIfNeeded(dest: UploadDestination, signal?: AbortSignal)
       projectKey: dest.projectKey,
       title: dest.epic.title,
       descriptionHtml: dest.epic.descriptionHtml,
+      descriptionMarkdown: dest.epic.descriptionMarkdown,
     }),
   });
   const j = (await res.json().catch(() => ({}))) as { key?: string; url?: string; error?: string };

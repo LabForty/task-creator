@@ -10,6 +10,7 @@ type Props = {
   tasks: EpicTask[];
   selectedId: "epic" | string;
   finalizedById: Record<string, FinalizedPayload>;
+  finalizedEpic?: FinalizedPayload;
   diagramsById: Record<string, Diagrams | undefined>;
   failedIds: Record<string, string>;
   // Nav handlers
@@ -51,10 +52,30 @@ export function BakeView(props: Props) {
       />
       <div className="flex-1 min-w-0 overflow-y-auto">
         {!selectedTask ? (
-          <div className="p-6 max-w-4xl">
-            <h2 className="text-hig-title3 mb-3">Epic overview</h2>
-            <TaskGraph tasks={props.tasks} />
-          </div>
+          props.finalizedEpic ? (
+            <BakeTaskPreview
+              taskId="epic"
+              finalized={props.finalizedEpic}
+              diagrams={props.diagramsById["epic"]}
+              onCreateDiagrams={() => props.onCreateDiagrams("epic")}
+              creatingDiagrams={props.creatingForId === "epic"}
+              onEditDiagram={(f, s) => props.onEditDiagram("epic", f, s)}
+              onRegenerateDiagram={(f) => props.onRegenerateDiagram("epic", f)}
+              regeneratingFormat={props.regeneratingForId === "epic" ? props.regeneratingFormat : null}
+              onAnalyzeDiagrams={() => props.onAnalyzeDiagrams("epic")}
+              analyzingDiagrams={props.analyzingForId === "epic"}
+              analysisFindings={props.analysisFindings["epic"] ?? null}
+              onApplyAnalysis={(ids) => props.onApplyAnalysis("epic", ids)}
+              applyingAnalysis={props.applyingForId === "epic"}
+              onDismissAnalysis={() => props.onDismissAnalysis("epic")}
+              onMarkdownChange={(next) => props.onMarkdownChange("epic", next)}
+            />
+          ) : (
+            <div className="p-6 max-w-4xl">
+              <h2 className="text-hig-title3 mb-3">Epic overview</h2>
+              <TaskGraph tasks={props.tasks} />
+            </div>
+          )
         ) : selectedFinalized ? (
           <BakeTaskPreview
             taskId={selectedTask.id}

@@ -10,6 +10,7 @@ const BodySchema = z.object({
   projectKey: z.string().min(1),
   title: z.string().trim().min(1).max(250),
   descriptionHtml: z.string().optional(),
+  descriptionMarkdown: z.string().optional(),
 });
 
 function htmlToMarkdown(html: string | undefined): string {
@@ -52,11 +53,12 @@ export async function POST(req: Request) {
         { status: 422 },
       );
     }
+    const md = parsed.data.descriptionMarkdown ?? htmlToMarkdown(parsed.data.descriptionHtml);
     const created = await createIssue(session.accessToken, parsed.data.cloudId, {
       summary: parsed.data.title.slice(0, 250),
       project: { key: parsed.data.projectKey },
       issuetype: { id: epicType.id },
-      description: markdownToAdf(htmlToMarkdown(parsed.data.descriptionHtml)),
+      description: markdownToAdf(md),
     });
     // Build a browse URL. The existing exportToJira already does this via the
     // session's `url` field on Site. We mirror that pattern minimally here.

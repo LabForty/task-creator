@@ -16,6 +16,7 @@ export type UploadSheetProps = {
   denied: { id: string; title: string }[];              // shown in the results "Excluded" list
   epicTitle: string;             // from liveDraft.title — read-only confirmation for "Create new"
   epicDescriptionHtml: string;   // from liveDraft.description — passed to the new-epic endpoint
+  epicDescriptionMarkdown?: string; // finalized epic markdown (preferred over HTML)
   onCancel: () => void;
   onPersistUploaded: (id: string, issueKey: string, issueUrl: string) => void;
 };
@@ -29,7 +30,7 @@ async function jsonGet<T>(url: string): Promise<T> {
 
 type EpicMode = "new" | "existing";
 
-export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, onCancel, onPersistUploaded }: UploadSheetProps) {
+export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epicDescriptionMarkdown, onCancel, onPersistUploaded }: UploadSheetProps) {
   const [phase, setPhase] = useState<Phase>("destination");
   const [sites, setSites] = useState<Site[] | null>(null);
   const [sitesErr, setSitesErr] = useState<string | null>(null);
@@ -145,7 +146,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, onC
       issueTypeId,
       epic:
         epicMode === "new"
-          ? { kind: "new", title: epicTitle, descriptionHtml: epicDescriptionHtml }
+          ? { kind: "new", title: epicTitle, descriptionHtml: epicDescriptionHtml, descriptionMarkdown: epicDescriptionMarkdown }
           : { kind: "existing", key: existingEpicKey },
     };
     const result = await runBatchUpload({
