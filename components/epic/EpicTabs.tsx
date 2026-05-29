@@ -67,8 +67,8 @@ export function EpicTabs(props: Props) {
             onSetLabels={(labels) => props.onSetLabels(activeTask.id, labels)}
             onAddLink={props.onAddLink}
             onRemoveLink={props.onRemoveLink}
-            onDelete={() => props.onDelete(activeTask.id)}
-            onAnalyze={() => props.onAnalyzeTask(activeTask.id)}
+            // onAnalyze={() => props.onAnalyzeTask(activeTask.id)}
+            // onDelete={() => props.onDelete(activeTask.id)}
             onClear={() => props.onClearTask(activeTask.id)}
           />
         ) : (
