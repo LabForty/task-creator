@@ -21,6 +21,7 @@ type Props = {
   onCancelBake: () => void;
   descriptionPreviewsById?: Record<string, string>;
   taskTypesById?: Record<string, string>;
+  acCountsById?: Record<string, number>;
 };
 
 export function EpicTaskCards(props: Props) {
@@ -62,6 +63,7 @@ export function EpicTaskCards(props: Props) {
           labels={t.labels}
           blocksCount={t.blocks.length}
           blockedByCount={t.blockedBy.length}
+          acCount={props.acCountsById?.[t.id] ?? 0}
           uploadedIssueKey={t.uploadedIssueKey}
           active={props.activeId === t.id}
           bakeState={props.bakeProgress?.[t.id]}

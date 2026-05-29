@@ -8,10 +8,11 @@ type Props = {
   kind: "epic" | "task";
   title: string;
   descriptionPreview: string;
-  taskType?: string;             // e.g. "story" / "task" / "bug" / "spike" / "epic" / "change_request"
-  labels?: string[];             // full label list (was a count)
+  taskType?: string;             // "story" / "task" / "bug" / "spike" / "epic" / "change_request"
+  labels?: string[];
   blocksCount?: number;
   blockedByCount?: number;
+  acCount?: number;
   uploadedIssueKey?: string;
   active: boolean;
   bakeState?: BakeState;
@@ -20,45 +21,25 @@ type Props = {
   onDelete?: () => void;
 };
 
-// Map task-type slugs to a label + tailwind palette. Mirrors Jira's color
-// conventions: Story=green, Task=blue, Bug=red, Epic=purple, Spike=orange,
-// Change request=amber. Unknown/missing types fall through to a neutral slate.
-function typeChip(slug: string | undefined): { label: string; cls: string } {
-  switch ((slug || "").toLowerCase()) {
-    case "story":          return { label: "Story",       cls: "bg-green-100 text-green-800 border-green-200" };
-    case "task":           return { label: "Task",        cls: "bg-blue-100 text-blue-800 border-blue-200" };
-    case "bug":            return { label: "Bug",         cls: "bg-red-100 text-red-800 border-red-200" };
-    case "spike":          return { label: "Spike",       cls: "bg-orange-100 text-orange-800 border-orange-200" };
-    case "epic":           return { label: "Epic",        cls: "bg-purple-100 text-purple-800 border-purple-200" };
-    case "change_request": return { label: "Change req.", cls: "bg-amber-100 text-amber-800 border-amber-200" };
-    default:               return { label: slug || "Story", cls: "bg-slate-200 text-slate-700 border-slate-300" };
-  }
-}
+const TYPE_LABEL: Record<string, string> = {
+  story: "Story",
+  task: "Task",
+  bug: "Bug",
+  spike: "Spike",
+  epic: "Epic",
+  change_request: "Change request",
+};
 
-// Stable label-color picker. Hashes the label string into one of N palette
-// entries so the same label always gets the same color across cards.
-const LABEL_PALETTES = [
-  "bg-sky-100 text-sky-800 border-sky-200",
-  "bg-emerald-100 text-emerald-800 border-emerald-200",
-  "bg-rose-100 text-rose-800 border-rose-200",
-  "bg-violet-100 text-violet-800 border-violet-200",
-  "bg-amber-100 text-amber-800 border-amber-200",
-  "bg-teal-100 text-teal-800 border-teal-200",
-  "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
-];
-
-function labelClass(label: string): string {
-  let h = 0;
-  for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) & 0x7fffffff;
-  return LABEL_PALETTES[h % LABEL_PALETTES.length];
+function typeLabel(slug: string | undefined): string {
+  return TYPE_LABEL[(slug ?? "").toLowerCase()] || slug || "Story";
 }
 
 function bakeChipLabel(s: BakeState): string {
   switch (s) {
-    case "pending":  return "pending";
-    case "baking":   return "baking…";
-    case "baked":    return "baked ✓";
-    case "failed":   return "failed";
+    case "pending": return "pending";
+    case "baking":  return "baking…";
+    case "baked":   return "baked ✓";
+    case "failed":  return "failed";
   }
 }
 
@@ -73,13 +54,13 @@ function bakeChipClass(s: BakeState): string {
 
 export function EpicTaskCard({
   kind, title, descriptionPreview, taskType, labels, blocksCount, blockedByCount,
-  uploadedIssueKey, active, bakeState, bakeError, onSelect, onDelete,
+  acCount, uploadedIssueKey, active, bakeState, bakeError, onSelect, onDelete,
 }: Props) {
   const [confirming, setConfirming] = useState(false);
-  const type = typeChip(taskType);
   const labelsList = labels ?? [];
   const blocks = blocksCount ?? 0;
   const blockedBy = blockedByCount ?? 0;
+  const ac = acCount ?? 0;
 
   return (
     <div
@@ -94,23 +75,14 @@ export function EpicTaskCard({
         aria-label={`${title || "(untitled)"} — open ${kind === "epic" ? "epic" : "task"}`}
         className="block w-full text-left"
       >
-        {/* Top row: type chip + (right) uploaded key */}
-        <div className="flex items-center gap-2 mb-2">
-          <span
-            className={
-              "inline-flex items-center px-1.5 py-[1px] rounded-sm text-[10px] font-semibold uppercase tracking-wide border " +
-              (kind === "epic"
-                ? "bg-purple-100 text-purple-800 border-purple-200"
-                : type.cls)
-            }
-          >
-            {kind === "epic" ? "Epic" : type.label}
-          </span>
-          <span className="flex-1" />
+        {/* Metadata top line: type · key */}
+        <div className="text-[10px] uppercase tracking-wide text-ink-tertiary font-semibold mb-1.5 flex items-center gap-2">
+          <span>{kind === "epic" ? "Epic" : typeLabel(taskType)}</span>
           {uploadedIssueKey && (
-            <span className="inline-flex items-center px-1.5 rounded-sm text-[10px] font-semibold uppercase tracking-wide bg-success/10 text-success">
-              {uploadedIssueKey}
-            </span>
+            <>
+              <span aria-hidden>·</span>
+              <span className="text-success normal-case">{uploadedIssueKey}</span>
+            </>
           )}
         </div>
 
@@ -122,43 +94,38 @@ export function EpicTaskCard({
           <p className="text-hig-footnote text-ink-secondary line-clamp-3 mb-2">{descriptionPreview}</p>
         )}
 
-        {/* Labels — only for tasks (epic skips) */}
-        {kind === "task" && labelsList.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap mb-1.5">
-            {labelsList.slice(0, 6).map((label) => (
-              <span
-                key={label}
-                className={
-                  "inline-flex items-center px-1.5 py-[1px] rounded-sm text-[10px] font-medium border " +
-                  labelClass(label)
-                }
-              >
-                {label}
-              </span>
-            ))}
-            {labelsList.length > 6 && (
-              <span className="text-[10px] text-ink-tertiary">+{labelsList.length - 6}</span>
+        {/* Metadata bottom block (tasks only) — plain text lines, no colored chips */}
+        {kind === "task" && (
+          <div className="flex flex-col gap-0.5 text-hig-caption text-ink-tertiary">
+            {labelsList.length > 0 && (
+              <p>
+                <span className="font-medium text-ink-secondary">Labels:</span>{" "}
+                {labelsList.slice(0, 8).join(", ")}
+                {labelsList.length > 8 && ` +${labelsList.length - 8}`}
+              </p>
+            )}
+            {(blocks > 0 || blockedBy > 0) && (
+              <p>
+                {blocks > 0 && <>Blocks {blocks}</>}
+                {blocks > 0 && blockedBy > 0 && <> · </>}
+                {blockedBy > 0 && <>Blocked by {blockedBy}</>}
+              </p>
+            )}
+            {ac > 0 && (
+              <p>{ac} acceptance {ac === 1 ? "criterion" : "criteria"}</p>
             )}
           </div>
         )}
 
-        {/* Dependencies + bake-state row */}
-        {kind === "task" && (blocks > 0 || blockedBy > 0 || bakeState) && (
-          <div className="flex items-center gap-2 flex-wrap text-[10px] text-ink-tertiary">
-            {blocks > 0 && (
-              <span title={`${blocks} blocks`}>↓ {blocks}</span>
-            )}
-            {blockedBy > 0 && (
-              <span title={`${blockedBy} blocked by`}>↑ {blockedBy}</span>
-            )}
-            {bakeState && (
-              <span
-                title={bakeError}
-                className={"inline-flex items-center px-1.5 rounded-sm text-[10px] font-medium " + bakeChipClass(bakeState)}
-              >
-                {bakeChipLabel(bakeState)}
-              </span>
-            )}
+        {/* Bake chip — separate row at the bottom so it stands apart */}
+        {kind === "task" && bakeState && (
+          <div className="mt-2">
+            <span
+              title={bakeError}
+              className={"inline-flex items-center px-1.5 rounded-sm text-[10px] font-medium " + bakeChipClass(bakeState)}
+            >
+              {bakeChipLabel(bakeState)}
+            </span>
           </div>
         )}
       </button>

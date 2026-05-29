@@ -45,6 +45,7 @@ type Props = {
   onClearTask: (id: "epic" | string) => void;
   descriptionPreviewsById?: Record<string, string>;
   taskTypesById?: Record<string, string>;
+  acCountsById?: Record<string, number>;
 };
 
 function stripHtml(html: string): string {
@@ -56,8 +57,8 @@ export function EpicEditingView(props: Props) {
   const activeTask = props.activeId === "epic" ? null : props.tasks.find((t) => t.id === props.activeId) ?? null;
   const baking = props.bakeStatus === "baking";
   const cardsCols = props.analyzePanelOpen
-    ? "w-[360px] shrink-0"
-    : "flex-[0.7] min-w-[360px] max-w-[480px] shrink-0";
+    ? "w-[420px] shrink-0"
+    : "flex-[0.8] min-w-[400px] max-w-[560px] shrink-0";
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0 px-6 py-4">
@@ -125,6 +126,7 @@ export function EpicEditingView(props: Props) {
             onCancelBake={props.onCancelBake}
             descriptionPreviewsById={props.descriptionPreviewsById}
             taskTypesById={props.taskTypesById}
+            acCountsById={props.acCountsById}
           />
         </div>
 

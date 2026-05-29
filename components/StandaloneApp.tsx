@@ -964,11 +964,13 @@ export function StandaloneApp({ initialSession }: Props) {
           ) : epicMode && epicTasks.length > 0 ? (() => {
             const taskDescriptionPreviews: Record<string, string> = {};
             const taskTypesById: Record<string, string> = {};
+            const taskAcCountsById: Record<string, number> = {};
             for (const t of epicTasks) {
               const taskDraft = loadDraft(epicTaskNamespace(t.id));
               const text = (taskDraft.description || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
               taskDescriptionPreviews[t.id] = text.length > 80 ? text.slice(0, 79) + "…" : text;
               taskTypesById[t.id] = taskDraft.taskType || "story";
+              taskAcCountsById[t.id] = (taskDraft.acceptanceCriteria ?? []).filter((s) => (s || "").trim().length > 0).length;
             }
             return (
             <EpicEditingView
@@ -978,6 +980,7 @@ export function StandaloneApp({ initialSession }: Props) {
               activeId={activeTab}
               descriptionPreviewsById={taskDescriptionPreviews}
               taskTypesById={taskTypesById}
+              acCountsById={taskAcCountsById}
               refreshKey={taskRefreshKey}
               bakeStatus={bakeStatus}
               bakeProgress={bakeProgress}
