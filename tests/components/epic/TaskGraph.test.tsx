@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { TaskGraph } from "@/components/epic/review/TaskGraph";
+import { TaskGraph } from "@/components/epic/TaskGraph";
 import type { EpicTask } from "@/lib/epic/tasks";
 
 vi.mock("@/components/MermaidDiagram", () => ({
