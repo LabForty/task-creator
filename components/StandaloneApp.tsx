@@ -984,9 +984,15 @@ export function StandaloneApp({ initialSession }: Props) {
               analyzePanelOpen={Boolean(analyzeTaskId)}
               onSelectCard={(id) => {
                 setActiveTab(id);
-                // Closing the analyze panel when switching tasks is intentional — the
-                // user can re-open it for the new task via Analyze all or Analyze this.
-                if (analyzeTaskId && analyzeTaskId !== id) setAnalyzeTaskId(null);
+                // If the analyze panel is open, point it at the newly-selected task
+                // instead of closing it (each task has its own thread in analyzeChatById,
+                // and the HelpPanel re-mounts on key={analyzeTaskId} so its internal
+                // state resets for the new task). Clicking the Epic card still closes
+                // the panel since the epic itself has no per-task analyze chat.
+                if (analyzeTaskId) {
+                  if (id === "epic") setAnalyzeTaskId(null);
+                  else setAnalyzeTaskId(id);
+                }
               }}
               onAdd={addTask}
               onDelete={deleteTask}
