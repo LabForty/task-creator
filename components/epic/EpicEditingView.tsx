@@ -57,8 +57,8 @@ export function EpicEditingView(props: Props) {
   const activeTask = props.activeId === "epic" ? null : props.tasks.find((t) => t.id === props.activeId) ?? null;
   const baking = props.bakeStatus === "baking";
   const cardsCols = props.analyzePanelOpen
-    ? "w-[420px] shrink-0"
-    : "flex-[0.8] min-w-[400px] max-w-[560px] shrink-0";
+    ? "flex-[0.6] min-w-[340px] max-w-[420px] shrink-0 transition-[flex-basis,max-width,min-width] duration-150 ease-out"
+    : "flex-[0.8] min-w-[400px] max-w-[560px] shrink-0 transition-[flex-basis,max-width,min-width] duration-150 ease-out";
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0 px-6 py-4">
@@ -81,7 +81,7 @@ export function EpicEditingView(props: Props) {
       {/* Body: editor (capped) + cards (flexible) + HelpPanel slot is rendered by the parent as a sibling next to this whole view */}
       <div className={"flex-1 min-h-0 flex gap-4 " + (baking ? "[&_form]:pointer-events-none [&_form]:opacity-60" : "")}>
         {/* Editor pane — fills its column from the left, no centering cap. */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        <div className="flex-1 min-w-0 overflow-y-auto transition-[flex-basis] duration-150 ease-out">
           {activeTask ? (
             <EpicTaskEditor
               taskId={activeTask.id}
