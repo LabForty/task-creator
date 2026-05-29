@@ -103,6 +103,14 @@ export function StandaloneApp({ initialSession }: Props) {
   // KneadingPanel, which is still on screen when "Generate sub-tasks" is clicked.
   const [uploadOpen, setUploadOpen] = useState(false);
 
+  const [bakeStatus, setBakeStatus] = useState<"idle" | "baking" | "baked">("idle");
+  const [bakeProgress, setBakeProgress] = useState<Record<string, "pending" | "baking" | "baked" | "failed">>({});
+  const [bakeErrors, setBakeErrors] = useState<Record<string, string>>({});
+  const [finalizedById, setFinalizedById] = useState<Record<string, FinalizedPayload>>({});
+  const [diagramsById, setDiagramsById] = useState<Record<string, Diagrams>>({});
+  const [bakeSelectedId, setBakeSelectedId] = useState<"epic" | string>("epic");
+  const bakeAbortRef = useRef<AbortController | null>(null);
+
   const kneadRef = useRef(knead);
   useEffect(() => { kneadRef.current = knead; }, [knead]);
   const draftRef = useRef<Draft | null>(liveDraft);
@@ -263,12 +271,45 @@ export function StandaloneApp({ initialSession }: Props) {
     knead.sourceDescription !== undefined &&
     (liveDraft?.description ?? "") !== knead.sourceDescription;
 
-  // Phase C will replace these with the real bake state + handlers.
-  const bakeStatus: "idle" | "baking" | "baked" = "idle";
-  const bakeProgress: Record<string, "pending" | "baking" | "baked" | "failed"> = {};
-  const bakeErrors: Record<string, string> = {};
-  function startBake() { /* Phase C */ }
-  function cancelBake() { /* Phase C */ }
+  async function startBake() {
+    if (bakeStatus === "baking") return;
+    if (epicTasks.length === 0) return;
+    setBakeStatus("baking");
+    setBakeErrors({});
+    // Seed pending for every task that isn't already baked.
+    setBakeProgress(() => {
+      const next: Record<string, "pending" | "baking" | "baked" | "failed"> = {};
+      for (const t of epicTasks) next[t.id] = finalizedById[t.id] ? "baked" : "pending";
+      return next;
+    });
+    const ac = new AbortController();
+    bakeAbortRef.current = ac;
+    const tasks = epicTasks.map((t) => ({ id: t.id, draft: loadDraft(epicTaskNamespace(t.id)) }));
+    const { runBakeAll } = await import("@/lib/epic/bake");
+    const result = await runBakeAll({
+      tasks,
+      finalizedExisting: finalizedById,
+      signal: ac.signal,
+      onProgress: (id, state, error) => {
+        setBakeProgress((prev) => ({ ...prev, [id]: state }));
+        if (state === "failed" && error) {
+          setBakeErrors((prev) => ({ ...prev, [id]: error }));
+        }
+      },
+    });
+    bakeAbortRef.current = null;
+    setFinalizedById(result.finalized);
+    if (result.failedId) {
+      setBakeStatus("idle");
+      return;
+    }
+    setBakeStatus("baked");
+    setBakeSelectedId("epic");
+  }
+
+  function cancelBake() {
+    bakeAbortRef.current?.abort();
+  }
 
   // Derive the live list of pending edits from chatHistory minus the ones
   // the user already resolved. Later proposals with the same id supersede
