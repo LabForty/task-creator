@@ -71,7 +71,7 @@ export function BakeView(props: Props) {
               onMarkdownChange={(next) => props.onMarkdownChange("epic", next)}
             />
           ) : (
-            <div className="p-6 max-w-4xl">
+            <div className="p-6">
               <h2 className="text-hig-title3 mb-3">Epic overview</h2>
               <TaskGraph tasks={props.tasks} />
             </div>
