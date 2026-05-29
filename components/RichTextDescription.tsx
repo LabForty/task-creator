@@ -219,21 +219,23 @@ export function RichTextDescription({
             </ToolbarButton>
           )}
         </div>
-        <EditorContent
-          editor={editor}
-          data-input
-          // Placeholder via :empty pseudo-element doesn't work inside ProseMirror,
-          // so we render a hint overlay when there's no content.
-          aria-label={label}
-        />
-        {editor && editor.isEmpty && (
-          <p
-            className="pointer-events-none -mt-[260px] px-3 pt-3 text-ink-tertiary text-hig-body italic"
-            aria-hidden
-          >
-            {placeholder ?? "Start typing…"}
-          </p>
-        )}
+        <div className="relative">
+          <EditorContent
+            editor={editor}
+            data-input
+            // Placeholder via :empty pseudo-element doesn't work inside ProseMirror,
+            // so we render a hint overlay when there's no content.
+            aria-label={label}
+          />
+          {editor && editor.isEmpty && (
+            <p
+              className="pointer-events-none absolute inset-0 px-3 pt-3 text-ink-tertiary text-hig-body italic"
+              aria-hidden
+            >
+              {placeholder ?? "Start typing…"}
+            </p>
+          )}
+        </div>
       </div>
     </label>
   );
