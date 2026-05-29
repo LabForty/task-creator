@@ -189,37 +189,38 @@ export function HelpPanel({
     >
       <header className="px-5 py-4 border-b border-rule flex flex-col gap-2 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <span className="hig-section-label">Help</span>
-            <h2 className="text-hig-headline">Ask anything</h2>
+            <h2 className="text-hig-headline truncate">Ask anything</h2>
           </div>
           <span className="flex-1" />
-          {pendingEditCount > 0 && onOpenReview && (
-            <Button size="sm" onClick={onOpenReview}>
-              Review {pendingEditCount} {pendingEditCount === 1 ? "change" : "changes"}
-            </Button>
-          )}
-          {walkInfo && (
-            <>
-              <span className="text-hig-footnote font-medium text-ink-secondary">
-                Walk {walkInfo.index + 1}/{walkInfo.total}
-              </span>
-              <Button
-                size="sm"
-                onClick={walkInfo.onNext}
-                disabled={walkInfo.index >= walkInfo.total - 1}
-              >
-                Next task
-              </Button>
-              <Button size="sm" variant="secondary" onClick={walkInfo.onStop}>
-                Stop walk
-              </Button>
-            </>
-          )}
           <Button variant="ghost" size="sm" onClick={onClose}>
             Close
           </Button>
         </div>
+        {walkInfo && (
+          <div className="flex items-center gap-2">
+            <span className="text-hig-footnote font-medium text-ink-secondary shrink-0">
+              Walk {walkInfo.index + 1}/{walkInfo.total}
+            </span>
+            <span className="flex-1" />
+            <Button
+              size="sm"
+              onClick={walkInfo.onNext}
+              disabled={walkInfo.index >= walkInfo.total - 1}
+            >
+              Next task
+            </Button>
+            <Button size="sm" variant="secondary" onClick={walkInfo.onStop}>
+              Stop walk
+            </Button>
+          </div>
+        )}
+        {pendingEditCount > 0 && onOpenReview && (
+          <Button size="sm" onClick={onOpenReview}>
+            Review {pendingEditCount} {pendingEditCount === 1 ? "change" : "changes"}
+          </Button>
+        )}
         <p className="text-hig-footnote text-ink-secondary leading-snug">
           {surface === "editor"
             ? "Help reads your current draft and asks one focused question at a time — missing flows, edge cases, ambiguity."
@@ -267,17 +268,17 @@ export function HelpPanel({
                       key={s.id}
                       className="rounded-lg border border-rule bg-surface p-3 flex flex-col gap-2"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
                           className={
-                            "inline-flex items-center text-[10px] font-semibold uppercase tracking-wide " +
+                            "inline-flex items-center text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap shrink-0 " +
                             "px-2 py-0.5 rounded-sm " +
                             SUGGESTION_KIND_CHIP[s.kind]
                           }
                         >
                           {SUGGESTION_KIND_LABEL[s.kind]}
                         </span>
-                        <span className="text-hig-footnote font-medium text-ink truncate">
+                        <span className="text-hig-footnote font-medium text-ink truncate flex-1 min-w-0">
                           {s.title}
                         </span>
                       </div>

@@ -961,12 +961,20 @@ export function StandaloneApp({ initialSession }: Props) {
               onDismissAnalysis={dismissAnalysisForTask}
               onMarkdownChange={onMarkdownChangeForTask}
             />
-          ) : epicMode && epicTasks.length > 0 ? (
+          ) : epicMode && epicTasks.length > 0 ? (() => {
+            const taskDescriptionPreviews: Record<string, string> = {};
+            for (const t of epicTasks) {
+              const taskDraft = loadDraft(epicTaskNamespace(t.id));
+              const text = (taskDraft.description || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+              taskDescriptionPreviews[t.id] = text.length > 80 ? text.slice(0, 79) + "…" : text;
+            }
+            return (
             <EpicEditingView
               epicTitle={liveDraft?.title ?? ""}
               epicDescriptionHtml={liveDraft?.description ?? ""}
               tasks={epicTasks}
               activeId={activeTab}
+              descriptionPreviewsById={taskDescriptionPreviews}
               refreshKey={taskRefreshKey}
               bakeStatus={bakeStatus}
               bakeProgress={bakeProgress}
@@ -1006,7 +1014,8 @@ export function StandaloneApp({ initialSession }: Props) {
                 }
               }}
             />
-          ) : (
+            );
+          })() : (
           <div className="px-6 py-4 flex-1 min-h-0 flex flex-col w-full">
             {submitErr && (
               <div className="mb-3 rounded-md bg-danger/5 border border-danger/30 px-4 py-2.5 shrink-0" role="alert">

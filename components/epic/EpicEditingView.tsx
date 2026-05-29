@@ -43,6 +43,7 @@ type Props = {
   onAddLink: (blockerId: string, blockedId: string) => void;
   onRemoveLink: (blockerId: string, blockedId: string) => void;
   onClearTask: (id: "epic" | string) => void;
+  descriptionPreviewsById?: Record<string, string>;
 };
 
 function stripHtml(html: string): string {
@@ -77,34 +78,32 @@ export function EpicEditingView(props: Props) {
 
       {/* Body: editor (capped) + cards (flexible) + HelpPanel slot is rendered by the parent as a sibling next to this whole view */}
       <div className={"flex-1 min-h-0 flex gap-4 " + (baking ? "[&_form]:pointer-events-none [&_form]:opacity-60" : "")}>
-        {/* Editor pane — flex-1 outside, max-w-3xl mx-auto inside (the no-empty-space cap). */}
+        {/* Editor pane — fills its column from the left, no centering cap. */}
         <div className="flex-1 min-w-0 overflow-y-auto">
-          <div className="max-w-3xl mx-auto">
-            {activeTask ? (
-              <EpicTaskEditor
-                taskId={activeTask.id}
-                allTasks={props.tasks}
-                labels={activeTask.labels}
-                blocks={activeTask.blocks}
-                blockedBy={activeTask.blockedBy}
-                refreshKey={props.refreshKey}
-                onTitleChange={(title) => props.onTitleChange(activeTask.id, title)}
-                onSetLabels={(labels) => props.onSetLabels(activeTask.id, labels)}
-                onAddLink={props.onAddLink}
-                onRemoveLink={props.onRemoveLink}
-                onClear={() => props.onClearTask(activeTask.id)}
-              />
-            ) : (
-              <Editor
-                key={`epic:${props.refreshKey}`}
-                namespace={NAMESPACE}
-                onFinalize={() => {}}
-                hideSubmit
-                taskTypeLocked="epic"
-                onClear={() => props.onClearTask("epic")}
-              />
-            )}
-          </div>
+          {activeTask ? (
+            <EpicTaskEditor
+              taskId={activeTask.id}
+              allTasks={props.tasks}
+              labels={activeTask.labels}
+              blocks={activeTask.blocks}
+              blockedBy={activeTask.blockedBy}
+              refreshKey={props.refreshKey}
+              onTitleChange={(title) => props.onTitleChange(activeTask.id, title)}
+              onSetLabels={(labels) => props.onSetLabels(activeTask.id, labels)}
+              onAddLink={props.onAddLink}
+              onRemoveLink={props.onRemoveLink}
+              onClear={() => props.onClearTask(activeTask.id)}
+            />
+          ) : (
+            <Editor
+              key={`epic:${props.refreshKey}`}
+              namespace={NAMESPACE}
+              onFinalize={() => {}}
+              hideSubmit
+              taskTypeLocked="epic"
+              onClear={() => props.onClearTask("epic")}
+            />
+          )}
         </div>
 
         {/* Cards column */}
@@ -123,6 +122,7 @@ export function EpicEditingView(props: Props) {
             onAdd={props.onAdd}
             onDelete={props.onDelete}
             onCancelBake={props.onCancelBake}
+            descriptionPreviewsById={props.descriptionPreviewsById}
           />
         </div>
 

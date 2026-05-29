@@ -19,6 +19,7 @@ type Props = {
   onAdd: () => void;
   onDelete: (id: string) => void;
   onCancelBake: () => void;
+  descriptionPreviewsById?: Record<string, string>;
 };
 
 export function EpicTaskCards(props: Props) {
@@ -55,7 +56,7 @@ export function EpicTaskCards(props: Props) {
           key={t.id}
           kind="task"
           title={t.title}
-          descriptionPreview=""
+          descriptionPreview={props.descriptionPreviewsById?.[t.id] ?? ""}
           labelsCount={t.labels.length}
           linksCount={t.blocks.length + t.blockedBy.length}
           active={props.activeId === t.id}
