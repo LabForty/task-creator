@@ -169,30 +169,10 @@ describe("StandaloneApp — epic mode", () => {
     });
   }
 
-  it("bakes into reviewer mode, sets a status, and persists reviews", async () => {
-    vi.stubGlobal("fetch", mockReviewFetch());
-    render(<StandaloneApp initialSession={session} />);
-    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
-    await userEvent.click(await screen.findByRole("radio", { name: "High" }));
-    await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
-    await userEvent.click(await screen.findByRole("button", { name: /generate sub-tasks/i }));
-    await screen.findByDisplayValue("First");
-
-    // Bake from the EpicTabs toolbar.
-    await userEvent.click(screen.getByRole("button", { name: /^bake$/i }));
-
-    expect(await screen.findByRole("navigation", { name: /review navigation/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /finalize/i })).toBeDisabled();
-
-    await userEvent.click(screen.getByRole("button", { name: /^approve$/i }));
-
-    await waitFor(() => {
-      const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
-      expect(stored.reviewing).toBe(true);
-      const firstId = stored.epicTasks[0].id;
-      expect(stored.reviews[firstId].status).toBe("approved");
-    });
-  });
+  // Reviewer mode + per-task review state were removed in AI-36 Phase A.
+  // Phase C will reintroduce the Bake flow atop the new Bake view; this test
+  // will be rewritten against that surface.
+  it.skip("bakes into reviewer mode, sets a status, and persists reviews", async () => {});
 
   // Task 9 replaced the silent batch /api/refine flow with a sequential walk
   // state machine; Analyze-all now opens the walk UI instead of calling

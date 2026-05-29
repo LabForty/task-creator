@@ -6,7 +6,6 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { KneadingPanel } from "@/components/epic/KneadingPanel";
 import { CapturedContext } from "@/components/epic/CapturedContext";
 import { LostDoughWarning } from "@/components/epic/LostDoughWarning";
-import { ReviewerMode } from "@/components/epic/review/ReviewerMode";
 import { EpicTabs } from "@/components/epic/EpicTabs";
 import { BackBar } from "@/components/epic/BackBar";
 import {
@@ -14,10 +13,8 @@ import {
   addEpicTask, deleteEpicTask, setTitle, setLabels as setTaskLabels,
   addLink as addTaskLink, removeLink as removeTaskLink, type EpicTask,
 } from "@/lib/epic/tasks";
-import { setReview, initReviews, nonDeniedTaskIds } from "@/lib/review/state";
 import { UploadSheet } from "@/components/epic/review/UploadSheet";
 import type { UploadTask } from "@/lib/upload/types";
-import type { ReviewMap, InterferenceMap, SubtaskReview } from "@/lib/review/types";
 import type { ProposedSubtask } from "@/lib/subtasks/types";
 import { startInterview, appendRound, setAnswer, skipQuestion, unskipQuestion, markComplete, resetDough } from "@/lib/epic/state";
 import { EMPTY_KNEAD, type KneadState, type KneadAnswerValue } from "@/lib/knead/types";
@@ -104,15 +101,7 @@ export function StandaloneApp({ initialSession }: Props) {
   const [generating, setGenerating] = useState(false);
   // (was subtasksError) — generation errors now surface via kneadError in the
   // KneadingPanel, which is still on screen when "Generate sub-tasks" is clicked.
-  const [reviewing, setReviewing] = useState(false);
-  const [reviews, setReviews] = useState<ReviewMap>({});
-  const [interference, setInterference] = useState<InterferenceMap>({});
-  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const interferenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Cancel any pending debounced interference call on unmount so it can't fire
-  // setInterference after the component is gone.
-  useEffect(() => () => { if (interferenceTimer.current) clearTimeout(interferenceTimer.current); }, []);
 
   const kneadRef = useRef(knead);
   useEffect(() => { kneadRef.current = knead; }, [knead]);
@@ -139,8 +128,6 @@ export function StandaloneApp({ initialSession }: Props) {
       }
       setAnalyzeChatById(map);
     }
-    if (d.reviewing) setReviewing(true);
-    if (d.reviews) setReviews(d.reviews);
     setLiveDraft(d);
   }, []);
 
@@ -186,15 +173,13 @@ export function StandaloneApp({ initialSession }: Props) {
 
     if (ns === NAMESPACE) {
       const existing = loadDraft(NAMESPACE);
-      // Preserve epic-mode metadata (mode/knead/epicTasks/reviewing/reviews/chatHistory)
+      // Preserve epic-mode metadata (mode/knead/epicTasks/chatHistory)
       // so clearing the visible draft doesn't blow away surrounding state.
       saveDraft(NAMESPACE, {
         ...EMPTY_DRAFT,
         mode: existing.mode,
         knead: existing.knead,
         epicTasks: existing.epicTasks,
-        reviewing: existing.reviewing,
-        reviews: existing.reviews,
         chatHistory: existing.chatHistory,
       });
       setLiveDraft(loadDraft(NAMESPACE));
@@ -253,8 +238,6 @@ export function StandaloneApp({ initialSession }: Props) {
     clearDraft(epicTaskNamespace(id));
     const next = deleteEpicTask(epicTasks, id);
     commitEpicTasks(next);
-    setReviews((prev) => { const m = { ...prev }; delete m[id]; persistReview(reviewing, m); return m; });
-    setInterference((prev) => { const m = { ...prev }; delete m[id]; return m; });
     setAnalyzeChatById((prev) => { const m = { ...prev }; delete m[id]; return m; });
     if (analyzeTaskId === id) { setAnalyzeTaskId(null); setWalking(false); }
     if (activeTab === id) setActiveTab(next[0]?.id ?? "epic");
@@ -271,25 +254,6 @@ export function StandaloneApp({ initialSession }: Props) {
   function taskAddLink(a: string, b: string) { commitEpicTasks(addTaskLink(epicTasks, a, b)); }
   function taskRemoveLink(a: string, b: string) { commitEpicTasks(removeTaskLink(epicTasks, a, b)); }
 
-  function persistReview(nextReviewing: boolean, nextReviews: ReviewMap) {
-    const current = loadDraft(NAMESPACE);
-    saveDraft(NAMESPACE, { ...current, reviewing: nextReviewing, reviews: nextReviews });
-  }
-
-  function bake() {
-    const ids = epicTasks.map((t) => t.id);
-    const next = initReviews(ids, reviews);
-    setReviews(next);
-    setReviewing(true);
-    setSelectedReviewId(ids[0] ?? null);
-    persistReview(true, next);
-  }
-
-  function exitReview() {
-    setReviewing(false);
-    persistReview(false, reviews);
-  }
-
   function startFinalize() {
     setUploadOpen(true);
   }
@@ -300,79 +264,6 @@ export function StandaloneApp({ initialSession }: Props) {
       persistEpicTasks(next);
       return next;
     });
-  }
-
-  function changeReview(id: string, patch: Partial<SubtaskReview>) {
-    setReviews((prev) => {
-      const next = setReview(prev, id, patch);
-      persistReview(true, next);
-      return next;
-    });
-  }
-
-  function scheduleInterference(editedId: string) {
-    if (interferenceTimer.current) clearTimeout(interferenceTimer.current);
-    interferenceTimer.current = setTimeout(async () => {
-      const all = (loadDraft(NAMESPACE).epicTasks ?? []).map((t) => {
-        const d = loadDraft(epicTaskNamespace(t.id));
-        return { id: t.id, title: d.title, description: d.description, labels: t.labels, blocks: t.blocks, blockedBy: t.blockedBy };
-      });
-      const edited = all.find((s) => s.id === editedId);
-      if (!edited) return;
-      try {
-        const res = await fetch("/api/interference", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            epicDescription: (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim(),
-            editedSubtask: edited,
-            allSubtasks: all,
-          }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && Array.isArray(json.interference)) {
-          const map: InterferenceMap = {};
-          for (const w of json.interference) map[w.affectedTaskId] = w;
-          setInterference(map);
-        }
-      } catch {
-        /* advisory; ignore */
-      }
-    }, 400);
-  }
-
-  function reviewTitleChange(id: string, title: string) {
-    setEpicTasks((prev) => {
-      if (prev.find((t) => t.id === id)?.title === title) return prev;
-      const next = setTitle(prev, id, title);
-      persistEpicTasks(next);
-      return next;
-    });
-    scheduleInterference(id);
-  }
-  function reviewSetLabels(id: string, labels: string[]) {
-    setEpicTasks((prev) => { const next = setTaskLabels(prev, id, labels); persistEpicTasks(next); return next; });
-    scheduleInterference(id);
-  }
-  function reviewAddLink(blockerId: string, blockedId: string) {
-    setEpicTasks((prev) => { const next = addTaskLink(prev, blockerId, blockedId); persistEpicTasks(next); return next; });
-    scheduleInterference(blockerId);
-  }
-  function reviewRemoveLink(blockerId: string, blockedId: string) {
-    setEpicTasks((prev) => { const next = removeTaskLink(prev, blockerId, blockedId); persistEpicTasks(next); return next; });
-    scheduleInterference(blockerId);
-  }
-  function reviewDelete(id: string) {
-    clearDraft(epicTaskNamespace(id));
-    setEpicTasks((prev) => { const next = deleteEpicTask(prev, id); persistEpicTasks(next); return next; });
-    setReviews((prev) => { const m = { ...prev }; delete m[id]; persistReview(reviewing, m); return m; });
-    setInterference((prev) => { const m = { ...prev }; delete m[id]; return m; });
-    setAnalyzeChatById((prev) => { const m = { ...prev }; delete m[id]; return m; });
-    if (analyzeTaskId === id) { setAnalyzeTaskId(null); setWalking(false); }
-    if (selectedReviewId === id) {
-      const remaining = epicTasks.filter((t) => t.id !== id);
-      setSelectedReviewId(remaining[0]?.id ?? null);
-    }
   }
 
   const doughIsStale =
@@ -683,10 +574,6 @@ export function StandaloneApp({ initialSession }: Props) {
     for (const t of epicTasks) clearDraft(epicTaskNamespace(t.id));
     commitEpicTasks([]);
     setActiveTab("epic");
-    setReviewing(false);
-    setReviews({});
-    setInterference({});
-    persistReview(false, {});
     setAnalyzeChatById({});
     setAnalyzeTaskId(null);
     setWalking(false);
@@ -867,26 +754,7 @@ export function StandaloneApp({ initialSession }: Props) {
         )}
 
         {mode.kind === "idle" || mode.kind === "running" ? (
-          epicMode && reviewing ? (
-            <ReviewerMode
-              epicTitle={liveDraft?.title ?? ""}
-              epicDescriptionHtml={liveDraft?.description ?? ""}
-              tasks={epicTasks}
-              reviews={reviews}
-              interference={interference}
-              selectedId={selectedReviewId}
-              refreshKey={taskRefreshKey}
-              onSelect={setSelectedReviewId}
-              onEditTasks={exitReview}
-              onFinalize={startFinalize}
-              onTitleChange={reviewTitleChange}
-              onSetLabels={reviewSetLabels}
-              onAddLink={reviewAddLink}
-              onRemoveLink={reviewRemoveLink}
-              onReviewChange={changeReview}
-              onDelete={reviewDelete}
-            />
-          ) : epicMode && epicTasks.length > 0 ? (
+          epicMode && epicTasks.length > 0 ? (
             <div className="px-6 py-4 flex-1 min-h-0 flex flex-col max-w-5xl w-full">
               <EpicTabs
                 tasks={epicTasks}
@@ -896,7 +764,7 @@ export function StandaloneApp({ initialSession }: Props) {
                 onAdd={addTask}
                 onAnalyzeAll={startAnalyzeWalk}
                 onAnalyzeTask={openAnalyzeForTask}
-                onBake={bake}
+                onBake={() => {}}
                 onBack={() => confirmReKnead(false)}
                 onTitleChange={taskTitleChange}
                 onSetLabels={taskSetLabels}
@@ -1043,7 +911,7 @@ export function StandaloneApp({ initialSession }: Props) {
         />
       )}
 
-      {epicMode && !reviewing && epicTasks.length === 0 && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
+      {epicMode && epicTasks.length === 0 && (mode.kind === "idle" || mode.kind === "running") && knead.status !== "idle" && (
         <KneadingPanel
           state={knead}
           loading={kneadLoading}
@@ -1113,21 +981,15 @@ export function StandaloneApp({ initialSession }: Props) {
         />
       )}
       {uploadOpen && (() => {
-        const denied = epicTasks
-          .filter((t) => reviews[t.id]?.status === "denied")
-          .map((t) => ({ id: t.id, title: t.title }));
-        const ids = nonDeniedTaskIds(reviews, epicTasks.map((t) => t.id))
-          .filter((id) => !epicTasks.find((t) => t.id === id)?.uploadedIssueKey);
-        const uploadTasks: UploadTask[] = ids
-          .map((id) => {
-            const t = epicTasks.find((x) => x.id === id)!;
-            const d = loadDraft(epicTaskNamespace(id));
-            return { id, draft: d, assignee: reviews[id]?.assignee ?? undefined, labels: t.labels };
-          });
+        const uploadTasks: UploadTask[] = epicTasks.map((t) => ({
+          id: t.id,
+          draft: loadDraft(epicTaskNamespace(t.id)),
+          labels: t.labels,
+        }));
         return (
           <UploadSheet
             tasks={uploadTasks}
-            denied={denied}
+            denied={[]}
             epicTitle={liveDraft?.title ?? ""}
             epicDescriptionHtml={liveDraft?.description ?? ""}
             onCancel={() => setUploadOpen(false)}

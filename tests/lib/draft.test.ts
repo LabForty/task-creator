@@ -66,18 +66,6 @@ describe("lib/draft/autosave", () => {
     expect(loadDraft("m3").mode).toBe("single");
   });
 
-  it("loadDraft preserves reviewing + reviews", () => {
-    const reviews = { s1: { status: "approved", comment: "", assignee: null } };
-    window.localStorage.setItem("task-creator:draft:rv", JSON.stringify({ title: "T", reviewing: true, reviews }));
-    const d = loadDraft("rv");
-    expect(d.reviewing).toBe(true);
-    expect(d.reviews).toEqual(reviews);
-  });
-  it("loadDraft defaults reviewing to false/undefined when absent", () => {
-    window.localStorage.setItem("task-creator:draft:rv2", JSON.stringify({ title: "T" }));
-    expect(loadDraft("rv2").reviewing).toBeFalsy();
-  });
-
   it("loadDraft preserves an epicTasks array", () => {
     const epicTasks = [{ id: "t1", title: "T", labels: ["x"], blocks: [], blockedBy: [] }];
     window.localStorage.setItem("task-creator:draft:et", JSON.stringify({ title: "T", epicTasks }));
