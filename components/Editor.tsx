@@ -70,10 +70,22 @@ export function Editor({
     draftRef.current = draft;
   }, [draft]);
 
+  // Track whether we've finished hydrating from localStorage. On the very
+  // first render, `draft` is EMPTY_DRAFT (a controlled-component placeholder)
+  // — letting the autosave/onDraftChange effects fire with that value would
+  // (1) write an empty draft over the persisted one, briefly exposing a
+  // window where any synchronous read of storage (e.g. `persistEpic` during
+  // a Knead click landing immediately after page load) would see the wiped
+  // description, and (2) push EMPTY_DRAFT up to the parent's `liveDraft`,
+  // which would then propagate mode="single" / description="" back through
+  // any prop derived from liveDraft. We gate both effects on `hydrated`.
+  const [hydrated, setHydrated] = useState(false);
+
   useEffect(() => {
     const loaded = loadDraft(namespace);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(loaded);
+    setHydrated(true);
   }, [namespace]);
 
   // Save synchronously on every change — localStorage writes are cheap and
@@ -81,20 +93,32 @@ export function Editor({
   // closed or the server restarts mid-edit.
   // mode/knead are owned by the parent (StandaloneApp) which persists them
   // separately; preserve whatever is already in storage so Editor's content
-  // autosave never clobbers epic-mode state.
+  // autosave never clobbers epic-mode state. Skip until hydrated so we don't
+  // overwrite the persisted description with the initial EMPTY_DRAFT.
   useEffect(() => {
+    if (!hydrated) return;
     const existing = loadDraft(namespace);
     saveDraft(namespace, { ...draft, mode: existing.mode, knead: existing.knead, epicTasks: existing.epicTasks, chatHistory: existing.chatHistory });
-  }, [namespace, draft]);
+  }, [namespace, draft, hydrated]);
 
   const onDraftChangeRef = useRef(onDraftChange);
   useEffect(() => { onDraftChangeRef.current = onDraftChange; }, [onDraftChange]);
-  useEffect(() => { onDraftChangeRef.current?.(draft); }, [draft]);
+  // Skip the initial EMPTY_DRAFT push so the parent doesn't briefly see
+  // mode="single" / description="" before hydration completes.
+  useEffect(() => { if (hydrated) onDraftChangeRef.current?.(draft); }, [draft, hydrated]);
+
+  // Refs let the flush handlers below stay stable (one set of listeners for
+  // the component's lifetime) while still seeing the latest hydration state.
+  const hydratedRef = useRef(hydrated);
+  useEffect(() => { hydratedRef.current = hydrated; }, [hydrated]);
 
   useEffect(() => {
     // Belt-and-braces flush on tab close / hide. setTimeout(0) would be too
     // late here — `pagehide` is the last chance to write synchronously.
     const flush = () => {
+      // Don't overwrite the persisted draft with EMPTY_DRAFT if the tab is
+      // closed before hydration completes.
+      if (!hydratedRef.current) return;
       const existing = loadDraft(namespace);
       saveDraft(namespace, { ...draftRef.current, mode: existing.mode, knead: existing.knead, epicTasks: existing.epicTasks, chatHistory: existing.chatHistory });
     };
