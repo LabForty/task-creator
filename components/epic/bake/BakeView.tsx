@@ -82,34 +82,32 @@ export function BakeView(props: Props) {
             </div>
           )
         ) : selectedFinalized ? (
-          <div className="h-full min-h-0 flex flex-col">
-            <div className="flex-1 min-h-0">
-              <BakeTaskPreview
-                taskId={selectedTask.id}
-                finalized={selectedFinalized}
-                diagrams={props.diagramsById[selectedTask.id]}
-                onCreateDiagrams={() => props.onCreateDiagrams(selectedTask.id)}
-                creatingDiagrams={props.creatingForId === selectedTask.id}
-                onEditDiagram={(f, s) => props.onEditDiagram(selectedTask.id, f, s)}
-                onRegenerateDiagram={(f) => props.onRegenerateDiagram(selectedTask.id, f)}
-                regeneratingFormat={props.regeneratingForId === selectedTask.id ? props.regeneratingFormat : null}
-                onAnalyzeDiagrams={() => props.onAnalyzeDiagrams(selectedTask.id)}
-                analyzingDiagrams={props.analyzingForId === selectedTask.id}
-                analysisFindings={props.analysisFindings[selectedTask.id] ?? null}
-                onApplyAnalysis={(ids) => props.onApplyAnalysis(selectedTask.id, ids)}
-                applyingAnalysis={props.applyingForId === selectedTask.id}
-                onDismissAnalysis={() => props.onDismissAnalysis(selectedTask.id)}
-                onMarkdownChange={(next) => props.onMarkdownChange(selectedTask.id, next)}
+          <BakeTaskPreview
+            taskId={selectedTask.id}
+            finalized={selectedFinalized}
+            diagrams={props.diagramsById[selectedTask.id]}
+            onCreateDiagrams={() => props.onCreateDiagrams(selectedTask.id)}
+            creatingDiagrams={props.creatingForId === selectedTask.id}
+            onEditDiagram={(f, s) => props.onEditDiagram(selectedTask.id, f, s)}
+            onRegenerateDiagram={(f) => props.onRegenerateDiagram(selectedTask.id, f)}
+            regeneratingFormat={props.regeneratingForId === selectedTask.id ? props.regeneratingFormat : null}
+            onAnalyzeDiagrams={() => props.onAnalyzeDiagrams(selectedTask.id)}
+            analyzingDiagrams={props.analyzingForId === selectedTask.id}
+            analysisFindings={props.analysisFindings[selectedTask.id] ?? null}
+            onApplyAnalysis={(ids) => props.onApplyAnalysis(selectedTask.id, ids)}
+            applyingAnalysis={props.applyingForId === selectedTask.id}
+            onDismissAnalysis={() => props.onDismissAnalysis(selectedTask.id)}
+            onMarkdownChange={(next) => props.onMarkdownChange(selectedTask.id, next)}
+            reviewSlot={
+              <TaskReviewBar
+                key={selectedTask.id}
+                status={selectedTask.reviewStatus}
+                comment={selectedTask.reviewComment ?? ""}
+                onStatusChange={(s) => props.onSetReviewStatus(selectedTask.id, s)}
+                onCommentChange={(c) => props.onSetReviewComment(selectedTask.id, c)}
               />
-            </div>
-            <TaskReviewBar
-              key={selectedTask.id}
-              status={selectedTask.reviewStatus}
-              comment={selectedTask.reviewComment ?? ""}
-              onStatusChange={(s) => props.onSetReviewStatus(selectedTask.id, s)}
-              onCommentChange={(c) => props.onSetReviewComment(selectedTask.id, c)}
-            />
-          </div>
+            }
+          />
         ) : (
           <div className="p-6 text-hig-body text-ink-secondary">
             This task was not finalized (failed during bake). Go back to editing and re-bake.

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Preview } from "@/components/Preview";
 import type { AnalyzeFinding, Diagrams, FinalizedPayload, MermaidFormat } from "@/lib/jobs/types";
 
@@ -19,6 +20,7 @@ type Props = {
   applyingAnalysis: boolean;
   onDismissAnalysis: () => void;
   onMarkdownChange: (next: string) => void;
+  reviewSlot?: ReactNode;
 };
 
 export function BakeTaskPreview(props: Props) {
@@ -38,6 +40,7 @@ export function BakeTaskPreview(props: Props) {
       applyingAnalysis={props.applyingAnalysis}
       onDismissAnalysis={props.onDismissAnalysis}
       onMarkdownChange={props.onMarkdownChange}
+      reviewSlot={props.reviewSlot}
       // No onHelp (per-task diagrams Help is out of scope for v1).
       // No jiraConnected/onExportToJira (per-task export is out of scope; batch only).
     />

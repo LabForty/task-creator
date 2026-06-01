@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { BakeView } from "@/components/epic/bake/BakeView";
 import type { FinalizedPayload } from "@/lib/jobs/types";
 
@@ -8,7 +9,9 @@ vi.mock("@/components/MermaidDiagram", () => ({
   MermaidDiagram: ({ source }: { source: string }) => <pre data-testid="md-source">{source}</pre>,
 }));
 vi.mock("@/components/Preview", () => ({
-  Preview: ({ payload }: { payload: FinalizedPayload }) => <div data-testid="preview">{payload.story.title}</div>,
+  Preview: ({ payload, reviewSlot }: { payload: FinalizedPayload; reviewSlot?: ReactNode }) => (
+    <div data-testid="preview">{payload.story.title}{reviewSlot}</div>
+  ),
 }));
 
 const tasks = [

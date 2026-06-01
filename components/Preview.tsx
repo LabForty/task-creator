@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { openJiraConnectPopup } from "@/components/JiraChip";
 import { DiagramView } from "@/components/DiagramView";
@@ -23,6 +23,9 @@ type Props = {
   onDismissAnalysis?: () => void;
   onHelp?: () => void;
   onMarkdownChange?: (next: string) => void;
+  // Optional content rendered in the left card, just under the title and above
+  // the markdown editor (used by reviewer mode for the per-task review controls).
+  reviewSlot?: ReactNode;
   jiraConnected?: boolean;
   jiraConfigured?: boolean;
   onExportToJira?: () => void;
@@ -44,6 +47,7 @@ export function Preview({
   onDismissAnalysis,
   onHelp,
   onMarkdownChange,
+  reviewSlot,
   jiraConnected,
   jiraConfigured,
   onExportToJira,
@@ -97,6 +101,8 @@ export function Preview({
               </Button>
             </a>
           </header>
+
+          {reviewSlot}
 
           {!gatesOk && (
             <div className="rounded-md bg-warning/10 border border-warning/40 px-3 py-2 shrink-0">
