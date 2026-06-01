@@ -25,7 +25,7 @@ export function TaskReviewBar({ status, comment, onStatusChange, onCommentChange
   }
 
   return (
-    <div className="border-b border-rule bg-surface px-6 py-3 flex flex-col gap-2 shrink-0">
+    <div className="border-t border-rule bg-surface px-6 py-3 flex flex-col gap-2 shrink-0">
       <div className="flex items-center gap-2">
         <span className="hig-section-label">Review</span>
         <span className="flex-1" />
