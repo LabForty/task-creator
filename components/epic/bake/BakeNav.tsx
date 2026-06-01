@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import type { EpicTask } from "@/lib/epic/tasks";
+import type { EpicTask, ReviewStatus } from "@/lib/epic/tasks";
 
 type Props = {
   tasks: EpicTask[];
@@ -11,6 +11,7 @@ type Props = {
   onSelect: (id: "epic" | string) => void;
   onUploadAll: () => void;
   onBackToEditing: () => void;
+  uploadDisabled?: boolean;
 };
 
 function entryClass(active: boolean): string {
@@ -18,6 +19,15 @@ function entryClass(active: boolean): string {
     "w-full text-left px-3 py-2 rounded-md text-hig-body transition-colors " +
     (active ? "bg-accent-tint text-accent font-medium" : "text-ink hover:bg-surface-muted")
   );
+}
+
+function statusDot(status?: ReviewStatus): { cls: string; label: string } {
+  switch (status) {
+    case "approved": return { cls: "bg-success", label: "approved" };
+    case "denied": return { cls: "bg-danger", label: "denied" };
+    case "change_requested": return { cls: "bg-warning", label: "change requested" };
+    default: return { cls: "bg-rule", label: "not reviewed" };
+  }
 }
 
 export function BakeNav(props: Props) {
@@ -46,7 +56,14 @@ export function BakeNav(props: Props) {
               className={entryClass(props.selectedId === t.id)}
             >
               <span className="flex items-center gap-2">
+                {(() => {
+                  const dot = statusDot(t.reviewStatus);
+                  return <span className={`h-2 w-2 rounded-full shrink-0 ${dot.cls}`} aria-label={dot.label} />;
+                })()}
                 <span className="flex-1 truncate">{t.title || "(untitled)"}</span>
+                {t.reviewComment && t.reviewComment.trim().length > 0 && (
+                  <span className="text-ink-secondary text-[12px]" aria-label="has comment" title="Has a review comment">💬</span>
+                )}
                 {baked && <span className="text-success text-[12px]" aria-label="baked">✓</span>}
                 {failed && <span title={failed} className="text-danger text-[12px]" aria-label="failed">⨯</span>}
               </span>
@@ -55,7 +72,12 @@ export function BakeNav(props: Props) {
         })}
       </div>
       <div className="p-3 border-t border-rule flex flex-col gap-2">
-        <Button onClick={props.onUploadAll}>Upload all to Jira</Button>
+        <Button onClick={props.onUploadAll} disabled={props.uploadDisabled}>Upload all to Jira</Button>
+        {props.uploadDisabled && (
+          <p className="text-hig-footnote text-ink-secondary">
+            You need to review all the tasks and resolve requested changes.
+          </p>
+        )}
         <Button variant="secondary" size="sm" onClick={props.onBackToEditing}>
           ← Back to editing
         </Button>
