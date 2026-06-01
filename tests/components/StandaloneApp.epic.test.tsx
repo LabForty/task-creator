@@ -191,11 +191,6 @@ describe("StandaloneApp — epic mode", () => {
     });
   }
 
-  // Reviewer mode + per-task review state were removed in AI-36 Phase A.
-  // Phase C will reintroduce the Bake flow atop the new Bake view; this test
-  // will be rewritten against that surface.
-  it.skip("bakes into reviewer mode, sets a status, and persists reviews", async () => {});
-
   // Bake fetch: knead → subtasks (Alpha/Bravo) → finalize returns a jobId for
   // every task so runBakeAll resolves via the mocked subscribeToJob.
   function mockBakeFetch() {
@@ -253,6 +248,32 @@ describe("StandaloneApp — epic mode", () => {
     // UploadSheet destination phase confirms 1 uploads + 1 denied excluded.
     expect(await screen.findByText(/1 task will be uploaded/i)).toBeInTheDocument();
     expect(screen.getByText(/1 denied task will be excluded/i)).toBeInTheDocument();
+  });
+
+  it("bakes into reviewer mode, sets a status, and persists reviews", async () => {
+    vi.stubGlobal("fetch", mockBakeFetch());
+    render(<StandaloneApp initialSession={session} />);
+
+    // Knead → answer → generate sub-tasks (Alpha, Bravo) → Bake.
+    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
+    await userEvent.click(await screen.findByRole("radio", { name: "High" }));
+    await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /generate sub-tasks/i }));
+    await screen.findByDisplayValue("Alpha");
+    await userEvent.click(screen.getByRole("button", { name: /^bake$/i }));
+
+    // Reach baked reviewer mode, select Alpha, approve it.
+    await screen.findByRole("button", { name: /upload all to jira/i });
+    await userEvent.click(screen.getByRole("button", { name: /Alpha/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /^approve$/i }));
+
+    // The review status persists into the saved draft's epicTasks entry,
+    // via persistEpicTasks → saveDraft(NAMESPACE, { ...current, epicTasks }).
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
+      const alpha = (stored.epicTasks ?? []).find((t: { title: string }) => t.title === "Alpha");
+      expect(alpha?.reviewStatus).toBe("approved");
+    });
   });
 
   // Task 9 replaced the silent batch /api/refine flow with a sequential walk

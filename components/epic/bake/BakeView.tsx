@@ -84,6 +84,7 @@ export function BakeView(props: Props) {
         ) : selectedFinalized ? (
           <div className="h-full min-h-0 flex flex-col">
             <TaskReviewBar
+              key={selectedTask.id}
               status={selectedTask.reviewStatus}
               comment={selectedTask.reviewComment ?? ""}
               onStatusChange={(s) => props.onSetReviewStatus(selectedTask.id, s)}
