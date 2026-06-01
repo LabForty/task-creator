@@ -7,6 +7,8 @@ import { MAX_DESCRIPTION } from "@/lib/subtasks/types";
 // content (title/description/AC/constraints/taskType) lives in each task's own
 // Editor draft at namespace `standalone:epic:<id>`; `title` here is a mirror
 // for tab/nav labels only. Pure — no SDK/React.
+export type ReviewStatus = "approved" | "denied" | "change_requested";
+
 export type EpicTask = {
   id: string;
   title: string;
@@ -17,6 +19,10 @@ export type EpicTask = {
   // Persisted alongside the descriptor in the standalone draft.
   uploadedIssueKey?: string;
   uploadedIssueUrl?: string;
+  // Reviewer-mode decision. undefined = not yet reviewed. Persisted in the draft.
+  reviewStatus?: ReviewStatus;
+  // Free-text reviewer comment; required only when reviewStatus === "change_requested".
+  reviewComment?: string;
 };
 
 export const epicTaskNamespace = (id: string) => `standalone:epic:${id}`;
