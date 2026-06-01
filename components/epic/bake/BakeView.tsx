@@ -82,7 +82,7 @@ export function BakeView(props: Props) {
             </div>
           )
         ) : selectedFinalized ? (
-          <div className="min-h-0 flex flex-col">
+          <div className="h-full min-h-0 flex flex-col">
             <TaskReviewBar
               status={selectedTask.reviewStatus}
               comment={selectedTask.reviewComment ?? ""}

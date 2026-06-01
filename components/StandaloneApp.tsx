@@ -973,6 +973,7 @@ export function StandaloneApp({ initialSession }: Props) {
               applyingForId={applyingForId}
               onDismissAnalysis={dismissAnalysisForTask}
               onMarkdownChange={onMarkdownChangeForTask}
+              // TODO(Task 5): replace no-op review handlers + wire real uploadDisabled
               onSetReviewStatus={() => {}}
               onSetReviewComment={() => {}}
             />
