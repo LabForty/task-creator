@@ -48,6 +48,7 @@ export function BakeNav(props: Props) {
         {props.tasks.map((t) => {
           const baked = props.finalizedIds.has(t.id);
           const failed = props.failedIds[t.id];
+          const dot = statusDot(t.reviewStatus);
           return (
             <button
               key={t.id}
@@ -56,10 +57,7 @@ export function BakeNav(props: Props) {
               className={entryClass(props.selectedId === t.id)}
             >
               <span className="flex items-center gap-2">
-                {(() => {
-                  const dot = statusDot(t.reviewStatus);
-                  return <span className={`h-2 w-2 rounded-full shrink-0 ${dot.cls}`} aria-label={dot.label} />;
-                })()}
+                <span className={`h-2 w-2 rounded-full shrink-0 ${dot.cls}`} aria-label={dot.label} />
                 <span className="flex-1 truncate">{t.title || "(untitled)"}</span>
                 {t.reviewComment && t.reviewComment.trim().length > 0 && (
                   <span className="text-ink-secondary text-[12px]" aria-label="has comment" title="Has a review comment">💬</span>
