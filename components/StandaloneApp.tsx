@@ -973,6 +973,8 @@ export function StandaloneApp({ initialSession }: Props) {
               applyingForId={applyingForId}
               onDismissAnalysis={dismissAnalysisForTask}
               onMarkdownChange={onMarkdownChangeForTask}
+              onSetReviewStatus={() => {}}
+              onSetReviewComment={() => {}}
             />
           ) : epicMode && epicTasks.length > 0 ? (() => {
             const taskDescriptionPreviews: Record<string, string> = {};

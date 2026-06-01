@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { BakeView } from "@/components/epic/bake/BakeView";
 import type { FinalizedPayload } from "@/lib/jobs/types";
 
@@ -42,6 +43,8 @@ const baseProps = {
   applyingForId: null,
   onDismissAnalysis: () => {},
   onMarkdownChange: () => {},
+  onSetReviewStatus: () => {},
+  onSetReviewComment: () => {},
 };
 
 describe("<BakeView>", () => {
@@ -55,5 +58,26 @@ describe("<BakeView>", () => {
   it("renders the BakeTaskPreview when a task is selected", () => {
     render(<BakeView {...baseProps} selectedId="a" />);
     expect(screen.getByTestId("preview")).toHaveTextContent("Alpha story");
+  });
+
+  it("renders the review bar for a selected task and fires status changes", async () => {
+    const onSetReviewStatus = vi.fn();
+    render(
+      <BakeView
+        {...baseProps}
+        selectedId="a"
+        onSetReviewStatus={onSetReviewStatus}
+        onSetReviewComment={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /approve/i }));
+    expect(onSetReviewStatus).toHaveBeenCalledWith("a", "approved");
+  });
+
+  it("does not render the review bar on the epic overview", () => {
+    render(
+      <BakeView {...baseProps} selectedId="epic" onSetReviewStatus={() => {}} onSetReviewComment={() => {}} />,
+    );
+    expect(screen.queryByRole("button", { name: /request change/i })).not.toBeInTheDocument();
   });
 });
