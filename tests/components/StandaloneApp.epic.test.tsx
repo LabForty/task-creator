@@ -5,6 +5,27 @@ import { StandaloneApp } from "@/components/StandaloneApp";
 
 const session = { configured: true, connected: true } as never;
 
+// Mock MermaidDiagram + subscribeToJob so the Bake flow can finalize tasks in
+// jsdom. subscribeToJob immediately fires a `finalized` event so runBakeAll's
+// per-task promise resolves and bakeStatus reaches "baked".
+vi.mock("@/components/MermaidDiagram", () => ({
+  MermaidDiagram: ({ source }: { source: string }) => <pre data-testid="md-source">{source}</pre>,
+}));
+vi.mock("@/lib/sse/client", () => ({
+  subscribeToJob: (_jobId: string, cb: (e: unknown) => void) => {
+    const payload = {
+      requirement: { title: "R" },
+      story: { title: "Baked story" },
+      gates: { schema: { ok: true }, consistency: { ok: true } },
+      markdown: "# Baked",
+      downloadUrls: { requirement: "#", story: "#", markdown: "#" },
+    };
+    // Fire asynchronously so the subscribe call returns its unsub first.
+    queueMicrotask(() => cb({ type: "finalized", payload }));
+    return () => {};
+  },
+}));
+
 // Deterministic /api/knead: round 1 questions, then complete.
 function mockKneadFetch() {
   let calls = 0;
@@ -174,6 +195,65 @@ describe("StandaloneApp — epic mode", () => {
   // Phase C will reintroduce the Bake flow atop the new Bake view; this test
   // will be rewritten against that surface.
   it.skip("bakes into reviewer mode, sets a status, and persists reviews", async () => {});
+
+  // Bake fetch: knead → subtasks (Alpha/Bravo) → finalize returns a jobId for
+  // every task so runBakeAll resolves via the mocked subscribeToJob.
+  function mockBakeFetch() {
+    let kneadCalls = 0;
+    let jobSeq = 0;
+    return vi.fn(async (url: string) => {
+      if (typeof url === "string" && url.includes("/api/jira/session")) return { ok: true, json: async () => session } as unknown as Response;
+      if (typeof url === "string" && url.includes("/api/knead")) {
+        kneadCalls += 1;
+        const body = kneadCalls === 1
+          ? { kind: "questions", round: { questions: [{ id: "a", prompt: "Risk?", section: "technical", type: "single", options: ["Low", "High"] }] } }
+          : { kind: "complete" };
+        return { ok: true, json: async () => body } as unknown as Response;
+      }
+      if (typeof url === "string" && url.includes("/api/subtasks")) {
+        return { ok: true, json: async () => ({ subtasks: [
+          { title: "Alpha", description: "a", labels: [], blocks: [] },
+          { title: "Bravo", description: "b", labels: [], blocks: [] },
+        ] }) } as unknown as Response;
+      }
+      if (typeof url === "string" && url.includes("/api/finalize")) {
+        jobSeq += 1;
+        return { ok: true, json: async () => ({ jobId: `job-${jobSeq}` }) } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({}) } as unknown as Response;
+    });
+  }
+
+  it("gates upload until every task is approved or denied, and excludes denied", async () => {
+    vi.stubGlobal("fetch", mockBakeFetch());
+    render(<StandaloneApp initialSession={session} />);
+
+    // Knead → answer → generate sub-tasks (Alpha, Bravo).
+    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
+    await userEvent.click(await screen.findByRole("radio", { name: "High" }));
+    await userEvent.click(screen.getByRole("button", { name: /^knead$/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /generate sub-tasks/i }));
+    await screen.findByDisplayValue("Alpha");
+
+    // Bake → reach baked reviewer mode (the BakeNav "Upload all to Jira" button).
+    await userEvent.click(screen.getByRole("button", { name: /^bake$/i }));
+
+    const uploadBtn = await screen.findByRole("button", { name: /upload all to jira/i });
+    expect(uploadBtn).toBeDisabled(); // nothing reviewed yet
+
+    // Approve Alpha, Deny Bravo via the review bar (select each in the nav first).
+    await userEvent.click(screen.getByRole("button", { name: /Alpha/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /^approve$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Bravo/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /^deny$/i }));
+
+    expect(uploadBtn).toBeEnabled();
+
+    await userEvent.click(uploadBtn);
+    // UploadSheet destination phase confirms 1 uploads + 1 denied excluded.
+    expect(await screen.findByText(/1 task will be uploaded/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 denied task will be excluded/i)).toBeInTheDocument();
+  });
 
   // Task 9 replaced the silent batch /api/refine flow with a sequential walk
   // state machine; Analyze-all now opens the walk UI instead of calling

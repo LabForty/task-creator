@@ -12,8 +12,9 @@ import { BackBar } from "@/components/epic/BackBar";
 import {
   epicTaskNamespace, descriptorsFromProposed, seedsFromProposed,
   addEpicTask, deleteEpicTask, setTitle, setLabels as setTaskLabels,
-  addLink as addTaskLink, removeLink as removeTaskLink, type EpicTask,
+  addLink as addTaskLink, removeLink as removeTaskLink, type EpicTask, type ReviewStatus,
 } from "@/lib/epic/tasks";
+import { setReviewStatus, setReviewComment, isReviewComplete, tasksForUpload, deniedTasks } from "@/lib/epic/review";
 import { UploadSheet } from "@/components/epic/review/UploadSheet";
 import type { UploadTask } from "@/lib/upload/types";
 import type { ProposedSubtask } from "@/lib/subtasks/types";
@@ -261,6 +262,12 @@ export function StandaloneApp({ initialSession }: Props) {
   function taskSetLabels(id: string, labels: string[]) { commitEpicTasks(setTaskLabels(epicTasks, id, labels)); }
   function taskAddLink(a: string, b: string) { commitEpicTasks(addTaskLink(epicTasks, a, b)); }
   function taskRemoveLink(a: string, b: string) { commitEpicTasks(removeTaskLink(epicTasks, a, b)); }
+  function setTaskReviewStatus(id: string, status: ReviewStatus) {
+    commitEpicTasks(setReviewStatus(epicTasks, id, status));
+  }
+  function setTaskReviewComment(id: string, comment: string) {
+    commitEpicTasks(setReviewComment(epicTasks, id, comment));
+  }
 
   function startFinalize() {
     setUploadOpen(true);
@@ -973,9 +980,9 @@ export function StandaloneApp({ initialSession }: Props) {
               applyingForId={applyingForId}
               onDismissAnalysis={dismissAnalysisForTask}
               onMarkdownChange={onMarkdownChangeForTask}
-              // TODO(Task 5): replace no-op review handlers + wire real uploadDisabled
-              onSetReviewStatus={() => {}}
-              onSetReviewComment={() => {}}
+              onSetReviewStatus={setTaskReviewStatus}
+              onSetReviewComment={setTaskReviewComment}
+              uploadDisabled={!isReviewComplete(epicTasks)}
             />
           ) : epicMode && epicTasks.length > 0 ? (() => {
             const taskDescriptionPreviews: Record<string, string> = {};
@@ -1241,7 +1248,8 @@ export function StandaloneApp({ initialSession }: Props) {
         />
       )}
       {uploadOpen && (() => {
-        const uploadTasks: UploadTask[] = epicTasks.map((t) => ({
+        const approved = tasksForUpload(epicTasks);
+        const uploadTasks: UploadTask[] = approved.map((t) => ({
           id: t.id,
           draft: loadDraft(epicTaskNamespace(t.id)),
           labels: t.labels,
@@ -1251,7 +1259,7 @@ export function StandaloneApp({ initialSession }: Props) {
         return (
           <UploadSheet
             tasks={uploadTasks}
-            denied={[]}
+            denied={deniedTasks(epicTasks)}
             epicTitle={liveDraft?.title ?? ""}
             epicDescriptionHtml={liveDraft?.description ?? ""}
             epicDescriptionMarkdown={finalizedById["epic"]?.markdown}
