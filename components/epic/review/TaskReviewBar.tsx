@@ -31,7 +31,7 @@ export function TaskReviewBar({ status, comment, onStatusChange, onCommentChange
         <span className="flex-1" />
         <Button
           size="sm"
-          variant={status === "approved" ? "primary" : "secondary"}
+          variant={status === "approved" ? "success" : "secondary"}
           aria-pressed={status === "approved"}
           onClick={() => pick("approved")}
         >
@@ -39,7 +39,7 @@ export function TaskReviewBar({ status, comment, onStatusChange, onCommentChange
         </Button>
         <Button
           size="sm"
-          variant={status === "denied" ? "danger" : "secondary"}
+          variant={status === "denied" ? "warning" : "secondary"}
           aria-pressed={status === "denied"}
           onClick={() => pick("denied")}
         >
@@ -47,7 +47,7 @@ export function TaskReviewBar({ status, comment, onStatusChange, onCommentChange
         </Button>
         <Button
           size="sm"
-          variant={status === "change_requested" ? "primary" : "secondary"}
+          variant={status === "change_requested" ? "danger" : "secondary"}
           aria-pressed={status === "change_requested"}
           onClick={() => pick("change_requested")}
         >

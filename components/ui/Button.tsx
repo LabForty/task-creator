@@ -2,7 +2,7 @@
 
 import { ButtonHTMLAttributes, forwardRef } from "react";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "success" | "warning";
 type Size = "sm" | "md" | "lg";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -35,6 +35,10 @@ const variants: Record<Variant, string> = {
     "bg-transparent text-accent hover:bg-accent-tint",
   danger:
     "bg-danger text-white hover:opacity-90",
+  success:
+    "bg-success text-white hover:opacity-90",
+  warning:
+    "bg-warning text-white hover:opacity-90",
 };
 
 export const Button = forwardRef<HTMLButtonElement, Props>(function Button(

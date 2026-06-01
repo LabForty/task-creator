@@ -24,8 +24,8 @@ function entryClass(active: boolean): string {
 function statusDot(status?: ReviewStatus): { cls: string; label: string } {
   switch (status) {
     case "approved": return { cls: "bg-success", label: "approved" };
-    case "denied": return { cls: "bg-danger", label: "denied" };
-    case "change_requested": return { cls: "bg-warning", label: "change requested" };
+    case "denied": return { cls: "bg-warning", label: "denied" };
+    case "change_requested": return { cls: "bg-danger", label: "change requested" };
     default: return { cls: "bg-rule", label: "not reviewed" };
   }
 }
