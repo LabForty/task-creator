@@ -1,24 +1,24 @@
 {
-  "lastSyncedAt": "2026-05-22T09:59:31.808Z",
-  "latestModified": "2026-05-22T01:00:19Z",
+  "lastSyncedAt": "2026-06-01T06:29:25.046Z",
+  "latestModified": "2026-05-29T10:05:04Z",
   "types": {
     "bug": {
-      "modified": "2026-05-22T01:00:19Z"
+      "modified": "2026-05-29T10:05:04Z"
     },
     "change_request": {
-      "modified": "2026-05-22T01:00:19Z"
+      "modified": "2026-05-29T10:05:04Z"
     },
     "design": {
-      "modified": "2026-05-22T01:00:19Z"
+      "modified": "2026-05-29T10:05:04Z"
     },
     "epic": {
-      "modified": "2026-05-22T01:00:19Z"
+      "modified": "2026-05-29T10:05:04Z"
     },
     "spike": {
-      "modified": "2026-05-22T01:00:19Z"
+      "modified": "2026-05-29T10:05:04Z"
     },
     "story": {
-      "modified": "2026-05-22T01:00:19Z"
+      "modified": "2026-05-29T10:05:04Z"
     }
   }
 }

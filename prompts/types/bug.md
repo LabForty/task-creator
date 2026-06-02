@@ -1,59 +1,89 @@
 ## Agent Plan: Bug Report Jira Ticket Generation
 
-### Phase 1: Reproduction & Root Cause Analysis
+You are turning a bug input into a Jira ticket. The output must look like the **most recent rotating examples** in the conversation history — those are the user's gold standard. Match their shape:
 
-* **Steps:** Extract or infer a clear, numbered sequence of actions that triggers the bug.
-* **Actual vs. Expected:** Clearly separate what happens now (the bug) from what should happen (the correct behavior).
+1. **Summary** — 5–10 words describing the bug.
+2. **Release note title** — 2–3 words. Omit if the bug is internal-only.
+3. **Release note description** — one short non-technical sentence. Omit if you omitted the title.
+4. **Description** — usually left as just the `**Description:**` header with the body content carried under Steps / Actual / Expected. Or include a 1–2 sentence framing paragraph if the bug context warrants it.
+5. **Steps** — numbered list of concrete steps a QA can follow to reproduce the bug.
+6. **Actual Results** — 1–3 sentences describing what currently happens (the bug), extracted from the input.
+7. **Expected Results** — 1–3 sentences describing what should happen, extracted from the input. May be followed by a short paragraph noting the **likely root cause** (gated by a "likely" hedge) and related flows worth verifying after the fix.
 
-### Phase 2: Summary & Description Drafting
+Target output length is roughly **4–6× the input length** for short inputs. Reference: rotating[0] is 281c → 1748c (6×).
 
-* **Summary:** Write a sentence-case summary of 5–8 words that describes the bug (e.g., *Portfolio value shows stale data after trade*).
-* **Release Notes:** If the fix is user-visible, write a short release note title (2–3 words) and a one-sentence description in simple English.
-* **Description:** Write 2–3 sentences explaining what the bug is, the likely root cause (component, API, state), and what needs to change. Do NOT include Steps, Actual Results, or Expected Results in the Description — those are separate top-level sections.
-* **Steps:** A numbered sequence of actions to reproduce the bug. Each step should be a single clear action.
-* **Actual Results:** A single statement of what currently happens (the bug).
-* **Expected Results:** A single statement of what should happen instead.
-
-### Team-implicit framing rule
-
-The ticket targets ONE discipline (frontend, backend, design, QA, etc.). The wording must signal which one — but never spell it out.
-
-* **Never name the team or technology.** Forbidden words: BE, FE, Backend, Frontend, Mobile, Web, Server, Client, Native, "the API team", React, React Native, .NET, SwiftUI, Compose, SQL, AWS, etc. Don't say "the backend will return…" — say "the response will include…". Don't say "on the FE side" — say "on the screen".
-* **Use domain-appropriate vocabulary** so the discipline is obvious from context alone:
-    * Visual / interaction work — "screen", "view", "form", "card layout", "button label", "tap target", "loading state", "empty state", "navigation flow", "accessibility label", "input mask", "haptic feedback", "deep link", "scroll behavior", "modal", "toast".
-    * Server / data work — "endpoint", "request payload", "response shape", "validation rule", "persistence", "audit log", "computation", "schema migration", "queue", "retry", "idempotency", "rate limit", "background job", "permissions check".
-    * Design work — "wireframe", "hi-fi mock", "component variants", "accessibility audit", "tone of copy", "iconography", "spec hand-off".
-    * QA work — "regression scenario", "test data set", "edge case matrix", "exploratory pass".
-
-The team split is decided upstream by the planning step, not here. Trust that the input is already scoped to one discipline; write a ticket whose voice matches that work without telling the reader which team they're on.
-
-### Formatting Rules
-
-* **Section labels** must use the format `**Label:**` (bold markers close immediately after the colon, value on the same line or below).
-* **ALLOWED:** `**Label:**` markers, numbered lists (1. 2. 3.), and indented dashes (- sub-item).
-* **FORBIDDEN:** Asterisks for bold/italic inside content, hash symbols (#), horizontal dividers (---), and `* ` for bullets — use `- ` instead.
-* Content text must be plain text with no markdown formatting.
-* Bug tickets do NOT include Tasks or Acceptance criteria sections.
-* Steps, Actual Results, and Expected Results are each separate top-level sections (at the same level as Description), NOT nested inside Description.
+Bug tickets do NOT include Tasks or Acceptance criteria sections.
 
 ---
 
-### Example Template (For Agent Reference)
+### Faithfulness Rule (narrowed)
 
-**Summary:** [Sentence case, 5-8 words describing the bug]
+The output must be faithful to the input. "Faithful" does NOT mean "preserve verbatim". It means: don't fabricate specific technical artifacts the input doesn't establish.
 
-**Release note title:** [2-3 words, sentence case]
+**Do NOT invent:**
 
-**Release note description:** [One simple sentence describing the fix for the end user]
+- HTTP status codes, endpoint paths, payload field names the input doesn't mention.
+- Concrete property names, identifiers, or values the input doesn't list.
+- Specific devices, OS versions, browser versions, or network conditions not stated by the input.
+- Hard root-cause claims. Root-cause speculation must be hedged ("likely root cause is…") and grounded in what the input describes.
+
+**DO include (standard scaffolding):**
+
+- Reasonable repro steps derived from the user-visible scenario in the input (e.g. "Launch the app from a cold start", "Navigate to the affected screen").
+- Standard related-flows-to-verify mentions: cold start vs warm start, slow network/device, feature-flagged paths, light/dark mode, iOS and Android — when applicable to the bug context.
+- A hedged likely-root-cause sentence at the end of Expected Results when the input gives enough signal to make a reasonable inference.
+
+---
+
+### Two bug shapes
+
+1. **Reproducible bug** (the input describes a user-visible scenario): include Steps + Actual Results + Expected Results. Steps as a numbered list, Actual/Expected as short paragraphs.
+2. **Investigation/cleanup bug** (the input is "investigate X", "audit Y", "fix the scroll on Z" without a clear repro): include only Summary + Description + (optional) RN fields. Skip Steps/Actual/Expected.
+
+---
+
+### Team-implicit framing
+
+Strip "Create a ticket for the FE team" preambles. Never name the team or technology.
+
+---
+
+### Formatting Rules
+
+- **Section labels:** `**Summary:**`, `**Release note title:**`, `**Release note description:**`, `**Description:**`, `**Steps:**`, `**Actual Results:**`, `**Expected Results:**` (parsing markers, stay).
+- **Bold inside content (`**term**`)** is ALLOWED for emphasis.
+- **Italic (`*text*`)** is ALLOWED for direct quotes of user-facing copy or message text.
+- **Numbered lists** for Steps.
+- **FORBIDDEN:** hash symbols (`#`), horizontal dividers (`---`), `* ` bullets.
+
+---
+
+### Output contract (reproducible bug)
+
+```
+**Summary:**
+<5–10 words>
+
+**Release note title:**
+<2–3 words>            ← omit if internal-only
+
+**Release note description:**
+<one sentence>          ← omit if internal-only
 
 **Description:**
-[2-3 sentences explaining what the bug is, the likely root cause, and what needs to change. No Steps/Actual/Expected here.]
 
 **Steps:**
-1. [First step]
-2. [Second step]
-3. [Action that triggers the bug]
 
-**Actual Results:** [What happens now — the bug]
+1. <Step>
+2. <Step>
+3. <Step>
 
-**Expected Results:** [What should happen instead]
+**Actual Results:**
+<1–3 sentences from the input>
+
+**Expected Results:**
+<1–3 sentences from the input>
+<optional: short paragraph noting likely root cause + related flows worth verifying after the fix>
+```
+
+For investigation/cleanup bugs, emit only Summary + (optional) RN + Description (1–3 sentence essence of the work) — skip Steps/Actual/Expected.
