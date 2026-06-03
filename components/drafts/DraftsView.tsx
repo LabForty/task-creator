@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { DraftCard } from "./DraftCard";
 import type { DraftListItem } from "@/lib/drafts/payload";
@@ -45,12 +46,12 @@ export function DraftsView({ state, onDelete, onRetry }: Props) {
         <p className="text-hig-footnote text-ink-secondary">
           Drafts you save will show up here so you can pick them back up anytime.
         </p>
-        <a
+        <Link
           href="/"
           className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium h-9 px-3.5 text-hig-subhead bg-accent text-white hover:bg-accent-hover"
         >
           Create a task
-        </a>
+        </Link>
       </div>
     );
   }

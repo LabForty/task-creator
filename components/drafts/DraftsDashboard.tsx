@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { DraftsView, type DraftsState } from "./DraftsView";
 import { deleteDraftRequest } from "@/lib/drafts/client";
@@ -28,6 +29,8 @@ export function DraftsDashboard() {
   }, []);
 
   useEffect(() => {
+    // Fetch-on-mount: load() drives the loading→loaded/empty/error states.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
@@ -59,12 +62,12 @@ export function DraftsDashboard() {
           </p>
         </div>
         <span className="flex-1" />
-        <a
+        <Link
           href="/"
           className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium h-9 px-3.5 text-hig-subhead bg-surface-muted text-ink border border-rule hover:bg-surface-inset"
         >
           Back to creator
-        </a>
+        </Link>
       </header>
       <DraftsView state={state} onDelete={onDelete} onRetry={load} />
     </div>
