@@ -31,6 +31,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { subscribeToJob } from "@/lib/sse/client";
 import { loadDraft, saveDraft, clearDraft, EMPTY_DRAFT } from "@/lib/draft/autosave";
 import { upsertRequest, deleteDraftRequest } from "@/lib/drafts/client";
+import { buildEpicDraftPayload, applyEpicDraft, shouldDeleteEpicDraftOnClose } from "@/lib/drafts/epic";
 import { syncDiagramsInMarkdown } from "@/lib/render";
 import type { Draft } from "@/lib/draft/autosave";
 import type {
@@ -889,7 +890,13 @@ export function StandaloneApp({ initialSession }: Props) {
     }
   }
 
-  async function saveAsDraft(draft: Draft) {
+  function epicPayloadFromState(base: Draft): Partial<Draft> {
+    const subtaskDrafts: Record<string, Draft> = {};
+    for (const t of epicTasks) subtaskDrafts[t.id] = loadDraft(epicTaskNamespace(t.id));
+    return buildEpicDraftPayload(base, knead, epicTasks, subtaskDrafts);
+  }
+
+  async function persistDraftPayload(payload: Partial<Draft>) {
     setDraftSavedNote(null);
     const { url, method } = upsertRequest(draftId);
     try {
@@ -897,7 +904,7 @@ export function StandaloneApp({ initialSession }: Props) {
         method,
         headers: { "content-type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ draft }),
+        body: JSON.stringify({ draft: payload }),
       });
       if (res.status === 401) {
         window.location.href = `/signin?return=${encodeURIComponent("/")}`;
@@ -916,6 +923,16 @@ export function StandaloneApp({ initialSession }: Props) {
     } catch {
       setSubmitErr("We couldn't save your draft. Please check your connection and try again.");
     }
+  }
+
+  // Editor entry point (single mode, and epic before sub-tasks exist).
+  async function saveAsDraft(draft: Draft) {
+    await persistDraftPayload(epicMode ? epicPayloadFromState(draft) : draft);
+  }
+
+  // Header entry point (epic mode once sub-tasks exist and the Editor is hidden).
+  function saveEpicDraft() {
+    void persistDraftPayload(epicPayloadFromState(loadDraft(NAMESPACE)));
   }
 
   async function createDiagrams() {
@@ -995,6 +1012,11 @@ export function StandaloneApp({ initialSession }: Props) {
           >
             Drafts
           </a>
+          {epicMode && epicTasks.length > 0 && mode.kind === "idle" && (
+            <Button variant="secondary" onClick={saveEpicDraft}>
+              Save as draft
+            </Button>
+          )}
           <ThemeToggle />
           {(mode.kind === "idle" || mode.kind === "running") && (
             <SegmentedControl<"single" | "epic">
