@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { Draft } from "@/lib/draft/autosave";
 import { requireSession } from "@/lib/auth/requireSession";
 import { DraftUpsertBodySchema } from "@/lib/drafts/schemas";
-import { listDrafts, createDraft, DraftStoreError } from "@/lib/drafts/store";
+import { listDrafts, createDraft } from "@/lib/drafts/store";
 
 export const runtime = "nodejs";
 
@@ -43,8 +43,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ id }, { status: 201 });
   } catch (err) {
     console.error("[api/drafts] create failed:", err);
-    const msg = err instanceof DraftStoreError ? err.message : String(err);
-    void msg;
     return NextResponse.json(
       { error: "We couldn't save your draft. Please try again." },
       { status: 500 },
