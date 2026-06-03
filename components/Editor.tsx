@@ -32,12 +32,17 @@ type Props = {
   onFinalize: (draft: Draft) => void;
   disabled?: boolean;
   onHelp?: () => void;
+  // Save-as-draft: when provided, renders the control and is called with the
+  // current draft. reloadToken forces a re-hydration from localStorage (used
+  // when a saved draft is opened into this namespace).
+  onSaveDraft?: (draft: Draft) => void;
+  reloadToken?: number;
 };
 
 const HIGHLIGHT_EVENT = "task:highlight-field";
 const HIGHLIGHT_MS = 2500;
 
-export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Props) {
+export function Editor({ namespace, onFinalize, disabled = false, onHelp, onSaveDraft, reloadToken }: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestErr, setSuggestErr] = useState<string | null>(null);
@@ -52,7 +57,7 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
     const loaded = loadDraft(namespace);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(loaded);
-  }, [namespace]);
+  }, [namespace, reloadToken]);
 
   // Save synchronously on every change — localStorage writes are cheap and
   // this guarantees the most recent keystroke is on disk if the tab is
@@ -247,6 +252,16 @@ export function Editor({ namespace, onFinalize, disabled = false, onHelp }: Prop
         {onHelp && (
           <Button type="button" variant="ghost" onClick={onHelp}>
             Help
+          </Button>
+        )}
+        {onSaveDraft && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onSaveDraft(draft)}
+            disabled={disabled}
+          >
+            Save as draft
           </Button>
         )}
         <Button type="submit" size="lg" disabled={disabled || !draft.title.trim()}>
