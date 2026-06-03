@@ -446,6 +446,12 @@ export function StandaloneApp({ initialSession }: Props) {
             </p>
           </div>
           <span className="flex-1" />
+          <a
+            href="/drafts"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium h-9 px-3.5 text-hig-subhead bg-surface-muted text-ink border border-rule hover:bg-surface-inset"
+          >
+            Drafts
+          </a>
           <ThemeToggle />
           <JiraChip session={jiraSession} onSessionChange={setJiraSession} />
           {(mode.kind === "done" || mode.kind === "gates_failed") && (
