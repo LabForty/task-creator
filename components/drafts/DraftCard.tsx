@@ -24,6 +24,16 @@ export function DraftCard({ item, now, onDelete }: Props) {
           {formatRelativeTime(item.updatedAt, effectiveNow)}
         </span>
       </div>
+      <span
+        className={
+          "self-start rounded-full px-2 py-0.5 text-hig-caption font-medium " +
+          (item.mode === "epic"
+            ? "bg-accent-tint text-accent"
+            : "bg-surface-muted text-ink-secondary")
+        }
+      >
+        {item.mode === "epic" ? "Epic" : "Single"}
+      </span>
       {item.preview && (
         <p className="text-hig-footnote text-ink-secondary line-clamp-2">{item.preview}</p>
       )}

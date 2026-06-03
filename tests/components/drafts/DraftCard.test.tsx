@@ -26,4 +26,14 @@ describe("DraftCard", () => {
     await userEvent.click(screen.getByRole("button", { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith("d1");
   });
+  it("renders an Epic chip and task-count preview for epic drafts", () => {
+    const epic = { id: "e1", workingTitle: "Checkout revamp", mode: "epic", updatedAt: "2026-06-03T11:30:00Z", preview: "3 tasks" };
+    render(<DraftCard item={epic} now={new Date("2026-06-03T12:00:00Z").getTime()} onDelete={() => {}} />);
+    expect(screen.getByText("Epic")).toBeInTheDocument();
+    expect(screen.getByText("3 tasks")).toBeInTheDocument();
+  });
+  it("renders a Single chip for single drafts", () => {
+    render(<DraftCard item={ITEM} now={Date.now()} onDelete={() => {}} />);
+    expect(screen.getByText("Single")).toBeInTheDocument();
+  });
 });
