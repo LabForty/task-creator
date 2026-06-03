@@ -11,7 +11,8 @@ import { JiraChip, type JiraSessionInfo } from "@/components/JiraChip";
 import { JiraExport } from "@/components/JiraExport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { subscribeToJob } from "@/lib/sse/client";
-import { loadDraft, saveDraft } from "@/lib/draft/autosave";
+import { loadDraft, saveDraft, EMPTY_DRAFT } from "@/lib/draft/autosave";
+import { upsertRequest, deleteDraftRequest } from "@/lib/drafts/client";
 import { syncDiagramsInMarkdown } from "@/lib/render";
 import type { Draft } from "@/lib/draft/autosave";
 import type {
@@ -66,6 +67,9 @@ export function StandaloneApp({ initialSession }: Props) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [jiraSession, setJiraSession] = useState<JiraSessionInfo | null>(initialSession);
   const [jiraBanner, setJiraBanner] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftReloadToken, setDraftReloadToken] = useState(0);
+  const [draftSavedNote, setDraftSavedNote] = useState<string | null>(null);
 
   // Derive the live list of pending edits from chatHistory minus the ones
   // the user already resolved. Later proposals with the same id supersede
@@ -125,6 +129,32 @@ export function StandaloneApp({ initialSession }: Props) {
     (async () => {
       if (cancelled || typeof window === "undefined") return;
       const params = new URLSearchParams(window.location.search);
+      const draftParam = params.get("draft");
+      if (draftParam) {
+        try {
+          const res = await fetch(`/api/drafts/${draftParam}`, { credentials: "same-origin" });
+          if (res.status === 401) {
+            window.location.href = `/signin?return=${encodeURIComponent(`/?draft=${draftParam}`)}`;
+            return;
+          }
+          if (res.ok) {
+            const json = await res.json();
+            const payload = (json?.draft?.payload ?? {}) as Partial<Draft>;
+            saveDraft(NAMESPACE, { ...EMPTY_DRAFT, ...payload });
+            if (!cancelled) {
+              setDraftId(draftParam);
+              setDraftReloadToken((t) => t + 1);
+            }
+          } else if (!cancelled) {
+            setSubmitErr("We couldn't open that draft. It may have been deleted.");
+          }
+        } catch {
+          if (!cancelled) setSubmitErr("We couldn't open that draft. Please try again.");
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.delete("draft");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }
       const jira = params.get("jira");
       if (jira === "connected") {
         setJiraBanner("Connected to Jira.");
@@ -321,6 +351,35 @@ export function StandaloneApp({ initialSession }: Props) {
     }
   }
 
+  async function saveAsDraft(draft: Draft) {
+    setDraftSavedNote(null);
+    const { url, method } = upsertRequest(draftId);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ draft }),
+      });
+      if (res.status === 401) {
+        window.location.href = `/signin?return=${encodeURIComponent("/")}`;
+        return;
+      }
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setSubmitErr(typeof json.error === "string" ? json.error : "We couldn't save your draft.");
+        return;
+      }
+      if (method === "POST") {
+        const json = await res.json().catch(() => ({}));
+        if (typeof json.id === "string") setDraftId(json.id);
+      }
+      setDraftSavedNote("Draft saved. You can safely leave this page.");
+    } catch {
+      setSubmitErr("We couldn't save your draft. Please check your connection and try again.");
+    }
+  }
+
   async function createDiagrams() {
     if (mode.kind !== "done" && mode.kind !== "gates_failed") return;
     setDiagramsErr(null);
@@ -369,6 +428,8 @@ export function StandaloneApp({ initialSession }: Props) {
     setDiagrams(undefined);
     setDiagramsErr(null);
     setCreatingDiagrams(false);
+    setDraftSavedNote(null);
+    setDraftId(null);
   }
 
   return (
@@ -411,10 +472,17 @@ export function StandaloneApp({ initialSession }: Props) {
                 <p className="text-hig-footnote text-danger">{submitErr}</p>
               </div>
             )}
+            {draftSavedNote && (
+              <div className="mb-3 rounded-md bg-accent-tint border border-accent/30 px-4 py-2.5 shrink-0" role="status">
+                <p className="text-hig-footnote text-accent">{draftSavedNote}</p>
+              </div>
+            )}
             <div className="flex-1 min-h-0">
               <Editor
                 namespace={NAMESPACE}
                 onFinalize={submit}
+                onSaveDraft={saveAsDraft}
+                reloadToken={draftReloadToken}
                 disabled={mode.kind === "running"}
                 onHelp={() => setHelpOpen("editor")}
               />
@@ -477,9 +545,16 @@ export function StandaloneApp({ initialSession }: Props) {
       {mode.kind === "running" && (
         <RunSheet
           jobId={mode.jobId}
-          onFinalized={(p) =>
-            setMode({ kind: "done", payload: p, lastDraft: mode.lastDraft })
-          }
+          onFinalized={(p) => {
+            setMode({ kind: "done", payload: p, lastDraft: mode.lastDraft });
+            if (draftId) {
+              const { url, method } = deleteDraftRequest(draftId);
+              void fetch(url, { method, credentials: "same-origin" }).catch(() => {
+                /* best-effort cleanup; the draft simply remains listed */
+              });
+              setDraftId(null);
+            }
+          }}
           onGatesFailed={(p) =>
             setMode({ kind: "gates_failed", payload: p, lastDraft: mode.lastDraft })
           }
