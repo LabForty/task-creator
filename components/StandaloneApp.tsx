@@ -1386,7 +1386,16 @@ export function StandaloneApp({ initialSession }: Props) {
             epicTitle={liveDraft?.title ?? ""}
             epicDescriptionHtml={liveDraft?.description ?? ""}
             epicDescriptionMarkdown={finalizedById["epic"]?.markdown}
-            onCancel={() => setUploadOpen(false)}
+            onCancel={() => {
+              setUploadOpen(false);
+              if (shouldDeleteEpicDraftOnClose(draftId, epicTasks)) {
+                const { url, method } = deleteDraftRequest(draftId as string);
+                void fetch(url, { method, credentials: "same-origin" }).catch(() => {
+                  /* best-effort cleanup; the draft simply remains listed */
+                });
+                setDraftId(null);
+              }
+            }}
             onPersistUploaded={persistUploadedKey}
           />
         );
