@@ -43,4 +43,6 @@ Thumbs.db
 
 # encrypted Jira session store (local-only)
 .task-creator/
+
+# Superpowers tooling artifacts
 .superpowers/

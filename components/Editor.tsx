@@ -45,6 +45,11 @@ type Props = {
   // the epic itself). Also pins draft.taskType to match so persistence is
   // consistent.
   taskTypeLocked?: string;
+  // Save-as-draft: when provided, renders the control and is called with the
+  // current draft. reloadToken forces a re-hydration from localStorage (used
+  // when a saved draft is opened into this namespace).
+  onSaveDraft?: (draft: Draft) => void;
+  reloadToken?: number;
 };
 
 const HIGHLIGHT_EVENT = "task:highlight-field";
@@ -60,6 +65,7 @@ export function Editor({
   namespace, onFinalize, disabled = false, onHelp, onClear,
   mode = "single", onKnead, kneadDisabled = false, onDraftChange,
   hideSubmit = false, nested = false, taskTypeLocked,
+  onSaveDraft, reloadToken,
 }: Props) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [suggesting, setSuggesting] = useState(false);
@@ -87,7 +93,7 @@ export function Editor({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(loaded);
     setHydrated(true);
-  }, [namespace]);
+  }, [namespace, reloadToken]);
 
   // Save synchronously on every change — localStorage writes are cheap and
   // this guarantees the most recent keystroke is on disk if the tab is
@@ -326,6 +332,16 @@ export function Editor({
           </Button>
         )}
         {onClear && <ClearDraftButton onConfirm={onClear} />}
+        {onSaveDraft && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onSaveDraft(draft)}
+            disabled={disabled}
+          >
+            Save as draft
+          </Button>
+        )}
         {!hideSubmit && (mode === "epic" ? (
           <Button
             type="submit"
