@@ -10,8 +10,12 @@ export const DraftUpsertSchema = z.object({
   taskType: z.string().max(64).optional(),
   diagrams: z.unknown().optional(),
   chatHistory: z.unknown().optional(),
-  // Forward-compat: accepted but unused until epic drafts land.
   mode: z.enum(["single", "epic"]).optional(),
+  // Epic-draft fields. Validated loosely (value-preserving) so the draft schema
+  // stays decoupled from evolving knead/epic internals; bounds are size guards.
+  knead: z.unknown().optional(),
+  epicTasks: z.array(z.unknown()).max(500).optional(),
+  subtaskDrafts: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const DraftUpsertBodySchema = z.object({ draft: DraftUpsertSchema });

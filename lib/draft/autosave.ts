@@ -17,6 +17,10 @@ export type Draft = {
   mode: "single" | "epic";
   knead?: KneadState;
   epicTasks?: EpicTask[];
+  // Bundled per-subtask drafts, keyed by epic task id. Populated only in the
+  // server payload for epic drafts; the live local store keeps subtasks in
+  // their own `standalone:epic:<id>` namespaces.
+  subtaskDrafts?: Record<string, Draft>;
 };
 
 export const EMPTY_DRAFT: Draft = {

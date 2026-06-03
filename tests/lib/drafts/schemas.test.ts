@@ -18,4 +18,25 @@ describe("DraftUpsertSchema", () => {
     const r = DraftUpsertSchema.safeParse({ title: 123 });
     expect(r.success).toBe(false);
   });
+  it("preserves epic fields (knead, epicTasks, subtaskDrafts)", () => {
+    const input = {
+      mode: "epic" as const,
+      knead: { status: "complete", rounds: [] },
+      epicTasks: [{ id: "t1", title: "First", labels: [], blocks: [], blockedBy: [] }],
+      subtaskDrafts: { t1: { title: "First", description: "body", mode: "single" } },
+    };
+    const r = DraftUpsertSchema.safeParse(input);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.mode).toBe("epic");
+      expect(r.data.knead).toEqual(input.knead);
+      expect(r.data.epicTasks).toEqual(input.epicTasks);
+      expect(r.data.subtaskDrafts).toEqual(input.subtaskDrafts);
+    }
+  });
+  it("strips genuinely unknown top-level keys", () => {
+    const r = DraftUpsertSchema.safeParse({ title: "x", bogus: 1 });
+    expect(r.success).toBe(true);
+    if (r.success) expect("bogus" in r.data).toBe(false);
+  });
 });
