@@ -562,10 +562,27 @@ export function StandaloneApp({ initialSession }: Props) {
           if (res.ok) {
             const json = await res.json();
             const payload = (json?.draft?.payload ?? {}) as Partial<Draft>;
-            saveDraft(NAMESPACE, { ...EMPTY_DRAFT, ...payload });
-            if (!cancelled) {
-              setDraftId(draftParam);
-              setDraftReloadToken((t) => t + 1);
+            if (payload.mode === "epic") {
+              const applied = applyEpicDraft(payload);
+              saveDraft(NAMESPACE, applied.mainDraft);
+              for (const [id, d] of Object.entries(applied.subtaskDrafts)) {
+                saveDraft(epicTaskNamespace(id), d);
+              }
+              if (!cancelled) {
+                modeTouchedRef.current = true; // opening an epic locks the mode
+                setEpicMode(true);
+                setKnead(applied.knead);
+                setEpicTasks(applied.epicTasks);
+                setAnalyzeChatById(applied.analyzeChatById);
+                setDraftId(draftParam);
+                setDraftReloadToken((t) => t + 1);
+              }
+            } else {
+              saveDraft(NAMESPACE, { ...EMPTY_DRAFT, ...payload });
+              if (!cancelled) {
+                setDraftId(draftParam);
+                setDraftReloadToken((t) => t + 1);
+              }
             }
           } else if (!cancelled) {
             setSubmitErr("We couldn't open that draft. It may have been deleted.");
