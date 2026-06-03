@@ -20,7 +20,12 @@ export type DraftDetail = {
 
 export function deriveWorkingTitle(payload: Partial<Draft>): string {
   const t = (payload.title ?? "").trim();
-  return t || "Untitled draft";
+  if (t) return t;
+  if (payload.mode === "epic") {
+    const first = (payload.epicTasks?.[0]?.title ?? "").trim();
+    return first || "Untitled epic";
+  }
+  return "Untitled draft";
 }
 
 export function stripHtml(html: string): string {
@@ -33,6 +38,10 @@ export function stripHtml(html: string): string {
 const PREVIEW_MAX = 140;
 
 export function derivePreview(payload: Partial<Draft>): string {
+  if (payload.mode === "epic") {
+    const n = payload.epicTasks?.length ?? 0;
+    return n === 1 ? "1 task" : `${n} tasks`;
+  }
   const text = stripHtml(payload.description ?? "");
   if (text.length <= PREVIEW_MAX) return text;
   return text.slice(0, PREVIEW_MAX - 1).trimEnd() + "…";
