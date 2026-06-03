@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveWorkingTitle, stripHtml, derivePreview } from "./payload";
+import { deriveWorkingTitle, stripHtml, derivePreview } from "@/lib/drafts/payload";
 
 describe("deriveWorkingTitle", () => {
   it("uses a trimmed title when present", () => {

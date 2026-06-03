@@ -10,8 +10,6 @@ export default defineConfig({
     include: [
       "tests/**/*.test.ts",
       "tests/**/*.test.tsx",
-      "lib/**/*.test.ts",
-      "lib/**/*.test.tsx",
     ],
     setupFiles: ["tests/setup.ts"],
     coverage: { provider: "v8", reporter: ["text", "html"] },

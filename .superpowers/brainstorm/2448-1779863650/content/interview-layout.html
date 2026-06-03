@@ -1,0 +1,93 @@
+<h2>How should the kneading interview present its questions?</h2>
+<p class="subtitle">Both show the full epic-mode screen mid-round. Left pane = epic description with answered questions mirrored read-only below it. Right pane = the interview. A round can have up to 25 questions. Click the option that feels right.</p>
+
+<style>
+  .em-screen { display:flex; gap:10px; }
+  .em-pane { flex:1; border:1px solid var(--border, #d0d0d7); border-radius:8px; overflow:hidden; background:var(--bg, #fff); }
+  .em-pane-h { font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:6px 10px; background:rgba(127,127,127,.08); border-bottom:1px solid var(--border,#d0d0d7); color:#888; }
+  .em-body { padding:10px; font-size:12px; }
+  .em-desc { border:1px solid var(--border,#d0d0d7); border-radius:6px; padding:8px; min-height:54px; color:#666; background:rgba(127,127,127,.03); }
+  .em-mirror { margin-top:10px; }
+  .em-mirror .em-qa { border-left:3px solid #4a90d9; padding:4px 8px; margin:6px 0; background:rgba(74,144,217,.06); border-radius:0 4px 4px 0; }
+  .em-mirror .em-q { font-weight:600; color:#555; }
+  .em-mirror .em-a { color:#777; }
+  .em-lock { font-size:10px; color:#aaa; }
+  .em-field { margin:8px 0; }
+  .em-field label { display:block; font-weight:600; color:#555; margin-bottom:3px; }
+  .em-input { border:1px solid var(--border,#d0d0d7); border-radius:5px; padding:5px 7px; color:#888; background:rgba(127,127,127,.03); }
+  .em-done { color:#2e9e5b; }
+  .em-tag { display:inline-block; font-size:10px; padding:1px 7px; border-radius:10px; background:rgba(74,144,217,.12); color:#3a78c2; margin-bottom:6px; }
+  .em-tag.tech { background:rgba(160,90,200,.12); color:#8a4fb0; }
+  .em-btn { display:inline-block; padding:6px 14px; border-radius:6px; background:#1f6feb; color:#fff; font-weight:600; font-size:12px; margin-top:8px; }
+  .em-btn.off { background:rgba(127,127,127,.2); color:#999; }
+  .em-bubble { border-radius:10px; padding:7px 10px; margin:6px 0; max-width:85%; }
+  .em-bubble.ai { background:rgba(127,127,127,.1); }
+  .em-bubble.me { background:rgba(31,111,235,.12); margin-left:auto; color:#3a78c2; }
+  .em-prog { font-size:11px; color:#999; margin-bottom:4px; }
+</style>
+
+<div class="cards">
+  <div class="card" data-choice="form" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="card-body">
+      <h3>A · Form round &nbsp;<span style="font-size:11px;color:#2e9e5b;">(recommended)</span></h3>
+      <p>Whole round shown as a scrollable list of question fields, grouped Business / Technical. Fill top-to-bottom; <b>Knead</b> enables once all are answered. Fast for many questions.</p>
+      <div class="em-screen">
+        <div class="em-pane">
+          <div class="em-pane-h">Left · Epic</div>
+          <div class="em-body">
+            <div class="em-desc">Self-serve onboarding wizard for new workspaces&hellip;</div>
+            <div class="em-mirror">
+              <div class="em-lock">&#128274; Captured context (read-only)</div>
+              <div class="em-qa"><div class="em-q">Primary user?</div><div class="em-a">First-time workspace admins</div></div>
+              <div class="em-qa"><div class="em-q">Success metric?</div><div class="em-a">Time-to-first-value &lt; 5 min</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="em-pane">
+          <div class="em-pane-h">Right · Knead round 1</div>
+          <div class="em-body">
+            <div class="em-prog">Business &middot; 6 questions</div>
+            <span class="em-tag">Business</span>
+            <div class="em-field"><label>Which product surfaces are impacted?</label><div class="em-input">Web app + admin&hellip;</div></div>
+            <div class="em-field"><label>What user value does this unlock?</label><div class="em-input">Faster activation&hellip;</div></div>
+            <span class="em-tag tech">Technical</span>
+            <div class="em-field"><label>Any scalability concerns?</label><div class="em-input em-done">Answered &#10003;</div></div>
+            <div class="em-btn off">Knead &middot; 2 left</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="chat" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="card-body">
+      <h3>B · Conversational</h3>
+      <p>AI asks one question at a time, chat-style (like the existing Help panel). You answer, the next appears. <b>Knead</b> shows after the last answer. Feels guided but slow across 25 questions.</p>
+      <div class="em-screen">
+        <div class="em-pane">
+          <div class="em-pane-h">Left · Epic</div>
+          <div class="em-body">
+            <div class="em-desc">Self-serve onboarding wizard for new workspaces&hellip;</div>
+            <div class="em-mirror">
+              <div class="em-lock">&#128274; Captured context (read-only)</div>
+              <div class="em-qa"><div class="em-q">Primary user?</div><div class="em-a">First-time workspace admins</div></div>
+              <div class="em-qa"><div class="em-q">Success metric?</div><div class="em-a">Time-to-first-value &lt; 5 min</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="em-pane">
+          <div class="em-pane-h">Right · Knead round 1</div>
+          <div class="em-body">
+            <div class="em-bubble ai">Which product surfaces are impacted?</div>
+            <div class="em-bubble me">Web app + admin console</div>
+            <div class="em-bubble ai">What user value does this unlock?</div>
+            <div class="em-bubble me">Faster activation</div>
+            <div class="em-bubble ai">Any scalability concerns?</div>
+            <div class="em-input" style="margin-top:6px;">Type your answer&hellip;</div>
+            <div class="em-prog" style="margin-top:8px;">3 of ~8 answered</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DraftUpsertSchema } from "./schemas";
+import { DraftUpsertSchema } from "@/lib/drafts/schemas";
 
 describe("DraftUpsertSchema", () => {
   it("accepts a completely empty draft (no publish-time requirements)", () => {
