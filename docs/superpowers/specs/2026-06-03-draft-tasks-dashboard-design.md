@@ -13,7 +13,11 @@ and finalize it through the normal publish flow. Drafts are stored server-side i
 (Postgres), scoped to the user's Atlassian `accountId`, and are never visible or reachable
 by any other user — including via deep links or direct identifiers.
 
-Scope for this iteration: **both single-task and epic drafts.**
+Scope for this iteration: **single-task drafts only**, built on `main`. Epic mode currently
+lives only on the unmerged `AI-36-epic-mode-sp1-kneading` branch (not on `main`), so epic-draft
+support is a **deliberate fast-follow** once AI-36 merges. The data model is kept
+forward-compatible (a `mode` column defaulting to `'single'` + a `jsonb` payload) so epic drafts
+drop in later with no migration.
 
 ## Decisions
 
@@ -24,7 +28,7 @@ Scope for this iteration: **both single-task and epic drafts.**
 | Save model | Explicit **"Save as draft"** → server; `localStorage` stays the live scratch buffer | Matches the ticket's "expose a clear control to mark as draft and save"; predictable, low write-load. |
 | Finalize lifecycle | Remove the draft **on finalize success** (required-field validation passes + story generated) | Closest literal match to the ticket; Jira export remains a separate later step. |
 | Dashboard location | Dedicated `/drafts` App Router route | Matches existing `/`, `/signin`, `/embed` pattern; linkable, easy to auth-gate. |
-| Scope | Single **and** epic drafts | Per user direction. |
+| Scope | **Single-task drafts only** on `main`; epic deferred | Epic mode is unmerged (AI-36 branch only); data model kept forward-compatible so epic drafts add later with no migration. |
 
 ## Existing architecture (context)
 
@@ -50,9 +54,9 @@ Scope for this iteration: **both single-task and epic drafts.**
 |---|---|---|
 | `id` | `uuid` PK default `gen_random_uuid()` | The only identifier exposed; server-generated. |
 | `owner_account_id` | `text` not null | Atlassian `accountId`; always set from the session, never from the client. |
-| `mode` | `text` not null | `'single'` \| `'epic'`. |
-| `working_title` | `text` | Derived: `payload.title` (trimmed) → first epic task title → `'Untitled draft'`. Stored for cheap listing. |
-| `payload` | `jsonb` not null | The full `Draft` blob (title, description, acceptanceCriteria, constraints, taskType, diagrams, chatHistory, mode, knead, epicTasks). |
+| `mode` | `text` not null default `'single'` | `'single'` for this iteration; the column exists so `'epic'` drops in later with no migration. |
+| `working_title` | `text` | Derived: `payload.title` (trimmed) → `'Untitled draft'`. Stored for cheap listing. (Epic title-derivation added with epic support.) |
+| `payload` | `jsonb` not null | The full `Draft` blob (title, description, acceptanceCriteria, constraints, taskType, diagrams, chatHistory). The `jsonb` shape absorbs the future epic fields (`mode`, `knead`, `epicTasks`) without a schema change. |
 | `created_at` | `timestamptz` not null default `now()` | |
 | `updated_at` | `timestamptz` not null default `now()` | Bumped on every save. |
 
@@ -98,9 +102,10 @@ env vars.
 - **Current draft id**: `StandaloneApp` tracks a `draftId` (null = unsaved/new). It is set when a
   draft is opened and when a brand-new draft is first saved (from the `POST` response).
 - **Opening a draft**: dashboard rows link to `/?draft=<id>`. On mount `StandaloneApp` reads the
-  query param, fetches `GET /api/drafts/[id]`, hydrates the editor from `payload`, and sets `draftId`.
-  For `mode === 'epic'` it reconstructs the epic-mode state (`epicTasks`, `knead`, chat history,
-  diagrams) from the payload rather than from the per-subtask `localStorage` namespaces.
+  query param (following the existing `?jira=` handling in the mount `useEffect`, around
+  `StandaloneApp.tsx:125-144`), fetches `GET /api/drafts/[id]`, writes the payload into the
+  editor's `localStorage` namespace via `saveDraft(NAMESPACE, …)` so the editor hydrates from it,
+  and sets `draftId`.
 - **Finalize**: existing flow unchanged. On the existing `finalized` SSE success event, if `draftId`
   is set, call `DELETE /api/drafts/[id]` (the draft is now a finalized task, ready to export to Jira).
   On `gates_failed` / validation failure the user stays on the draft, inline errors show, and the
@@ -115,9 +120,9 @@ env vars.
   - *Empty* — "No drafts yet" with a CTA back to the creator (`/`).
   - *Error* — non-technical banner ("We couldn't load your drafts.") + **Retry**.
   - *Populated* — cards mirroring `EpicTaskCard` style.
-- **Row content**: working title (or "Untitled draft"), a **mode badge** (single/epic), relative
-  "last updated", a short **preview** (description snippet, or "N tasks" for epic), and **Open** +
-  **Delete** (with confirm) actions.
+- **Row content**: working title (or "Untitled draft"), relative "last updated", a short
+  **preview** (description snippet), and **Open** + **Delete** (with confirm) actions. (A mode
+  badge is added alongside epic support.)
 - **Entry points**: a **"Drafts"** link from the creator → `/drafts`, and a link back to the creator.
 
 ## Auth & security
@@ -148,16 +153,19 @@ that draft.", "We couldn't load your drafts."
 
 ## Risks & notes
 
-- **Epic-draft hydration** is the highest-risk piece: the `payload` must faithfully capture and restore
-  `StandaloneApp`'s epic state, and hydration must rebuild epic mode from the payload (not the per-subtask
-  `localStorage` namespaces). The data model already supports it (one row, whole blob); the work is in the
-  hydration path.
+- **Epic mode is not on `main`.** It lives on the unmerged `AI-36-epic-mode-sp1-kneading` branch, where
+  `Draft` is extended with `mode`/`knead`/`epicTasks` and `components/epic/*` exists. This iteration targets
+  `main` and the single-task `Draft` only. The `drafts` table (`mode` column + `jsonb` payload) is designed
+  so epic drafts add in later **without a migration** — the fast-follow work is editor hydration of epic
+  state and a mode badge/preview, not schema change.
 - **Serverless/disk note**: drafts deliberately do **not** use the local encrypted-file approach used for
   Jira sessions, because a listable per-user collection needs a real datastore that survives multi-instance
   / serverless deploys — hence Supabase.
 
 ## Out of scope (this iteration)
 
+- **Epic drafts** — deferred to a fast-follow once epic mode (AI-36) merges to `main`. The schema is
+  forward-compatible so no migration is needed then.
 - Sharing drafts between users / collaboration.
 - Draft version history / autosave-to-server (explicit save only).
 - Changing the Jira export step or the Claude pipeline itself.
