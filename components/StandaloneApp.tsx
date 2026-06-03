@@ -153,7 +153,10 @@ export function StandaloneApp({ initialSession }: Props) {
         }
         const url = new URL(window.location.href);
         url.searchParams.delete("draft");
-        window.history.replaceState({}, "", url.pathname + url.search);
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+        // Keep the snapshot consistent so the ?jira block below doesn't
+        // rebuild the URL with a stale `draft` param.
+        params.delete("draft");
       }
       const jira = params.get("jira");
       if (jira === "connected") {
