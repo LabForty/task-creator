@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Editor } from "@/components/Editor";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { KneadingPanel } from "@/components/epic/KneadingPanel";
@@ -1023,12 +1024,12 @@ export function StandaloneApp({ initialSession }: Props) {
             </p>
           </div>
           <span className="flex-1" />
-          <a
+          <Link
             href="/drafts"
             className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium h-9 px-3.5 text-hig-subhead bg-surface-muted text-ink border border-rule hover:bg-surface-inset"
           >
             Drafts
-          </a>
+          </Link>
           {epicMode && epicTasks.length > 0 && mode.kind === "idle" && (
             <Button variant="secondary" onClick={saveEpicDraft}>
               Save as draft
