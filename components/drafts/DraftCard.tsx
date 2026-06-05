@@ -25,7 +25,10 @@ export function DraftCard({ item, now, onDelete }: Props) {
     <div
       className={
         "group relative hig-card border border-transparent p-4 pl-6 flex flex-col gap-2 " +
-        "transition-all duration-150 ease-hig hover:-translate-y-0.5 hover:shadow-elevated hover:border-accent/25"
+        // Suppress the hover lift transform under prefers-reduced-motion so the
+        // hover becomes a plain state change (shadow/border still apply); the
+        // global reduced-motion rule already zeroes the transition duration.
+        "transition-all duration-150 ease-hig hover:-translate-y-0.5 hover:shadow-elevated hover:border-accent/25 motion-reduce:hover:translate-y-0"
       }
     >
       {/* Mode accent pill — inset so it never fights the card's rounded corners. */}
@@ -40,7 +43,7 @@ export function DraftCard({ item, now, onDelete }: Props) {
         <h3 className="text-hig-headline min-w-0 truncate">
           {/* Stretched link: makes the whole card the click target while the
               action buttons below sit above it on their own z layer. */}
-          <Link href={`/?draft=${item.id}`} className="after:absolute after:inset-0 focus-visible:outline-none">
+          <Link href={`/?draft=${item.id}`} className="after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:shadow-focus">
             {item.workingTitle}
           </Link>
         </h3>
