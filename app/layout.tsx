@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { MotionRoot } from "@/components/MotionRoot";
 
 export const metadata: Metadata = {
   title: "Task Creator",
@@ -16,7 +17,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
-      <body className="font-sans antialiased text-ink bg-surface-subtle">{children}</body>
+      <body className="font-sans antialiased text-ink bg-surface-subtle">
+        <MotionRoot>{children}</MotionRoot>
+      </body>
     </html>
   );
 }

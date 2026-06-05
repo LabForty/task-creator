@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { MotionGlobalConfig } from "motion/react";
 
 // jsdom 25 + Vitest 4 stopped exposing window.localStorage/sessionStorage by
 // default (Node now has an experimental localStorage gated behind
@@ -41,3 +42,7 @@ if (typeof window !== "undefined") {
     });
   }
 }
+
+// Framer Motion in jsdom: skip animations so AnimatePresence doesn't delay
+// unmounts behind rAF-driven exit animations — tests assert final states.
+MotionGlobalConfig.skipAnimations = true;
