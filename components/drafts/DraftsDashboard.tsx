@@ -34,23 +34,26 @@ export function DraftsDashboard() {
     void load();
   }, [load]);
 
-  const onDelete = useCallback(
-    async (id: string) => {
-      if (!window.confirm("Delete this draft? This can't be undone.")) return;
-      const { url, method } = deleteDraftRequest(id);
-      try {
-        const res = await fetch(url, { method, credentials: "same-origin" });
-        if (!res.ok && res.status !== 404) {
-          setState({ kind: "error", message: "We couldn't delete that draft. Please try again." });
-          return;
-        }
-        await load();
-      } catch {
+  // Confirmation lives in DraftCard's popover now. On success, filter the
+  // item out locally instead of refetching — a refetch would flash skeletons
+  // and cut off the card's exit animation.
+  const onDelete = useCallback(async (id: string) => {
+    const { url, method } = deleteDraftRequest(id);
+    try {
+      const res = await fetch(url, { method, credentials: "same-origin" });
+      if (!res.ok && res.status !== 404) {
         setState({ kind: "error", message: "We couldn't delete that draft. Please try again." });
+        return;
       }
-    },
-    [load],
-  );
+      setState((prev) => {
+        if (prev.kind !== "loaded") return prev;
+        const items = prev.items.filter((it) => it.id !== id);
+        return items.length ? { kind: "loaded", items } : { kind: "empty" };
+      });
+    } catch {
+      setState({ kind: "error", message: "We couldn't delete that draft. Please try again." });
+    }
+  }, []);
 
   return (
     <div className="max-w-3xl w-full mx-auto px-6 py-8 flex flex-col gap-5">
