@@ -13,12 +13,16 @@ const PROPS = {
 describe("ConfirmPopover", () => {
   it("renders nothing when closed", () => {
     render(<ConfirmPopover {...PROPS} open={false} />);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+  it("moves focus to Cancel on open (safe default for destructive confirm)", () => {
+    render(<ConfirmPopover {...PROPS} open />);
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
   });
   it("shows the message and fires onConfirm", async () => {
     const onConfirm = vi.fn();
     render(<ConfirmPopover {...PROPS} open onConfirm={onConfirm} />);
-    expect(screen.getByRole("dialog")).toHaveTextContent("Delete this draft?");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Delete this draft?");
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
@@ -43,6 +47,6 @@ describe("ConfirmPopover", () => {
       </div>,
     );
     await userEvent.click(screen.getByRole("button", { name: "outside" }));
-    expect(onCancel).toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalledOnce();
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { scaleIn } from "@/lib/motion";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,12 @@ type Props = {
 // Escape and outside-click both cancel, matching native dialog expectations.
 export function ConfirmPopover({ open, message, confirmLabel, onConfirm, onCancel }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const messageId = useId();
+
+  useEffect(() => {
+    if (open) cancelRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -40,8 +46,8 @@ export function ConfirmPopover({ open, message, confirmLabel, onConfirm, onCance
       {open && (
         <motion.div
           ref={ref}
-          role="dialog"
-          aria-label={message}
+          role="alertdialog"
+          aria-describedby={messageId}
           variants={scaleIn}
           initial="hidden"
           animate="visible"
@@ -49,9 +55,9 @@ export function ConfirmPopover({ open, message, confirmLabel, onConfirm, onCance
           style={{ transformOrigin: "top right" }}
           className="absolute right-0 top-full mt-2 z-20 w-64 hig-card shadow-elevated border border-rule p-3 flex flex-col gap-2.5"
         >
-          <p className="text-hig-footnote text-ink text-left">{message}</p>
+          <p id={messageId} className="text-hig-footnote text-ink text-left">{message}</p>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+            <Button ref={cancelRef} type="button" variant="secondary" size="sm" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="button" variant="danger" size="sm" onClick={onConfirm}>
