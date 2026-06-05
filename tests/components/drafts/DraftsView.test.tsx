@@ -3,8 +3,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DraftsView } from "@/components/drafts/DraftsView";
 
+const ITEMS = [
+  { id: "d1", workingTitle: "X", mode: "single", updatedAt: "2026-06-03T12:00:00Z", preview: "p" },
+  { id: "d2", workingTitle: "Y", mode: "epic", updatedAt: "2026-06-03T12:00:00Z", preview: "2 tasks" },
+];
+
 describe("DraftsView", () => {
-  it("shows a loading state", () => {
+  it("shows skeleton cards while loading", () => {
     render(<DraftsView state={{ kind: "loading" }} onDelete={() => {}} onRetry={() => {}} />);
     expect(screen.getByTestId("drafts-loading")).toBeInTheDocument();
   });
@@ -22,14 +27,9 @@ describe("DraftsView", () => {
     await userEvent.click(screen.getByRole("button", { name: /retry/i }));
     expect(onRetry).toHaveBeenCalled();
   });
-  it("renders cards when loaded", () => {
-    render(
-      <DraftsView
-        state={{ kind: "loaded", items: [{ id: "d1", workingTitle: "X", mode: "single", updatedAt: "2026-06-03T12:00:00Z", preview: "p" }] }}
-        onDelete={() => {}}
-        onRetry={() => {}}
-      />,
-    );
+  it("renders all cards when loaded", () => {
+    render(<DraftsView state={{ kind: "loaded", items: ITEMS }} onDelete={() => {}} onRetry={() => {}} />);
     expect(screen.getByText("X")).toBeInTheDocument();
+    expect(screen.getByText("Y")).toBeInTheDocument();
   });
 });
