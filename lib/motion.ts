@@ -10,7 +10,7 @@ import type { Transition, Variants } from "motion/react";
 export const SPRING: Transition = { type: "spring", stiffness: 500, damping: 30, mass: 0.9 };
 
 // Matches the CSS `ease-hig` curve for fast non-spring moments (exits, menus).
-export const EASE_HIG: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+export const EASE_HIG = [0.25, 0.1, 0.25, 1] as const;
 export const DUR_FAST = 0.15;
 
 const STAGGER_STEP = 0.04;
