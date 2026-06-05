@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { installJiraSession } from "./session";
 
 /**
  * E2E smoke: drives the Jira export flow with metadata end-to-end.
@@ -24,16 +25,6 @@ const ISSUE_TYPE = {
   iconUrl: null,
   description: null,
 };
-
-async function installJiraSession(page: Page) {
-  const res = await page.request.post("/api/test/install-session");
-  if (!res.ok()) {
-    throw new Error(
-      `Test-auth escape hatch failed (${res.status()}). ` +
-        `Ensure E2E_TEST_AUTH=1 is set on the webServer in playwright.config.ts.`,
-    );
-  }
-}
 
 async function clearStaleDraft(page: Page) {
   // Ensure no stale draft from a previous run lives in localStorage (the

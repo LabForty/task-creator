@@ -1,7 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { installJiraSession } from "./session";
 
 /**
  * E2E smoke for the drafts feature (AI-33).
+ *
+ * The app is auth-gated (lib/auth/requireSession), so these shell tests
+ * authenticate via the synthetic-session escape hatch (installJiraSession →
+ * /api/test/install-session, enabled by E2E_TEST_AUTH=1) before navigating.
  *
  * Scope is intentionally limited to server-rendered structure, mirroring
  * `finalize.spec.ts`. The full happy path (type a title → Save as draft →
@@ -23,6 +28,7 @@ import { test, expect } from "@playwright/test";
  */
 test.describe("drafts navigation + dashboard shell render", () => {
   test("GET / exposes a Drafts link to the dashboard", async ({ page }) => {
+    await installJiraSession(page);
     await page.goto("/");
     const draftsLink = page.getByRole("link", { name: /^drafts$/i });
     await expect(draftsLink).toBeVisible();
@@ -30,6 +36,7 @@ test.describe("drafts navigation + dashboard shell render", () => {
   });
 
   test("GET /drafts renders the dashboard shell (heading + back link)", async ({ page }) => {
+    await installJiraSession(page);
     await page.goto("/drafts");
     await expect(page.getByRole("heading", { name: /your drafts/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /back to creator/i })).toHaveAttribute("href", "/");
