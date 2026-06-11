@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createRef } from "react";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
 
 const PROPS = {
@@ -46,6 +47,26 @@ describe("ConfirmPopover", () => {
         <ConfirmPopover {...PROPS} open onCancel={onCancel} />
       </div>,
     );
+    await userEvent.click(screen.getByRole("button", { name: "outside" }));
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+  // The anchor that opened the popover must not count as "outside" — otherwise
+  // its mousedown cancels and its click reopens, which blinks the popover and
+  // makes the anchor unable to toggle it closed.
+  it("ignores mousedown inside the anchor element", async () => {
+    const onCancel = vi.fn();
+    const anchorRef = createRef<HTMLDivElement>();
+    render(
+      <div>
+        <div ref={anchorRef}>
+          <button>anchor</button>
+        </div>
+        <button>outside</button>
+        <ConfirmPopover {...PROPS} open onCancel={onCancel} anchorRef={anchorRef} />
+      </div>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "anchor" }));
+    expect(onCancel).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "outside" }));
     expect(onCancel).toHaveBeenCalledOnce();
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
@@ -18,17 +18,26 @@ export function DraftCard({ item, now, onDelete }: Props) {
   // so render stays pure — Date.now() in the render body is a lint error here.
   const [fallbackNow] = useState(() => Date.now());
   const [confirming, setConfirming] = useState(false);
+  const deleteAnchorRef = useRef<HTMLDivElement>(null);
   const effectiveNow = now ?? fallbackNow;
   const epic = item.mode === "epic";
 
   return (
     <div
       className={
-        "group relative hig-card border border-transparent p-4 pl-6 flex flex-col gap-2 " +
-        // Suppress the hover lift transform under prefers-reduced-motion so the
-        // hover becomes a plain state change (shadow/border still apply); the
-        // global reduced-motion rule already zeroes the transition duration.
-        "transition-all duration-150 ease-hig hover:-translate-y-0.5 hover:shadow-elevated hover:border-accent/25 motion-reduce:hover:translate-y-0"
+        "group relative hig-card border p-4 pl-6 flex flex-col gap-2 " +
+        "transition-all duration-150 ease-hig " +
+        // While the delete confirm is open, NOTHING may depend on :hover.
+        // The hover lift moves the card's own hit area, so a pointer resting
+        // near the bottom edge flips hover on/off forever and the card (with
+        // the popover anchored inside it) bobs in a loop — the "blinking
+        // delete modal". Pin the lifted look steady instead.
+        (confirming
+          ? "-translate-y-0.5 shadow-elevated border-accent/25 motion-reduce:translate-y-0"
+          : // Suppress the hover lift transform under prefers-reduced-motion so
+            // the hover becomes a plain state change (shadow/border still apply);
+            // the global reduced-motion rule already zeroes the transition duration.
+            "border-transparent hover:-translate-y-0.5 hover:shadow-elevated hover:border-accent/25 motion-reduce:hover:translate-y-0")
       }
     >
       {/* Mode accent pill — inset so it never fights the card's rounded corners. */}
@@ -67,20 +76,24 @@ export function DraftCard({ item, now, onDelete }: Props) {
       <div
         className={
           // Hidden until hover on pointer devices; always visible on touch
-          // (no hover) and while focused so keyboard users never lose them.
+          // (no hover), while focused, and while the confirm popover is open
+          // so its visibility never flickers with pointer position.
           "relative z-10 flex items-center justify-end gap-2 pt-1 " +
           "transition-opacity duration-150 ease-hig " +
-          "[@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+          (confirming
+            ? "opacity-100"
+            : "[@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100")
         }
       >
-        <div className="relative">
-          <Button type="button" variant="danger" size="sm" onClick={() => setConfirming(true)}>
+        <div className="relative" ref={deleteAnchorRef}>
+          <Button type="button" variant="danger" size="sm" onClick={() => setConfirming((v) => !v)}>
             Delete
           </Button>
           <ConfirmPopover
             open={confirming}
             message="Delete this draft? This can't be undone."
             confirmLabel="Delete"
+            anchorRef={deleteAnchorRef}
             onConfirm={() => {
               setConfirming(false);
               onDelete(item.id);

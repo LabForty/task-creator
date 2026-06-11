@@ -11,12 +11,16 @@ type Props = {
   confirmLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  // The element that opened the popover. Mousedown inside it is NOT an
+  // outside-click — without this, pressing the anchor again cancels on
+  // mousedown and reopens on click, blinking the popover instead of toggling.
+  anchorRef?: React.RefObject<HTMLElement | null>;
 };
 
 // Small anchored confirm dialog replacing window.confirm. Render it inside a
 // relatively-positioned parent (it pops up below the anchor's right edge).
 // Escape and outside-click both cancel, matching native dialog expectations.
-export function ConfirmPopover({ open, message, confirmLabel, onConfirm, onCancel }: Props) {
+export function ConfirmPopover({ open, message, confirmLabel, onConfirm, onCancel, anchorRef }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const messageId = useId();
@@ -31,7 +35,9 @@ export function ConfirmPopover({ open, message, confirmLabel, onConfirm, onCance
       if (e.key === "Escape") onCancel();
     };
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onCancel();
+      const target = e.target as Node;
+      if (anchorRef?.current?.contains(target)) return;
+      if (ref.current && !ref.current.contains(target)) onCancel();
     };
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onDown);
@@ -39,7 +45,7 @@ export function ConfirmPopover({ open, message, confirmLabel, onConfirm, onCance
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onDown);
     };
-  }, [open, onCancel]);
+  }, [open, onCancel, anchorRef]);
 
   return (
     <AnimatePresence>

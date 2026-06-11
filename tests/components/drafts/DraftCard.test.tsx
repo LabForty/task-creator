@@ -47,6 +47,28 @@ describe("DraftCard", () => {
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
+  // AI-50 follow-up: the confirm popover used to blink — the card's hover lift
+  // oscillated under a pointer near its bottom edge, and re-clicking the
+  // anchor closed (outside-mousedown) then reopened (click) the popover.
+  it("clicking the Delete anchor again closes the confirm instead of blinking", async () => {
+    render(<DraftCard item={ITEM} now={Date.now()} onDelete={() => {}} />);
+    const anchor = screen.getByRole("button", { name: /delete/i });
+    await userEvent.click(anchor);
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    await userEvent.click(anchor);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+  it("pins the card and actions visible while the confirm is open (no hover dependence)", async () => {
+    const { container } = render(<DraftCard item={ITEM} now={Date.now()} onDelete={() => {}} />);
+    const cardRoot = container.firstElementChild as HTMLElement;
+    const actionsRow = cardRoot.querySelector("div.z-10") as HTMLElement;
+    expect(actionsRow.className).toContain("group-hover:opacity-100");
+    await userEvent.click(screen.getByRole("button", { name: /delete/i }));
+    // While confirming, visibility/lift must not depend on :hover at all.
+    expect(actionsRow.className).toContain("opacity-100");
+    expect(actionsRow.className).not.toContain("group-hover");
+    expect(cardRoot.className).not.toContain("hover:-translate-y-0.5");
+  });
   it("merges the task count into the Epic chip and hides the redundant preview", () => {
     render(<DraftCard item={EPIC} now={new Date("2026-06-03T12:00:00Z").getTime()} onDelete={() => {}} />);
     expect(screen.getByText("Epic · 3 tasks")).toBeInTheDocument();
