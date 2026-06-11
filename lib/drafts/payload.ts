@@ -18,11 +18,20 @@ export type DraftDetail = {
   payload: Partial<Draft>;
 };
 
+// Stored payloads can predate the current Draft shape (old app versions,
+// corruption). Coerce instead of trusting the type: one bad row must degrade
+// to a placeholder, never throw and 500 the whole drafts list.
+function asString(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
 export function deriveWorkingTitle(payload: Partial<Draft>): string {
-  const t = (payload.title ?? "").trim();
+  const t = asString(payload.title).trim();
   if (t) return t;
   if (payload.mode === "epic") {
-    const first = (payload.epicTasks?.[0]?.title ?? "").trim();
+    const first = Array.isArray(payload.epicTasks)
+      ? asString(payload.epicTasks[0]?.title).trim()
+      : "";
     return first || "Untitled epic";
   }
   return "Untitled draft";
@@ -39,10 +48,10 @@ const PREVIEW_MAX = 140;
 
 export function derivePreview(payload: Partial<Draft>): string {
   if (payload.mode === "epic") {
-    const n = payload.epicTasks?.length ?? 0;
+    const n = Array.isArray(payload.epicTasks) ? payload.epicTasks.length : 0;
     return n === 1 ? "1 task" : `${n} tasks`;
   }
-  const text = stripHtml(payload.description ?? "");
+  const text = stripHtml(asString(payload.description));
   if (text.length <= PREVIEW_MAX) return text;
   return text.slice(0, PREVIEW_MAX - 1).trimEnd() + "…";
 }

@@ -3,12 +3,25 @@ import type { Draft } from "@/lib/draft/autosave";
 import { requireSession } from "@/lib/auth/requireSession";
 import { DraftUpsertBodySchema } from "@/lib/drafts/schemas";
 import { listDrafts, createDraft } from "@/lib/drafts/store";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+
+// A missing Supabase config is an operator problem, not a user problem —
+// name it instead of collapsing into the generic load/save failure (AI-50).
+function storageUnavailable(): NextResponse | null {
+  if (isSupabaseConfigured()) return null;
+  return NextResponse.json(
+    { error: "Drafts storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY." },
+    { status: 503 },
+  );
+}
 
 export async function GET() {
   const sessionOrRes = await requireSession();
   if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+  const unavailable = storageUnavailable();
+  if (unavailable) return unavailable;
   try {
     const drafts = await listDrafts(sessionOrRes.accountId);
     return NextResponse.json({ drafts });
@@ -24,6 +37,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const sessionOrRes = await requireSession();
   if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+  const unavailable = storageUnavailable();
+  if (unavailable) return unavailable;
 
   let body: unknown;
   try {

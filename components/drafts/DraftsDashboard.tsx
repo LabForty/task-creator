@@ -17,7 +17,12 @@ export function DraftsDashboard() {
         return;
       }
       if (!res.ok) {
-        setState({ kind: "error", message: "We couldn't load your drafts." });
+        // Prefer the server's own description (e.g. "storage is not
+        // configured") over the generic prompt when one is provided.
+        const json = await res.json().catch(() => ({}));
+        const serverMessage =
+          typeof (json as { error?: unknown })?.error === "string" ? (json as { error: string }).error : "";
+        setState({ kind: "error", message: serverMessage || "We couldn't load your drafts." });
         return;
       }
       const json = await res.json();

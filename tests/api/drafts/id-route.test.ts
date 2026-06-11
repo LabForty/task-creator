@@ -7,9 +7,13 @@ vi.mock("@/lib/drafts/store", () => ({
   updateDraft: vi.fn(),
   deleteDraft: vi.fn(),
 }));
+vi.mock("@/lib/supabase/server", () => ({
+  isSupabaseConfigured: vi.fn(() => true),
+}));
 
 import { requireSession } from "@/lib/auth/requireSession";
 import { getDraft, updateDraft, deleteDraft } from "@/lib/drafts/store";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 import { GET, PATCH, DELETE } from "@/app/api/drafts/[id]/route";
 
 const SESSION = { accountId: "acct-A", email: "a@b.co" } as never;
@@ -31,6 +35,15 @@ describe("GET /api/drafts/[id]", () => {
     const res = await GET(new Request("http://localhost/api/drafts/d1"), ctx("d1"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ draft: { id: "d1", payload: {} } });
+  });
+  // AI-50: name a missing Supabase config instead of a generic 500.
+  it("503s with a descriptive error when Supabase is not configured", async () => {
+    (requireSession as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION);
+    (isSupabaseConfigured as ReturnType<typeof vi.fn>).mockReturnValueOnce(false);
+    const res = await GET(new Request("http://localhost/api/drafts/d1"), ctx("d1"));
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/storage.*not configured/i);
+    expect(getDraft).not.toHaveBeenCalled();
   });
 });
 

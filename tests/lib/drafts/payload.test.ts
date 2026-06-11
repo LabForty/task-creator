@@ -30,6 +30,26 @@ describe("derivePreview", () => {
   });
 });
 
+// AI-50: stored payloads can predate the current Draft shape (old app
+// versions, manual edits, corruption). Derivations must degrade, not throw —
+// a single bad row must never 500 the whole drafts list.
+describe("corrupted payloads degrade instead of throwing", () => {
+  it("derivePreview tolerates a non-string description", () => {
+    expect(derivePreview({ description: { rich: true } } as never)).toBe("");
+  });
+  it("deriveWorkingTitle tolerates a non-string title", () => {
+    expect(deriveWorkingTitle({ title: 42 } as never)).toBe("Untitled draft");
+  });
+  it("epic working title tolerates a non-string first-task title", () => {
+    expect(
+      deriveWorkingTitle({ mode: "epic", epicTasks: [{ id: "t1", title: 7 }] } as never),
+    ).toBe("Untitled epic");
+  });
+  it("epic preview tolerates non-array epicTasks", () => {
+    expect(derivePreview({ mode: "epic", epicTasks: {} } as never)).toBe("0 tasks");
+  });
+});
+
 describe("epic derivations", () => {
   it("working title uses the epic title when present", () => {
     expect(deriveWorkingTitle({ mode: "epic", title: "Checkout revamp" })).toBe("Checkout revamp");

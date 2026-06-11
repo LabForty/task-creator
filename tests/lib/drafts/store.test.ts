@@ -52,6 +52,22 @@ describe("listDrafts", () => {
     expect(fake.eqCalls).toContainEqual(["owner_account_id", "acct-A"]);
     expect(items[0]).toMatchObject({ id: "d1", workingTitle: "T", preview: "hi" });
   });
+
+  // AI-50: a row whose payload no longer matches the current Draft shape must
+  // map to a degraded list item, not fail the whole list with a 500.
+  it("maps a row with a corrupt payload instead of failing the whole list", async () => {
+    const fake = makeFake({
+      data: [
+        { id: "good", working_title: "Good", mode: "single", updated_at: "2026-06-03T00:00:00Z", payload: { description: "<p>ok</p>" } },
+        { id: "bad", working_title: null, mode: "single", updated_at: "2026-06-03T00:00:00Z", payload: { description: { rich: true } } },
+      ],
+      error: null,
+    });
+    fromMock.mockReturnValue(fake);
+    const items = await listDrafts("acct-A");
+    expect(items.map((i) => i.id)).toEqual(["good", "bad"]);
+    expect(items[1]).toMatchObject({ workingTitle: "Untitled draft", preview: "" });
+  });
 });
 
 describe("getDraft", () => {

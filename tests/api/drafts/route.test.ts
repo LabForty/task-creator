@@ -6,9 +6,13 @@ vi.mock("@/lib/drafts/store", () => ({
   listDrafts: vi.fn(),
   createDraft: vi.fn(),
 }));
+vi.mock("@/lib/supabase/server", () => ({
+  isSupabaseConfigured: vi.fn(() => true),
+}));
 
 import { requireSession } from "@/lib/auth/requireSession";
 import { listDrafts, createDraft } from "@/lib/drafts/store";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 import { GET, POST } from "@/app/api/drafts/route";
 
 const SESSION = { accountId: "acct-A", email: "a@b.co" } as never;
@@ -30,6 +34,17 @@ describe("GET /api/drafts", () => {
     );
     const res = await GET();
     expect(res.status).toBe(401);
+  });
+  // AI-50: a missing Supabase config used to surface as the generic
+  // "We couldn't load your drafts." 500. Name the real problem instead.
+  it("503s with a descriptive error when Supabase is not configured", async () => {
+    (requireSession as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION);
+    (isSupabaseConfigured as ReturnType<typeof vi.fn>).mockReturnValueOnce(false);
+    const res = await GET();
+    expect(res.status).toBe(503);
+    const json = await res.json();
+    expect(json.error).toMatch(/storage.*not configured/i);
+    expect(listDrafts).not.toHaveBeenCalled();
   });
   it("returns the current user's drafts", async () => {
     (requireSession as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION);

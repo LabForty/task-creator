@@ -3,14 +3,27 @@ import type { Draft } from "@/lib/draft/autosave";
 import { requireSession } from "@/lib/auth/requireSession";
 import { DraftUpsertBodySchema } from "@/lib/drafts/schemas";
 import { getDraft, updateDraft, deleteDraft } from "@/lib/drafts/store";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+// Mirror of the guard in app/api/drafts/route.ts — name the operator problem
+// instead of collapsing into a generic 500 (AI-50).
+function storageUnavailable(): NextResponse | null {
+  if (isSupabaseConfigured()) return null;
+  return NextResponse.json(
+    { error: "Drafts storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY." },
+    { status: 503 },
+  );
+}
+
 export async function GET(_req: Request, { params }: Ctx) {
   const sessionOrRes = await requireSession();
   if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+  const unavailable = storageUnavailable();
+  if (unavailable) return unavailable;
   const { id } = await params;
   try {
     const draft = await getDraft(sessionOrRes.accountId, id);
@@ -25,6 +38,8 @@ export async function GET(_req: Request, { params }: Ctx) {
 export async function PATCH(req: Request, { params }: Ctx) {
   const sessionOrRes = await requireSession();
   if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+  const unavailable = storageUnavailable();
+  if (unavailable) return unavailable;
   const { id } = await params;
 
   let body: unknown;
@@ -57,6 +72,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 export async function DELETE(_req: Request, { params }: Ctx) {
   const sessionOrRes = await requireSession();
   if (sessionOrRes instanceof NextResponse) return sessionOrRes;
+  const unavailable = storageUnavailable();
+  if (unavailable) return unavailable;
   const { id } = await params;
   try {
     const ok = await deleteDraft(sessionOrRes.accountId, id);

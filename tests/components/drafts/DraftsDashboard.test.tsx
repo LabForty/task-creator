@@ -28,6 +28,16 @@ describe("DraftsDashboard", () => {
     expect(screen.getByText("Second draft")).toBeInTheDocument();
   });
 
+  // AI-50: when the server can name the problem, show its message instead of
+  // the generic failure prompt.
+  it("surfaces the server's error message when the list fails", async () => {
+    mockFetch(() => jsonResponse({ error: "Drafts storage is not configured." }, 503));
+    render(<DraftsDashboard />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Drafts storage is not configured.",
+    );
+  });
+
   it("delete flow: confirm popover → DELETE request → card removed without a refetch", async () => {
     const calls: Array<{ url: string; method?: string }> = [];
     mockFetch((url, init) => {
