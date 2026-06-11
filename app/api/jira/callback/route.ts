@@ -4,8 +4,8 @@ import {
   clearStateCookieOnResponse,
   constantTimeEquals,
   exchangeCodeForTokens,
-  fetchMe,
   listAccessibleResources,
+  resolveAccountIdentity,
   readConfig,
   readStateCookie,
   resolveRedirectUri,
@@ -216,13 +216,16 @@ export async function GET(req: Request) {
     );
   }
 
-  const me = await fetchMe(tokens.access_token);
+  // /me needs the read:me scope (which we don't request); fall back to the
+  // cloud-scoped /myself so the session always carries a real accountId —
+  // drafts are scoped by it, and "" would pool every user together (AI-50).
+  const identity = await resolveAccountIdentity(tokens.access_token, resources[0].id);
   const session: JiraSession = {
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
     expiresAt: Date.now() + tokens.expires_in * 1000,
-    accountId: me.account_id || "",
-    email: me.email,
+    accountId: identity.accountId,
+    email: identity.email,
   };
 
   console.log(

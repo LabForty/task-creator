@@ -28,8 +28,11 @@ export {
   refreshTokens,
   listAccessibleResources,
   fetchMe,
+  fetchMyself,
+  resolveAccountIdentity,
   getValidSession,
   type AccessibleResource,
+  type AccountIdentity,
 } from "./oauth";
 export {
   jiraFetch,

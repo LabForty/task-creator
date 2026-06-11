@@ -129,6 +129,56 @@ export async function fetchMe(accessToken: string): Promise<Me> {
   return (await res.json()) as Me;
 }
 
+export type AccountIdentity = { accountId: string; email?: string };
+
+// Cloud-scoped variant of /me. Unlike /me (which needs the read:me scope we
+// don't request), /rest/api/3/myself is covered by read:jira-user.
+export async function fetchMyself(
+  accessToken: string,
+  cloudId: string,
+): Promise<AccountIdentity | null> {
+  try {
+    const res = await fetch(
+      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/myself`,
+      {
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          accept: "application/json",
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as { accountId?: string; emailAddress?: string };
+    if (!json.accountId) return null;
+    return { accountId: json.accountId, email: json.emailAddress };
+  } catch {
+    return null;
+  }
+}
+
+// Best-effort accountId lookup: /me first, then /myself on the given cloudId
+// (or the first accessible site when none is given). Returns accountId ""
+// only when every avenue fails — callers must treat that as "unknown".
+export async function resolveAccountIdentity(
+  accessToken: string,
+  cloudId?: string,
+): Promise<AccountIdentity> {
+  try {
+    const me = await fetchMe(accessToken);
+    if (me.account_id) return { accountId: me.account_id, email: me.email };
+  } catch {
+    /* fall through to /myself */
+  }
+  try {
+    const cid = cloudId ?? (await listAccessibleResources(accessToken))[0]?.id;
+    const myself = cid ? await fetchMyself(accessToken, cid) : null;
+    if (myself) return myself;
+  } catch {
+    /* unresolved */
+  }
+  return { accountId: "" };
+}
+
 /**
  * Read the current session and refresh if it's near expiry. Writes the new
  * cookie value when a refresh happens. Throws not_connected if no session.
@@ -138,25 +188,40 @@ export async function getValidSession(): Promise<JiraSession> {
   if (!session) {
     throw new JiraError("not_connected", "Not connected to Jira.", 401);
   }
-  const msUntilExpiry = session.expiresAt - Date.now();
-  if (msUntilExpiry > REFRESH_LEEWAY_MS) {
-    return session;
+  let current = session;
+  const msUntilExpiry = current.expiresAt - Date.now();
+  if (msUntilExpiry <= REFRESH_LEEWAY_MS) {
+    console.log(`[jira/oauth] token near/past expiry (${msUntilExpiry}ms left) — refreshing`);
+    try {
+      const refreshed = await refreshTokens(current.refreshToken);
+      current = {
+        accessToken: refreshed.access_token,
+        refreshToken: refreshed.refresh_token,
+        expiresAt: Date.now() + refreshed.expires_in * 1000,
+        accountId: current.accountId,
+        email: current.email,
+      };
+      await writeSessionCookie(current);
+      console.log(`[jira/oauth] refresh OK, new expiresAt=${new Date(current.expiresAt).toISOString()}`);
+    } catch (err) {
+      console.error(`[jira/oauth] refresh failed:`, err);
+      throw err;
+    }
   }
-  console.log(`[jira/oauth] token near/past expiry (${msUntilExpiry}ms left) — refreshing`);
-  try {
-    const refreshed = await refreshTokens(session.refreshToken);
-    const next: JiraSession = {
-      accessToken: refreshed.access_token,
-      refreshToken: refreshed.refresh_token,
-      expiresAt: Date.now() + refreshed.expires_in * 1000,
-      accountId: session.accountId,
-      email: session.email,
-    };
-    await writeSessionCookie(next);
-    console.log(`[jira/oauth] refresh OK, new expiresAt=${new Date(next.expiresAt).toISOString()}`);
-    return next;
-  } catch (err) {
-    console.error(`[jira/oauth] refresh failed:`, err);
-    throw err;
+  // Heal sessions stored with an empty accountId (sign-ins from before the
+  // /myself fallback existed). Per-account data — drafts — is unusable until
+  // the id is known, so backfill and persist as soon as we can resolve it.
+  if (!current.accountId) {
+    const identity = await resolveAccountIdentity(current.accessToken);
+    if (identity.accountId) {
+      current = {
+        ...current,
+        accountId: identity.accountId,
+        email: current.email ?? identity.email,
+      };
+      await writeSessionCookie(current);
+      console.log(`[jira/oauth] backfilled missing accountId=${identity.accountId}`);
+    }
   }
+  return current;
 }
