@@ -1,5 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadDraft, saveDraft, clearDraft, isDirty, EMPTY_DRAFT } from "@/lib/draft/autosave";
+import {
+  loadDraft,
+  saveDraft,
+  clearDraft,
+  loadDraftId,
+  saveDraftId,
+  clearDraftId,
+  isDirty,
+  EMPTY_DRAFT,
+} from "@/lib/draft/autosave";
 
 beforeEach(() => window.localStorage.clear());
 
@@ -27,6 +36,21 @@ describe("lib/draft/autosave", () => {
     saveDraft("ns3", { ...EMPTY_DRAFT, title: "T" });
     clearDraft("ns3");
     expect(loadDraft("ns3")).toEqual(EMPTY_DRAFT);
+  });
+
+  // AI-50 follow-up: the local draft remembers which server draft it belongs
+  // to, so saves across page reloads update in place instead of creating a
+  // new server draft each visit.
+  it("saveDraftId + loadDraftId round-trips per namespace", () => {
+    saveDraftId("ns4", "d-123");
+    expect(loadDraftId("ns4")).toBe("d-123");
+    expect(loadDraftId("other")).toBeNull();
+  });
+
+  it("clearDraftId removes the stored binding", () => {
+    saveDraftId("ns5", "d-123");
+    clearDraftId("ns5");
+    expect(loadDraftId("ns5")).toBeNull();
   });
 
   it("namespaces are isolated", () => {

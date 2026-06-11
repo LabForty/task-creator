@@ -72,6 +72,35 @@ export function clearDraft(namespace: string): void {
   window.localStorage.removeItem(keyOf(namespace));
 }
 
+// Which server draft the local draft belongs to (AI-50). Persisted alongside
+// the draft so saves across page reloads PATCH the same server row instead of
+// POSTing a duplicate every visit.
+const ID_PREFIX = "task-creator:draft-id:";
+const idKeyOf = (namespace: string) => `${ID_PREFIX}${namespace}`;
+
+export function loadDraftId(namespace: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(idKeyOf(namespace));
+  } catch {
+    return null;
+  }
+}
+
+export function saveDraftId(namespace: string, id: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(idKeyOf(namespace), id);
+  } catch {
+    /* quota or disabled; nothing to do */
+  }
+}
+
+export function clearDraftId(namespace: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(idKeyOf(namespace));
+}
+
 export function isDirty(draft: Draft): boolean {
   return Boolean(
     draft.title.trim() ||

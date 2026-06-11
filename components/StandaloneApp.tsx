@@ -30,7 +30,17 @@ import { JiraChip, type JiraSessionInfo } from "@/components/JiraChip";
 import { JiraExport } from "@/components/JiraExport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { subscribeToJob } from "@/lib/sse/client";
-import { loadDraft, saveDraft, clearDraft, EMPTY_DRAFT } from "@/lib/draft/autosave";
+import {
+  loadDraft,
+  saveDraft,
+  clearDraft,
+  loadDraftId,
+  saveDraftId,
+  clearDraftId,
+  isDirty,
+  EMPTY_DRAFT,
+} from "@/lib/draft/autosave";
+import { useIdleAutosave } from "@/lib/draft/useIdleAutosave";
 import { upsertRequest, deleteDraftRequest } from "@/lib/drafts/client";
 import { buildEpicDraftPayload, applyEpicDraft, shouldDeleteEpicDraftOnClose } from "@/lib/drafts/epic";
 import { syncDiagramsInMarkdown } from "@/lib/render";
@@ -90,6 +100,15 @@ export function StandaloneApp({ initialSession }: Props) {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [draftReloadToken, setDraftReloadToken] = useState(0);
   const [draftSavedNote, setDraftSavedNote] = useState<string | null>(null);
+
+  // Single place that binds (or unbinds) the local draft to its server row.
+  // Persisted per namespace so the binding survives reloads — without it,
+  // every visit's first save would POST a duplicate server draft (AI-50).
+  function adoptDraftId(id: string | null) {
+    setDraftId(id);
+    if (id) saveDraftId(NAMESPACE, id);
+    else clearDraftId(NAMESPACE);
+  }
 
   const [epicMode, setEpicMode] = useState(false);
   const [knead, setKnead] = useState<KneadState>(EMPTY_KNEAD);
@@ -206,6 +225,9 @@ export function StandaloneApp({ initialSession }: Props) {
         chatHistory: existing.chatHistory,
       });
       setLiveDraft(loadDraft(NAMESPACE));
+      // Clearing means "start fresh" — unbind from the server draft so new
+      // content doesn't silently overwrite the previously saved one.
+      adoptDraftId(null);
     } else {
       const existing = loadDraft(ns);
       saveDraft(ns, { ...EMPTY_DRAFT, chatHistory: existing.chatHistory });
@@ -553,6 +575,12 @@ export function StandaloneApp({ initialSession }: Props) {
       if (cancelled || typeof window === "undefined") return;
       const params = new URLSearchParams(window.location.search);
       const draftParam = params.get("draft");
+      if (!draftParam) {
+        // No explicit draft in the URL — rebind to the server draft this
+        // local draft was last saved as, so the next save updates in place.
+        const stored = loadDraftId(NAMESPACE);
+        if (stored && !cancelled) setDraftId(stored);
+      }
       if (draftParam) {
         try {
           const res = await fetch(`/api/drafts/${draftParam}`, { credentials: "same-origin" });
@@ -575,13 +603,13 @@ export function StandaloneApp({ initialSession }: Props) {
                 setKnead(applied.knead);
                 setEpicTasks(applied.epicTasks);
                 setAnalyzeChatById(applied.analyzeChatById);
-                setDraftId(draftParam);
+                adoptDraftId(draftParam);
                 setDraftReloadToken((t) => t + 1);
               }
             } else {
               saveDraft(NAMESPACE, { ...EMPTY_DRAFT, ...payload });
               if (!cancelled) {
-                setDraftId(draftParam);
+                adoptDraftId(draftParam);
                 setDraftReloadToken((t) => t + 1);
               }
             }
@@ -916,7 +944,11 @@ export function StandaloneApp({ initialSession }: Props) {
 
   async function persistDraftPayload(payload: Partial<Draft>) {
     setDraftSavedNote(null);
-    const { url, method } = upsertRequest(draftId);
+    await sendDraftPayload(payload, draftId);
+  }
+
+  async function sendDraftPayload(payload: Partial<Draft>, id: string | null) {
+    const { url, method } = upsertRequest(id);
     try {
       const res = await fetch(url, {
         method,
@@ -925,7 +957,15 @@ export function StandaloneApp({ initialSession }: Props) {
         body: JSON.stringify({ draft: payload }),
       });
       if (res.status === 401) {
-        window.location.href = `/signin?return=${encodeURIComponent("/")}`;
+        window.location.assign(`/signin?return=${encodeURIComponent("/")}`);
+        return;
+      }
+      if (res.status === 404 && method === "PATCH") {
+        // The bound server draft was deleted (e.g. from the dashboard on
+        // another tab). Drop the stale binding and save as a new draft so
+        // the user's work isn't lost.
+        adoptDraftId(null);
+        await sendDraftPayload(payload, null);
         return;
       }
       if (!res.ok) {
@@ -935,7 +975,7 @@ export function StandaloneApp({ initialSession }: Props) {
       }
       if (method === "POST") {
         const json = await res.json().catch(() => ({}));
-        if (typeof json.id === "string") setDraftId(json.id);
+        if (typeof json.id === "string") adoptDraftId(json.id);
       }
       setDraftSavedNote("Draft saved. You can safely leave this page.");
     } catch {
@@ -947,6 +987,19 @@ export function StandaloneApp({ initialSession }: Props) {
   async function saveAsDraft(draft: Draft) {
     await persistDraftPayload(epicMode ? epicPayloadFromState(draft) : draft);
   }
+
+  // AI-50: persist form changes automatically after a minute of inactivity so
+  // leaving the page never loses progress. Mirrors the manual save path; only
+  // while editing (not mid-finalize) and only for signed-in users — the
+  // drafts API rejects anonymous requests anyway.
+  useIdleAutosave({
+    value: liveDraft,
+    enabled: (jiraSession?.connected ?? false) && mode.kind === "idle",
+    onIdle: (draft) => {
+      if (!draft || !isDirty(draft)) return;
+      void persistDraftPayload(epicMode ? epicPayloadFromState(draft) : draft);
+    },
+  });
 
   // Header entry point (epic mode once sub-tasks exist and the Editor is hidden).
   function saveEpicDraft() {
@@ -1002,7 +1055,7 @@ export function StandaloneApp({ initialSession }: Props) {
     setDiagramsErr(null);
     setCreatingDiagrams(false);
     setDraftSavedNote(null);
-    setDraftId(null);
+    adoptDraftId(null);
   }
 
   // Layout rule: the editor pane caps + centers ONLY when no side panel is on
@@ -1289,7 +1342,7 @@ export function StandaloneApp({ initialSession }: Props) {
               void fetch(url, { method, credentials: "same-origin" }).catch(() => {
                 /* best-effort cleanup; the draft simply remains listed */
               });
-              setDraftId(null);
+              adoptDraftId(null);
             }
           }}
           onGatesFailed={(p) =>
@@ -1394,7 +1447,7 @@ export function StandaloneApp({ initialSession }: Props) {
                 void fetch(url, { method, credentials: "same-origin" }).catch(() => {
                   /* best-effort cleanup; the draft simply remains listed */
                 });
-                setDraftId(null);
+                adoptDraftId(null);
               }
             }}
             onPersistUploaded={persistUploadedKey}
