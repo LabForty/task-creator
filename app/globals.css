@@ -495,17 +495,17 @@ html.dark .labforty-mark {
    intensity and with no motion. */
 .ambient-bg {
   background:
-    radial-gradient(120% 80% at 50% -10%, var(--color-accent-tint) 0%, transparent 55%);
+    radial-gradient(125% 85% at 50% -10%, var(--color-accent-tint) 0%, transparent 62%);
 }
 .ambient-blob {
   position: absolute;
   display: block;
   border-radius: 9999px;
-  filter: blur(96px);
-  opacity: 0.22;
+  filter: blur(80px);
+  opacity: 0.42;
   mix-blend-mode: screen;
 }
-html.dark .ambient-blob { opacity: 0.16; mix-blend-mode: lighten; }
+html.dark .ambient-blob { opacity: 0.30; mix-blend-mode: lighten; }
 .ambient-blob--a {
   width: 40rem; height: 40rem; left: -10rem; top: -12rem;
   background: radial-gradient(closest-side, #6f8cff 0%, transparent 70%);
@@ -521,7 +521,7 @@ html.dark .ambient-blob { opacity: 0.16; mix-blend-mode: lighten; }
 .ambient-grid {
   background-image: radial-gradient(circle at 1px 1px, var(--color-rule) 1px, transparent 0);
   background-size: 22px 22px;
-  opacity: 0.25;
+  opacity: 0.32;
   mask-image: radial-gradient(ellipse at center, black 35%, transparent 80%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 35%, transparent 80%);
 }

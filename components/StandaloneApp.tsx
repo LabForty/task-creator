@@ -1079,13 +1079,15 @@ export function StandaloneApp({ initialSession }: Props) {
         ? "bake"
         : epicMode && epicTasks.length > 0
           ? "epic-edit"
-          : "editor"
+          : epicMode
+            ? "editor-epic"
+            : "editor-single"
       : mode.kind === "exporting"
         ? "export"
         : "preview";
 
   return (
-    <main className="relative h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
+    <main className="relative isolate h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
       <AmbientBackground />
       <div className="flex flex-col min-w-0 min-h-0">
         <header className="px-8 py-5 border-b border-rule hig-glass-edge flex items-center gap-4 sticky top-0 z-10">

@@ -62,7 +62,7 @@ export function DraftsDashboard() {
   }, []);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative isolate min-h-screen">
       <AmbientBackground />
       <div className="relative max-w-3xl w-full mx-auto px-6 py-8 flex flex-col gap-5">
         <header className="flex items-center gap-4">

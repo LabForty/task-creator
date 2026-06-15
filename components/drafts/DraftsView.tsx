@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Alert } from "@/components/ui/Alert";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -21,6 +22,13 @@ type Props = {
 };
 
 export function DraftsView({ state, onDelete, onRetry }: Props) {
+  // Which card currently has its delete-confirm popover open. The popover opens
+  // downward past the card's bottom edge; each card sits in its own motion.div
+  // wrapper (a stacking context), so without lifting the confirming card's
+  // wrapper the NEXT card paints over the popover. Tracked here so we can raise
+  // just the open card's wrapper above its siblings.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   if (state.kind === "loading") {
     // Skeletons match the real card silhouette (title row + chip + preview)
     // so the loaded list doesn't jump.
@@ -98,8 +106,17 @@ export function DraftsView({ state, onDelete, onRetry }: Props) {
             initial="hidden"
             animate="visible"
             exit="exit"
+            // Lift the confirming card's wrapper above its siblings so its
+            // downward-opening popover isn't covered by the next card.
+            style={{ position: "relative", zIndex: confirmingId === item.id ? 30 : undefined }}
           >
-            <DraftCard item={item} onDelete={onDelete} />
+            <DraftCard
+              item={item}
+              onDelete={onDelete}
+              onConfirmingChange={(open) =>
+                setConfirmingId((cur) => (open ? item.id : cur === item.id ? null : cur))
+              }
+            />
           </motion.div>
         ))}
       </AnimatePresence>

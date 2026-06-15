@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DraftsView } from "@/components/drafts/DraftsView";
 
@@ -43,5 +43,29 @@ describe("DraftsView", () => {
     render(<DraftsView state={{ kind: "loaded", items: ITEMS }} onDelete={() => {}} onRetry={() => {}} />);
     expect(screen.getByText("X")).toBeInTheDocument();
     expect(screen.getByText("Y")).toBeInTheDocument();
+  });
+  // The delete-confirm popover opens downward, overflowing the card's bottom
+  // edge. With multiple drafts the NEXT card's motion.div wrapper (its own
+  // stacking context) paints over it. Fix: lift the CONFIRMING card's wrapper
+  // above its siblings (zIndex 30) while its popover is open.
+  it("elevates the confirming card's wrapper above its siblings, and resets on cancel", async () => {
+    render(<DraftsView state={{ kind: "loaded", items: ITEMS }} onDelete={() => {}} onRetry={() => {}} />);
+
+    // The card root is DraftCard's outer "group relative hig-card" div; its
+    // parent is the sibling motion.div wrapper whose stacking we elevate.
+    const firstCardRoot = screen.getByText("X").closest(".hig-card") as HTMLElement;
+    const firstWrapper = firstCardRoot.parentElement as HTMLElement;
+    expect(firstWrapper.style.zIndex).toBe(""); // not elevated initially
+
+    // Open the first card's confirm popover via ITS Delete button.
+    const firstDeleteBtn = within(firstCardRoot).getByRole("button", { name: /delete/i });
+    await userEvent.click(firstDeleteBtn);
+    expect(within(firstCardRoot).getByRole("alertdialog")).toBeInTheDocument();
+    expect(firstWrapper.style.zIndex).toBe("30");
+
+    // Cancelling closes the popover and resets the wrapper's stacking.
+    await userEvent.click(within(firstCardRoot).getByRole("button", { name: "Cancel" }));
+    expect(within(firstCardRoot).queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(firstWrapper.style.zIndex).toBe("");
   });
 });

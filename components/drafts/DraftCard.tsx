@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
@@ -11,9 +11,14 @@ type Props = {
   item: DraftListItem;
   now?: number;
   onDelete: (id: string) => void;
+  // Notifies the parent list when this card's delete-confirm popover opens or
+  // closes, so the list can lift the confirming card's wrapper above its
+  // siblings (the popover opens downward and would otherwise be painted over
+  // by the next card's stacking context).
+  onConfirmingChange?: (confirming: boolean) => void;
 };
 
-export function DraftCard({ item, now, onDelete }: Props) {
+export function DraftCard({ item, now, onDelete, onConfirmingChange }: Props) {
   // Capture a stable "now" once (lazy init) when the caller doesn't supply one,
   // so render stays pure — Date.now() in the render body is a lint error here.
   const [fallbackNow] = useState(() => Date.now());
@@ -21,6 +26,12 @@ export function DraftCard({ item, now, onDelete }: Props) {
   const deleteAnchorRef = useRef<HTMLDivElement>(null);
   const effectiveNow = now ?? fallbackNow;
   const epic = item.mode === "epic";
+
+  // Mirror the confirm state up so the parent can elevate this card's wrapper
+  // while the popover is open.
+  useEffect(() => {
+    onConfirmingChange?.(confirming);
+  }, [confirming, onConfirmingChange]);
 
   return (
     <div

@@ -60,7 +60,7 @@ function EmbedInner() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden p-6 bg-surface-subtle">
+    <main className="relative isolate min-h-screen overflow-hidden p-6 bg-surface-subtle">
       <AmbientBackground />
       <header className="mb-4 flex items-center gap-2.5">
         <BrandMark size={26} />
