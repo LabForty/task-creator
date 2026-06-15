@@ -139,25 +139,33 @@ Values are CSS custom properties in `app/globals.css` (light in `:root`, dark in
 ### The "no raw hex" rule
 
 Raw hex literals and arbitrary colour utilities (`bg-[#fff]`, `text-[#abc]`,
-`border-[rgba(...)]`, `fill-[…]`, `stroke-[…]`, etc.) are forbidden and flagged
-by `npm run check:tokens`. Use a semantic token.
+`border-[rgba(...)]`, `fill-[…]`, `stroke-[…]`, etc.) are forbidden in component
+code and flagged by `npm run check:tokens`. Use a semantic token.
 
-### Documented exceptions
+**Scanner scope.** `check:tokens` scans **`.ts`/`.tsx` files** under `app/`,
+`components/`, and `lib/` — i.e. component code, where every value must be a
+token. It deliberately does **not** scan `.css`. `app/globals.css` is the *token
+layer itself*: the `:root` and `html.dark` blocks define every `--color-*` value
+as raw hex/rgba (that is their source of truth), and the decorative CSS (the
+sign-in aurora blob hues `#6f8cff`/`#b07cff`/`#4ad6ff`, vignette, sheen) lives
+there too. Raw colour values are expected and correct in `globals.css`; they are
+out of the scanner's scope by design, not via an allow-marker.
 
-These are real, intentional, brand/decorative values. Each is marked in code
+### Documented exceptions (in component code)
+
+A few intentional raw values remain in `.ts`/`.tsx` and are each marked in code
 with a trailing `// design-tokens-allow: <reason>` comment, which the scanner
 honours:
 
-- **LabForty brand red** — `#ED3B3B`, the diamond in the wordmark. It is a fixed
-  brand colour that must not shift with the theme
-  (`components/signin/SigninExperience.tsx`).
-- **Sign-in aurora gradient stops** — the decorative blob hues
-  (`#6f8cff`, `#b07cff`, `#4ad6ff`) in the `.signin-blob--*` rules in
-  `app/globals.css`. These are atmosphere, not semantic surfaces.
-- **Standalone Jira OAuth callback page** — a minimal, themeless interstitial
-  rendered outside the app shell.
-- **Epic-graph Mermaid `classDef` palette** — the node fills/strokes Mermaid
-  needs as literal hex in its diagram definitions.
+- **LabForty brand red** — `#ED3B3B`, the diamond in the wordmark. A fixed brand
+  colour that must not shift with the theme. Hoisted to a marked `BRAND_RED`
+  const in `components/signin/SigninExperience.tsx`.
+- **Standalone Jira OAuth callback page** — `app/api/jira/callback/route.ts`
+  renders a self-contained HTML string outside the app shell (no Tailwind). It
+  mirrors the token values via a marked `:root{…}` CSS block.
+- **Epic-graph Mermaid `classDef` palette** — `lib/epic/taskGraph.ts`; the node
+  fills/strokes Mermaid needs as literal hex in its diagram definitions (Mermaid
+  cannot resolve CSS `var()`).
 
 If you genuinely need a one-off colour, ask whether it should be a token first.
 Only reach for the allow-marker for brand or decorative values that legitimately
