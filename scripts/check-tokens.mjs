@@ -15,10 +15,14 @@ const SCAN_EXT = new Set([".ts", ".tsx"]);
 const LAYOUT_PREFIX = /^(w|h|min-w|max-w|min-h|max-h|size|top|bottom|left|right|inset|gap|translate-x|translate-y|leading|basis)-\[/;
 
 const RULES = [
-  // bg-[#fff], text-[#abc], border-[#…], fill-[…], stroke-[…], shadow-[…], ring-[…]
-  { rule: "arbitrary-color", re: /\b(?:bg|text|border|fill|stroke|shadow|ring|from|to|via|outline)-\[(?:#|rgb|rgba|hsl)[^\]]*\]/g },
-  // text-[12px], text-[1.1rem] — arbitrary font sizes that should map to the hig ramp
-  { rule: "arbitrary-text-size", re: /\btext-\[\d[^\]]*\]/g },
+  // bg-[#fff], text-[#abc], border-[rgba(...)], shadow-[0_1px_2px_rgba(...)], …
+  // The colour value may sit ANYWHERE inside the bracket (e.g. an arbitrary
+  // box-shadow whose colour follows offsets), so match a hex digit, rgb/rgba,
+  // or hsl/hsla anywhere within. Requiring a hex DIGIT after `#` avoids false
+  // positives like `bg-[url(#gradient)]`.
+  { rule: "arbitrary-color", re: /\b(?:bg|text|border|fill|stroke|shadow|ring|from|to|via|outline|decoration|caret)-\[[^\]]*(?:#[0-9a-fA-F]|rgb|hsl)[^\]]*\]/g },
+  // text-[12px], text-[1.1rem], text-[.5rem] — arbitrary font sizes that should map to the hig ramp
+  { rule: "arbitrary-text-size", re: /\btext-\[\.?\d[^\]]*\]/g },
   // rounded-[7px] — arbitrary radius
   { rule: "arbitrary-radius", re: /\brounded-(?:[a-z]+-)?\[[^\]]*\]/g },
   // bare hex literals: #abc, #aabbcc, #aabbccdd (3/6/8 digits)
