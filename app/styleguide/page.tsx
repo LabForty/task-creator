@@ -12,9 +12,12 @@ const COLORS = [
   "bg-surface", "bg-surface-muted", "bg-surface-subtle", "bg-surface-inset",
   "bg-ink", "bg-ink-secondary", "bg-ink-tertiary",
 ];
+// Full literal class names so Tailwind's content scanner generates each one
+// (an interpolated `text-${t}` would never appear as a literal and some ramp
+// steps — e.g. text-hig-title1 — are used nowhere else, so wouldn't be built).
 const TYPE = [
-  "hig-caption", "hig-footnote", "hig-subhead", "hig-body", "hig-headline",
-  "hig-title3", "hig-title2", "hig-title1", "hig-large",
+  "text-hig-caption", "text-hig-footnote", "text-hig-subhead", "text-hig-body", "text-hig-headline",
+  "text-hig-title3", "text-hig-title2", "text-hig-title1", "text-hig-large",
 ];
 const VARIANTS = ["primary", "secondary", "ghost", "danger", "success", "warning"] as const;
 
@@ -42,7 +45,7 @@ export default function StyleguidePage() {
         <Section title="Typography">
           <Card className="flex flex-col gap-2 p-6">
             {TYPE.map((t) => (
-              <p key={t} className={`text-${t}`}>{t} — The quick brown fox</p>
+              <p key={t} className={t}>{t.replace("text-", "")} — The quick brown fox</p>
             ))}
           </Card>
         </Section>
