@@ -29,6 +29,8 @@ import { Alert } from "@/components/ui/Alert";
 import { JiraChip, type JiraSessionInfo } from "@/components/JiraChip";
 import { JiraExport } from "@/components/JiraExport";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AmbientBackground } from "@/components/AmbientBackground";
+import { BrandMark } from "@/components/BrandMark";
 import { subscribeToJob } from "@/lib/sse/client";
 import {
   loadDraft,
@@ -1067,9 +1069,11 @@ export function StandaloneApp({ initialSession }: Props) {
     analyzeTaskId != null;
 
   return (
-    <main className="h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
+    <main className="relative h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
+      <AmbientBackground />
       <div className="flex flex-col min-w-0 min-h-0">
         <header className="px-8 py-5 border-b border-rule bg-surface/80 backdrop-blur flex items-center gap-4 sticky top-0 z-10">
+          <BrandMark size={32} />
           <div className="flex flex-col">
             <h1 className="text-hig-title2 leading-tight">Task Creator</h1>
             <p className="text-hig-footnote text-ink-secondary mt-0.5">

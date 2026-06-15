@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Editor } from "@/components/Editor";
 import { RunSheet } from "@/components/RunSheet";
 import { Alert } from "@/components/ui/Alert";
+import { AmbientBackground } from "@/components/AmbientBackground";
+import { BrandMark } from "@/components/BrandMark";
 import type { Draft } from "@/lib/draft/autosave";
 import type { FinalizedPayload } from "@/lib/jobs/types";
 
@@ -58,7 +60,12 @@ function EmbedInner() {
   }
 
   return (
-    <main className="min-h-screen p-6 bg-surface-subtle">
+    <main className="relative min-h-screen overflow-hidden p-6 bg-surface-subtle">
+      <AmbientBackground />
+      <header className="mb-4 flex items-center gap-2.5">
+        <BrandMark size={26} />
+        <span className="text-hig-subhead font-semibold tracking-tight text-ink">Task Creator</span>
+      </header>
       {err && (
         <Alert className="mb-4">{err}</Alert>
       )}
