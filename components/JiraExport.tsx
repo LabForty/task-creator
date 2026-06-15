@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import { JiraMetadata } from "@/components/jira-metadata/JiraMetadata";
 import { EMPTY_METADATA, type JiraMetadata as JiraMetadataValue } from "@/lib/jira/metadata";
 import { uploadDraftAttachment } from "@/lib/jira/upload-client";
@@ -333,9 +334,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
         {/* LEFT: form */}
         <div className="hig-card p-5 flex flex-col gap-4 min-h-0 overflow-auto">
           {sitesErr && (
-            <div className="rounded-md bg-danger/5 border border-danger/30 px-3 py-2" role="alert">
-              <p className="text-hig-footnote text-danger">{sitesErr}</p>
-            </div>
+            <Alert>{sitesErr}</Alert>
           )}
 
           {sites && sites.length === 0 && !sitesErr && (
@@ -425,9 +424,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
           )}
 
           {exportErr && (
-            <div className="rounded-md bg-danger/5 border border-danger/30 px-3 py-2" role="alert">
-              <p className="text-hig-footnote text-danger break-words">{exportErr}</p>
-            </div>
+            <Alert className="break-words">{exportErr}</Alert>
           )}
 
           <JiraMetadata

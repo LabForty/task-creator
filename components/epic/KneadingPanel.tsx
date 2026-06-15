@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import { QuestionField } from "@/components/epic/QuestionField";
 import { currentRound, isCurrentRoundAnswered, isSkipped } from "@/lib/epic/state";
 import type { KneadState, KneadAnswerValue, KneadSection } from "@/lib/knead/types";
@@ -39,10 +40,10 @@ export function KneadingPanel({
       </header>
 
       {error && (
-        <div className="rounded-md bg-danger/5 border border-danger/30 px-3 py-2 flex items-center gap-2" role="alert">
-          <p className="text-hig-footnote text-danger flex-1">{error}</p>
+        <Alert className="flex items-center gap-2">
+          <p className="flex-1">{error}</p>
           <Button type="button" size="sm" variant="secondary" onClick={onRetry}>Retry</Button>
-        </div>
+        </Alert>
       )}
 
       {capPrompt && (

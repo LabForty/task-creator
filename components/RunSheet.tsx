@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import { subscribeToJob } from "@/lib/sse/client";
 import type { JobEvent, FinalizedPayload } from "@/lib/jobs/types";
 
@@ -193,12 +194,12 @@ export function RunSheet({ jobId, onFinalized, onGatesFailed, onError, onRetry }
       </ol>
 
       {errorMsg && (
-        <div className="m-6 mt-2 rounded-md bg-danger/5 border border-danger/30 px-4 py-3 flex flex-col gap-2 shrink-0">
-          <p className="text-hig-footnote text-danger">{errorMsg}</p>
+        <Alert className="m-6 mt-2 flex flex-col gap-2 shrink-0">
+          <p>{errorMsg}</p>
           <Button variant="secondary" size="sm" onClick={onRetry}>
             Retry
           </Button>
-        </div>
+        </Alert>
       )}
     </aside>
   );

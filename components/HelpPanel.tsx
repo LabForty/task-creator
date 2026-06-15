@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import type {
   Diagrams,
   HelpMessage,
@@ -317,9 +318,7 @@ export function HelpPanel({
           </div>
         )}
         {error && (
-          <div className="rounded-md bg-danger/5 border border-danger/30 px-3 py-2" role="alert">
-            <p className="text-hig-footnote text-danger">{error}</p>
-          </div>
+          <Alert>{error}</Alert>
         )}
       </div>
 

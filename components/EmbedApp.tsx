@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Editor } from "@/components/Editor";
 import { RunSheet } from "@/components/RunSheet";
+import { Alert } from "@/components/ui/Alert";
 import type { Draft } from "@/lib/draft/autosave";
 import type { FinalizedPayload } from "@/lib/jobs/types";
 
@@ -59,9 +60,7 @@ function EmbedInner() {
   return (
     <main className="min-h-screen p-6 bg-surface-subtle">
       {err && (
-        <div className="mb-4 rounded-md bg-danger/5 border border-danger/30 px-4 py-3" role="alert">
-          <p className="text-hig-footnote text-danger">{err}</p>
-        </div>
+        <Alert className="mb-4">{err}</Alert>
       )}
       <Editor namespace={namespace} onFinalize={submit} disabled={mode.kind === "running"} />
       {mode.kind === "running" && (
