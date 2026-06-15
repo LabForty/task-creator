@@ -110,6 +110,16 @@ html.dark {
   .hig-section-label {
     @apply text-hig-caption uppercase tracking-wider text-ink-tertiary font-semibold;
   }
+  /* Sign-in card treatment, named once. Use on spacious / light-touch
+     surfaces (headers, empty states, dialogs). */
+  .hig-glass {
+    @apply rounded-xl border border-rule bg-surface/70 shadow-elevated backdrop-blur-xl;
+  }
+  /* Higher-opacity glass for dense working surfaces where legibility wins
+     (editor, panels). Same language, calmer. */
+  .hig-glass-strong {
+    @apply rounded-xl border border-rule bg-surface/85 shadow-elevated backdrop-blur-xl;
+  }
 }
 
 /* Help-panel "Discuss" → flash the targeted form field so the user knows
