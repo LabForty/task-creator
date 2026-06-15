@@ -549,3 +549,24 @@ html.dark .ambient-blob { opacity: 0.30; mix-blend-mode: lighten; }
   to   { background-position: -50% 0; }
 }
 
+/* ───────────────────────── Cursor spotlight (shared) ─────────────────────────
+   Pair with the useSpotlight hook. A faint accent glow follows the cursor; only
+   visible on hover. Reduced-motion: the hook doesn't track, so the glow stays
+   centered and the hover-fade still applies. */
+.spotlight { position: relative; isolation: isolate; --spot-x: 50%; --spot-y: 0%; }
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(240px 240px at var(--spot-x) var(--spot-y), rgba(0, 122, 255, 0.10), transparent 70%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.spotlight:hover::before { opacity: 1; }
+html.dark .spotlight::before {
+  background: radial-gradient(280px 280px at var(--spot-x) var(--spot-y), rgba(10, 132, 255, 0.16), transparent 70%);
+}
+

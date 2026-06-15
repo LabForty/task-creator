@@ -43,6 +43,24 @@ if (typeof window !== "undefined") {
   }
 }
 
+// jsdom doesn't implement matchMedia; reduced-motion guards call it. Stub it to
+// "no preference" so hooks run their normal (animated) path in tests.
+if (typeof window !== "undefined" && !window.matchMedia) {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 // Framer Motion in jsdom: skip animations so AnimatePresence doesn't delay
 // unmounts behind rAF-driven exit animations — tests assert final states.
 MotionGlobalConfig.skipAnimations = true;
