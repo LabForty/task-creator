@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandMark } from "@/components/BrandMark";
+import { Alert } from "@/components/ui/Alert";
 
 type Props = {
   configured: boolean;
@@ -163,14 +164,7 @@ export function SigninExperience({ configured, error, connectHref }: Props) {
           </p>
 
           {/* Error chip */}
-          {niceError && (
-            <div
-              role="alert"
-              className="mt-5 rounded-md border border-danger/30 bg-danger/5 px-4 py-3 text-hig-footnote text-danger"
-            >
-              {niceError}
-            </div>
-          )}
+          {niceError && <Alert className="mt-5">{niceError}</Alert>}
 
           {/* CTA */}
           <div className="mt-7">

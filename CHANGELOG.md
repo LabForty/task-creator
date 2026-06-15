@@ -17,6 +17,11 @@ All notable changes to this project are documented here.
   (text) / `danger-strong` tokens, `prominent` Button variant, `AmbientBackground`
   depth, `Skeleton` shimmer, shared `BrandMark`, and `celebrate`/`crossFade`
   motion. WCAG AA locked by a contrast regression test.
+- Design polish applied across surfaces: ambient depth + shared BrandMark on app
+  shells (home/embed), editor hero empty state, drafts hero + shimmer, glass-strong
+  panels, prominent export/epic CTAs, success beat on export/finalize, single↔epic
+  crossfade transition, and unified error text (Alert / danger-strong). Added a
+  `hig-glass-edge` material for full-height edge panels.
 
 ### Changed
 - Task-creator surfaces (header, editor, drafts, diagram nodes, error states)

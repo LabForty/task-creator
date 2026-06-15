@@ -31,7 +31,7 @@ export function KneadingPanel({
   const round = currentRound(state);
 
   return (
-    <aside className="w-[380px] shrink-0 border-l border-rule bg-surface/85 backdrop-blur-xl h-full overflow-y-auto p-4 flex flex-col gap-3">
+    <aside className="w-[380px] shrink-0 border-l border-rule hig-glass-edge h-full overflow-y-auto p-4 flex flex-col gap-3">
       <header className="flex items-baseline justify-between gap-2">
         <h2 className="text-hig-subhead font-semibold text-ink">
           {state.status === "complete" ? "Kneading complete" : "Refine the epic"}

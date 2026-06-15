@@ -63,7 +63,7 @@ export function MermaidDiagram({ source, onError }: Props) {
   if (renderError) {
     return (
       <div className="rounded-lg border border-danger bg-surface-muted p-4" role="alert">
-        <p className="text-danger text-hig-footnote font-medium mb-1">Mermaid syntax error</p>
+        <p className="text-danger-strong text-hig-footnote font-medium mb-1">Mermaid syntax error</p>
         <pre className="text-hig-caption whitespace-pre-wrap text-ink-secondary">{renderError}</pre>
       </div>
     );

@@ -31,6 +31,8 @@ import { JiraExport } from "@/components/JiraExport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { BrandMark } from "@/components/BrandMark";
+import { AnimatePresence, motion } from "motion/react";
+import { crossFade } from "@/lib/motion";
 import { subscribeToJob } from "@/lib/sse/client";
 import {
   loadDraft,
@@ -1068,11 +1070,25 @@ export function StandaloneApp({ initialSession }: Props) {
     knead.rounds.length > 0 ||
     analyzeTaskId != null;
 
+  // Drives the cross-fade between major main-column views. Conditions MUST
+  // mirror the content-switch ternary below so the key changes precisely when
+  // the rendered view changes (and not otherwise).
+  const viewKey =
+    mode.kind === "idle" || mode.kind === "running"
+      ? epicMode && bakeStatus === "baked"
+        ? "bake"
+        : epicMode && epicTasks.length > 0
+          ? "epic-edit"
+          : "editor"
+      : mode.kind === "exporting"
+        ? "export"
+        : "preview";
+
   return (
     <main className="relative h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
       <AmbientBackground />
       <div className="flex flex-col min-w-0 min-h-0">
-        <header className="px-8 py-5 border-b border-rule bg-surface/80 backdrop-blur flex items-center gap-4 sticky top-0 z-10">
+        <header className="px-8 py-5 border-b border-rule hig-glass-edge flex items-center gap-4 sticky top-0 z-10">
           <BrandMark size={32} />
           <div className="flex flex-col">
             <h1 className="text-hig-title2 leading-tight">Task Creator</h1>
@@ -1119,6 +1135,15 @@ export function StandaloneApp({ initialSession }: Props) {
           </div>
         )}
 
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={viewKey}
+            variants={crossFade}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="flex-1 min-h-0 flex flex-col"
+          >
         {mode.kind === "idle" || mode.kind === "running" ? (
           epicMode && bakeStatus === "baked" ? (
             <BakeView
@@ -1327,6 +1352,8 @@ export function StandaloneApp({ initialSession }: Props) {
             )}
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {mode.kind === "running" && (

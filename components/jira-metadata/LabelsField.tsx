@@ -87,7 +87,7 @@ export function LabelsField({ cloudId, value, onChange, disabled }: Props) {
             </li>
           )}
           {error && (
-            <li className="px-3 py-1.5 text-hig-footnote text-danger flex items-center gap-2">
+            <li className="px-3 py-1.5 text-hig-footnote text-danger-strong flex items-center gap-2">
               <span>Couldn&apos;t load labels.</span>
               <button type="button" onClick={retry} className="underline">
                 Retry

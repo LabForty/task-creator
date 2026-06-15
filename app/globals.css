@@ -118,9 +118,10 @@ html.dark {
   }
   /* Sign-in card treatment, named once. Use on spacious / light-touch
      surfaces (headers, empty states, dialogs). The translucent background is
-     set via color-mix rather than `@apply bg-surface/70` — Tailwind's opacity
-     modifier works as an inline utility but not inside @apply for a
-     CSS-variable colour. color-mix re-evaluates --color-surface per theme. */
+     set via color-mix rather than `@apply bg-surface/70` — Tailwind's `/NN`
+     opacity modifier produces nothing for our var()-based colour tokens
+     (neither inline nor in @apply), so color-mix supplies the translucent
+     fill. color-mix re-evaluates --color-surface per theme. */
   .hig-glass {
     @apply rounded-xl border border-rule shadow-elevated backdrop-blur-xl;
     background-color: color-mix(in srgb, var(--color-surface) 70%, transparent);
@@ -129,6 +130,14 @@ html.dark {
      (editor, panels). Same language, calmer. */
   .hig-glass-strong {
     @apply rounded-xl border border-rule shadow-elevated backdrop-blur-xl;
+    background-color: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  }
+  /* Glass material for full-height EDGE panels (side sheets/asides): the
+     glass-strong translucency + blur, without the card chrome (no radius,
+     border, or shadow). Background uses color-mix because Tailwind's `/NN`
+     opacity modifier produces nothing for our var() colour tokens. */
+  .hig-glass-edge {
+    @apply backdrop-blur-xl;
     background-color: color-mix(in srgb, var(--color-surface) 85%, transparent);
   }
 }

@@ -8,6 +8,7 @@ import { ACList } from "@/components/ACList";
 import { ClearDraftButton } from "@/components/ClearDraftButton";
 import { TaskTypePicker } from "@/components/TaskTypePicker";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { applyEditToDraft } from "@/lib/draft/applyEdit";
 import type { ProposedEdit } from "@/lib/jobs/types";
 
@@ -21,7 +22,7 @@ const RichTextDescription = dynamic(
     loading: () => (
       <div className="flex flex-col gap-1.5">
         <span className="text-hig-subhead font-medium text-ink">Description</span>
-        <div className="rounded-md border border-rule bg-surface min-h-[320px] animate-pulse" />
+        <Skeleton className="min-h-[320px] w-full rounded-md" />
       </div>
     ),
   },

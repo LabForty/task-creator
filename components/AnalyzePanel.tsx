@@ -63,7 +63,7 @@ export function AnalyzePanel({ findings, onApply, onDismiss, applying = false }:
       </header>
 
       {findings.length === 0 ? (
-        <p className="text-hig-subhead text-ink-secondary">
+        <p className="mx-auto max-w-sm rounded-xl bg-surface-muted px-5 py-6 text-center text-hig-footnote text-ink-secondary">
           Compared the task text against the diagrams and didn&apos;t spot any
           mismatches worth surfacing.
         </p>

@@ -36,7 +36,7 @@ export function EpicField({ cloudId, projectKey, value, onChange, disabled }: Pr
         <>
           {epics.loading && <span className="text-hig-footnote text-ink-secondary">Loading epics…</span>}
           {epics.error && (
-            <span className="text-hig-footnote text-danger flex items-center gap-2">
+            <span className="text-hig-footnote text-danger-strong flex items-center gap-2">
               Couldn&apos;t load epics.
               <button type="button" onClick={epics.retry} className="underline">Retry</button>
             </span>

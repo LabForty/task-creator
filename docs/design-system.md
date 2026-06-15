@@ -234,7 +234,9 @@ or input className strings.
   `focus:border-accent`.
 - The **error** state shows a danger border (`border-danger focus:border-danger`),
   sets `aria-invalid="true"`, wires `aria-describedby` to the message, and
-  renders the message in `text-danger` at `text-hig-footnote`.
+  renders the message in `text-danger-strong` at `text-hig-footnote` (the AA-safe
+  error-text token — see the error-text rule in Section 9; the vivid `danger`
+  here is the *border*, a fill/affordance).
 
 ```tsx
 import { TextField, TextArea } from "@/components/ui/TextField";
@@ -318,6 +320,57 @@ treatment:
 | `glass-strong` | `.hig-glass-strong` (~85%-opaque surface, otherwise as `glass`) | Higher opacity for dense working surfaces that still want the glass language (editor, panels) |
 
 > The translucent background is set with `background-color: color-mix(in srgb, var(--color-surface) 70%, transparent)` (85% for `-strong`), not `@apply bg-surface/70`. Tailwind's opacity modifier works as an inline utility but not inside `@apply` for a CSS-variable colour; `color-mix` re-evaluates `--color-surface` per light/dark theme.
+
+### `hig-glass-edge` — full-height EDGE panels
+
+`hig-glass-edge` is the glass **material** for full-height **edge** panels — the
+docked side asides (run sheet, help panel, kneading/bake/upload sheets) and the
+app **header**. It is `backdrop-blur-xl` over the same ~85%-opaque `color-mix`
+surface as `hig-glass-strong`, but **without the card chrome**: no radius, no
+border, no shadow. Edge panels are flush against a screen edge and supply their
+own **single edge border** (`border-l`/`border-r`/`border-b border-rule`), so
+baking a full rounded/bordered/shadowed card frame into the material would be
+wrong. It is a utility class only (not a `Card` tone) — apply it directly on the
+`<header>`/`<aside>`.
+
+| Material | Chrome | Use |
+| --- | --- | --- |
+| `hig-glass-strong` | rounded-xl + border + shadow-elevated (full card frame) | **CARDS** — dense working panels that want the glass language |
+| `hig-glass-edge` | none (panel supplies its own single edge border) | **Docked full-height / edge panels** — side asides, app header |
+
+Both sit at **85% surface** (via `color-mix`), so dense content stays legible
+over the ambient background — they share the `glass-strong` legibility budget,
+just with different framing.
+
+```tsx
+{/* docked side aside — supplies its own left edge border */}
+<aside className="border-l border-rule hig-glass-edge h-screen …">…</aside>
+
+{/* app header — supplies its own bottom edge border */}
+<header className="border-b border-rule hig-glass-edge sticky top-0 …">…</header>
+```
+
+### Gotcha — the `/NN` opacity modifier is silently dropped on token colours
+
+Tailwind's `/NN` opacity modifier (e.g. `bg-surface/70`, `bg-surface-muted/30`)
+produces **no CSS** for this project's `var()`-based colour tokens — it is
+silently dropped, so you get a fully **opaque** (or, for `@apply`, **absent**)
+fill rather than the translucency you asked for. This bites both inline and
+inside `@apply`.
+
+What to use instead:
+
+- **Translucent token surface** → use `color-mix` (as the `.hig-glass*` classes
+  do) or the `.hig-glass-edge` utility. Don't reach for `bg-surface/NN`.
+- **Flat tint** (no translucency needed) → use a solid token: `bg-surface-muted`
+  or `bg-surface-inset`.
+
+Two **pre-existing** instances still use the broken pattern and are a known
+follow-up (not regressions): the `signin` card
+(`components/signin/SigninExperience.tsx` — `bg-surface/70`) and `EditDiffView`
+(`components/EditDiffView.tsx` — `bg-surface-muted/30`). They render opaque
+rather than translucent; harmless today, but should migrate to `color-mix` / a
+solid token.
 
 **Calm-surfaces guidance.** Reserve full glass + aurora for spacious moments
 where there is room to breathe. Keep dense panels legible: use `solid` or
@@ -417,6 +470,16 @@ import { Alert } from "@/components/ui/Alert";
 <Alert tone="success">Exported to Jira as PROJ-128.</Alert>
 <Alert tone="accent">Drafts auto-save after 60 seconds of inactivity.</Alert>
 ```
+
+**The error-text rule.** Error **message text** uses `<Alert>` (preferred) or,
+where an inline `<Alert>` doesn't fit, `text-danger-strong` — **never raw
+`text-danger`**. The vivid `danger` token is tuned for *fills* and fails WCAG AA
+as text on a surface; `danger-strong` is the AA-safe sibling (Section 4). Reserve
+vivid `danger` for **fills, badges, borders, icons, and affordances** (e.g. a
+destructive `Button variant="danger"`, a `danger-tint` chip, the `TextField`
+error border) — not for the words of the message. The primitives already encode
+this: `Alert` danger tone and `TextField`'s error message both render in
+`danger-strong`.
 
 ---
 

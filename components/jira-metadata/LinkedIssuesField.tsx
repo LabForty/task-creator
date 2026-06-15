@@ -116,7 +116,7 @@ export function LinkedIssuesField({
             </li>
           )}
           {issues.error && (
-            <li className="px-3 py-1.5 text-hig-footnote text-danger flex items-center gap-2">
+            <li className="px-3 py-1.5 text-hig-footnote text-danger-strong flex items-center gap-2">
               <span>Couldn&apos;t search issues.</span>
               <button
                 type="button"

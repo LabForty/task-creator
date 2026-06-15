@@ -142,7 +142,7 @@ export function EpicTaskCard({
         </button>
       )}
       {confirming && onDelete && (
-        <div className="absolute inset-0 bg-surface/95 rounded-md flex items-center justify-center gap-2 p-2">
+        <div className="absolute inset-0 bg-surface rounded-md flex items-center justify-center gap-2 p-2">
           <span className="text-hig-footnote text-ink">Delete?</span>
           <button
             type="button"

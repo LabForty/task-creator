@@ -159,8 +159,8 @@ export function Preview({
 
           <div className="flex-1 min-h-0 overflow-auto">
             {!diagrams && !creatingDiagrams && (
-              <div className="rounded-md bg-surface-muted p-6 h-full flex items-center justify-center">
-                <p className="text-hig-footnote text-ink-secondary text-center">
+              <div className="h-full flex items-center justify-center">
+                <p className="m-auto max-w-sm rounded-xl bg-surface-muted px-5 py-6 text-center text-hig-footnote text-ink-secondary">
                   No diagrams yet. Click <strong className="font-semibold">Create diagrams</strong>{" "}
                   to generate the flow / sequence / interaction views.
                 </p>

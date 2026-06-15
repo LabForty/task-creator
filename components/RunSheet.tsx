@@ -144,7 +144,7 @@ export function RunSheet({ jobId, onFinalized, onGatesFailed, onError, onRetry }
   return (
     <aside
       aria-label="Finalize progress"
-      className="sticky top-0 self-start border-l border-rule w-[420px] h-screen bg-surface/85 backdrop-blur-xl flex flex-col"
+      className="sticky top-0 self-start border-l border-rule w-[420px] h-screen hig-glass-edge flex flex-col"
     >
       <header className="px-6 pt-6 pb-4 border-b border-rule shrink-0 flex flex-col gap-2">
         <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export function RunSheet({ jobId, onFinalized, onGatesFailed, onError, onRetry }
               ) : (
                 <span className={badgeClass}>{ICON_GLYPH[icon]}</span>
               )}
-              <span className={icon === "error" ? "text-danger" : "text-ink"}>{text}</span>
+              <span className={icon === "error" ? "text-danger-strong" : "text-ink"}>{text}</span>
             </li>
           );
         })}

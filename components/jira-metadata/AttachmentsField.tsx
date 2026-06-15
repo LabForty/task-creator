@@ -90,7 +90,7 @@ export function AttachmentsField({
         className="sr-only"
       />
       {tooLarge.length > 0 && (
-        <ul className="text-hig-footnote text-danger">
+        <ul className="text-hig-footnote text-danger-strong">
           {tooLarge.map((n) => (
             <li key={n}>
               File too large (max {humanSize(maxBytes)}): {n}

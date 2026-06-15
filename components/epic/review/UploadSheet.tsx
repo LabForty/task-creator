@@ -168,7 +168,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epi
   }
 
   return (
-    <aside className="fixed right-0 top-0 h-screen w-[480px] bg-surface/85 backdrop-blur-xl border-l border-rule shadow-lg z-30 flex flex-col">
+    <aside className="fixed right-0 top-0 h-screen w-[480px] hig-glass-edge border-l border-rule shadow-lg z-30 flex flex-col">
       <header className="px-6 py-4 border-b border-rule flex items-center gap-3 shrink-0">
         <h2 className="text-hig-title3">Upload to Jira</h2>
         <span className="flex-1" />

@@ -89,7 +89,7 @@ export function TaskTypePicker({ value, onValueChange, lockedTo }: Props) {
         ))}
       </select>
       {error && (
-        <span className="text-hig-footnote text-danger">
+        <span className="text-hig-footnote text-danger-strong">
           Couldn&apos;t load template list: {error}. Falling back to the saved selection.
         </span>
       )}
