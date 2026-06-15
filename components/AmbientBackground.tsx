@@ -4,9 +4,13 @@
  * dense panels stay legible. Decorative only — aria-hidden, pointer-events-none,
  * sits at -z-10 inside a `relative` shell.
  */
-export function AmbientBackground() {
+export function AmbientBackground({ tone = "idle" }: { tone?: "idle" | "running" | "success" } = {}) {
   return (
-    <div aria-hidden className="ambient-bg pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <div
+      aria-hidden
+      data-tone={tone}
+      className="ambient-bg pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+    >
       <span className="ambient-blob ambient-blob--a" />
       <span className="ambient-blob ambient-blob--b" />
       <span className="ambient-blob ambient-blob--c" />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
@@ -8,6 +9,10 @@ import { TextField, TextArea } from "@/components/ui/TextField";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Typewriter } from "@/components/ui/Typewriter";
+import { GhostDiagram } from "@/components/ui/GhostDiagram";
+import { SuccessFlourish } from "@/components/ui/SuccessFlourish";
+import { useSpotlight } from "@/lib/interaction/useSpotlight";
 
 const COLORS = [
   "bg-accent", "bg-accent-strong", "bg-accent-link", "bg-accent-tint",
@@ -23,6 +28,11 @@ const TYPE = [
   "text-hig-title3", "text-hig-title2", "text-hig-title1", "text-hig-large",
 ];
 const VARIANTS = ["primary", "secondary", "ghost", "danger", "success", "warning", "prominent"] as const;
+const TYPEWRITER_PHRASES = [
+  "Export users as CSV",
+  "Add a payments dashboard",
+  "Rate-limit the public API",
+];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -34,6 +44,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function StyleguidePage() {
+  const spotlightRef = useSpotlight<HTMLDivElement>();
+  // Re-mount SuccessFlourish on each click so its one-shot animation replays.
+  const [flourishKey, setFlourishKey] = useState(0);
   return (
     <main className="min-h-screen bg-surface-subtle px-8 py-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-12">
@@ -112,6 +125,61 @@ export default function StyleguidePage() {
             <Skeleton className="h-3 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
           </Card>
+        </Section>
+
+        <Section title="Interaction primitives">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card ref={spotlightRef} className="spotlight flex flex-col gap-2 p-6">
+              <p className="text-hig-subhead text-ink">Spotlight (useSpotlight)</p>
+              <p className="text-hig-footnote text-ink-secondary">
+                Hover this card — an accent glow follows the cursor.
+              </p>
+            </Card>
+
+            <Card className="flex flex-col gap-2 p-6">
+              <p className="text-hig-subhead text-ink">Typewriter</p>
+              <Typewriter
+                phrases={TYPEWRITER_PHRASES}
+                className="text-hig-headline text-ink"
+              />
+            </Card>
+
+            <Card className="flex flex-col items-center gap-2 p-6">
+              <p className="text-hig-subhead self-start text-ink">GhostDiagram</p>
+              <GhostDiagram className="h-28 w-48" />
+            </Card>
+
+            <Card className="flex flex-col items-center gap-3 p-6">
+              <p className="text-hig-subhead self-start text-ink">SuccessFlourish</p>
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-success-tint">
+                <SuccessFlourish key={flourishKey} />
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setFlourishKey((k) => k + 1)}>
+                Replay
+              </Button>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="relative h-32 overflow-hidden rounded-xl border border-rule">
+              <AmbientBackground tone="idle" />
+              <Card tone="glass-strong" className="absolute inset-4 flex items-center justify-center p-4">
+                <p className="text-hig-footnote text-ink-secondary">tone=&quot;idle&quot;</p>
+              </Card>
+            </div>
+            <div className="relative h-32 overflow-hidden rounded-xl border border-rule">
+              <AmbientBackground tone="running" />
+              <Card tone="glass-strong" className="absolute inset-4 flex items-center justify-center p-4">
+                <p className="text-hig-footnote text-ink-secondary">tone=&quot;running&quot;</p>
+              </Card>
+            </div>
+            <div className="relative h-32 overflow-hidden rounded-xl border border-rule">
+              <AmbientBackground tone="success" />
+              <Card tone="glass-strong" className="absolute inset-4 flex items-center justify-center p-4">
+                <p className="text-hig-footnote text-ink-secondary">tone=&quot;success&quot;</p>
+              </Card>
+            </div>
+          </div>
         </Section>
       </div>
     </main>

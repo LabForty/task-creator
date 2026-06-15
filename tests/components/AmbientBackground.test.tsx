@@ -12,4 +12,13 @@ describe("AmbientBackground", () => {
     expect(root.className).toContain("-z-10");
     expect(root.className).toContain("absolute");
   });
+
+  it("reflects the tone prop as data-tone", () => {
+    const { container } = render(<AmbientBackground tone="running" />);
+    expect((container.firstElementChild as HTMLElement).getAttribute("data-tone")).toBe("running");
+  });
+  it("defaults to idle tone", () => {
+    const { container } = render(<AmbientBackground />);
+    expect((container.firstElementChild as HTMLElement).getAttribute("data-tone")).toBe("idle");
+  });
 });

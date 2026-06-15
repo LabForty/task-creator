@@ -570,3 +570,81 @@ html.dark .spotlight::before {
   background: radial-gradient(280px 280px at var(--spot-x) var(--spot-y), rgba(10, 132, 255, 0.16), transparent 70%);
 }
 
+/* ───────────────────────── Ghost diagram (empty-state hint) ─────────────────
+   A wireframe that draws itself on a loop via stroke-dashoffset. Decorative.
+   Reduced-motion: the global rule zeroes the animation, leaving the completed
+   (fully-drawn) wireframe. */
+.ghost-diagram { opacity: 0.5; }
+.ghost-diagram .gd-stroke {
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+  animation: gd-draw 4s ease-in-out infinite;
+}
+.ghost-diagram .gd-stroke:nth-child(2) { animation-delay: 0.3s; }
+.ghost-diagram .gd-stroke:nth-child(3) { animation-delay: 0.6s; }
+.ghost-diagram .gd-stroke:nth-child(4) { animation-delay: 0.9s; }
+.ghost-diagram .gd-stroke:nth-child(5) { animation-delay: 1.1s; }
+@keyframes gd-draw {
+  0%   { stroke-dashoffset: 240; }
+  45%  { stroke-dashoffset: 0; }
+  85%  { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 240; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-diagram .gd-stroke { stroke-dashoffset: 0; animation: none; }
+}
+
+/* ───────────────────────── Success flourish (restrained) ────────────────────
+   A soft accent ring expands once + three sparks drift out. One-shot (~600ms).
+   NOT confetti. Reduced-motion: animations disabled (the content's celebrate
+   beat carries the moment). */
+.success-flourish { display: block; }
+.success-flourish .sf-ring {
+  position: absolute; left: 50%; top: 50%; width: 12px; height: 12px;
+  margin: -6px 0 0 -6px; border-radius: 9999px;
+  border: 2px solid var(--color-accent);
+  transform: scale(0.4); opacity: 0.7;
+  animation: sf-ring 600ms ease-out forwards;
+}
+.success-flourish .sf-spark {
+  position: absolute; left: 50%; top: 50%; width: 4px; height: 4px;
+  margin: -2px 0 0 -2px; border-radius: 9999px; background: var(--color-success);
+  opacity: 0; animation: sf-spark 600ms ease-out forwards;
+}
+.success-flourish .sf-spark--1 { --sf-dx: 26px; --sf-dy: -20px; }
+.success-flourish .sf-spark--2 { --sf-dx: -22px; --sf-dy: -14px; animation-delay: 60ms; }
+.success-flourish .sf-spark--3 { --sf-dx: 8px; --sf-dy: -30px; animation-delay: 30ms; }
+@keyframes sf-ring {
+  to { transform: scale(2.6); opacity: 0; }
+}
+@keyframes sf-spark {
+  20% { opacity: 1; }
+  to { transform: translate(var(--sf-dx), var(--sf-dy)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .success-flourish .sf-ring, .success-flourish .sf-spark { animation: none; opacity: 0; }
+}
+
+.ambient-bg { transition: filter 500ms ease; }
+.ambient-bg[data-tone="running"] { filter: saturate(1.15) brightness(1.05); }
+.ambient-bg[data-tone="success"]::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% -10%, var(--color-success-tint) 0%, transparent 55%);
+  animation: ambient-success 1600ms ease-out forwards;
+}
+@keyframes ambient-success { 0% { opacity: 0.8; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ambient-bg { transition: none; }
+  .ambient-bg[data-tone="success"]::after { animation: none; opacity: 0; }
+}
+
+/* ───────────────────────── Icon hover micro-animations ──────────────────────
+   Opt-in classes for inline SVG glyphs. Reduced-motion: no transform. */
+.icon-hover-rise { transition: transform 150ms cubic-bezier(0.25, 0.1, 0.25, 1); }
+.group:hover .icon-hover-rise, .icon-hover-rise:hover { transform: translateY(-1px); }
+.icon-hover-nudge { transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1); }
+.group:hover .icon-hover-nudge { transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .icon-hover-rise, .icon-hover-nudge { transition: none; transform: none; }
+}
+

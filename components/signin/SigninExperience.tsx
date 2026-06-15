@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandMark } from "@/components/BrandMark";
 import { Alert } from "@/components/ui/Alert";
+import { Typewriter } from "@/components/ui/Typewriter";
+import { useSpotlight } from "@/lib/interaction/useSpotlight";
 
 type Props = {
   configured: boolean;
@@ -33,67 +35,10 @@ function prettifyError(raw: string | null): string | null {
 }
 
 export function SigninExperience({ configured, error, connectHref }: Props) {
-  const cardRef = useRef<HTMLDivElement | null>(null);
+  // Mouse-following spotlight on the card (the `.signin-card::before` glow
+  // follows the `--spot-x/y` vars this hook feeds).
+  const cardRef = useSpotlight<HTMLDivElement>();
   const niceError = useMemo(() => prettifyError(error), [error]);
-
-  // ── Mouse-following spotlight on the card ──────────────────────────────
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    const onMove = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      el.style.setProperty("--spot-x", `${x}%`);
-      el.style.setProperty("--spot-y", `${y}%`);
-    };
-    const onLeave = () => {
-      el.style.setProperty("--spot-x", `50%`);
-      el.style.setProperty("--spot-y", `0%`);
-    };
-    window.addEventListener("mousemove", onMove, { passive: true });
-    el.addEventListener("mouseleave", onLeave);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      el.removeEventListener("mouseleave", onLeave);
-    };
-  }, []);
-
-  // ── Rotating headline (typewriter) ─────────────────────────────────────
-  const [phraseIdx, setPhraseIdx] = useState(0);
-  const [typed, setTyped] = useState("");
-  const [phase, setPhase] = useState<"typing" | "holding" | "deleting">("typing");
-
-  useEffect(() => {
-    const phrase = ROTATING_PHRASES[phraseIdx];
-    let timeout: ReturnType<typeof setTimeout>;
-
-    if (phase === "typing") {
-      if (typed.length < phrase.length) {
-        timeout = setTimeout(() => setTyped(phrase.slice(0, typed.length + 1)), 38);
-      } else {
-        timeout = setTimeout(() => setPhase("holding"), 1400);
-      }
-    } else if (phase === "holding") {
-      timeout = setTimeout(() => setPhase("deleting"), 0);
-    } else {
-      if (typed.length > 0) {
-        timeout = setTimeout(() => setTyped(phrase.slice(0, typed.length - 1)), 22);
-      } else {
-        timeout = setTimeout(() => {
-          setPhase("typing");
-          setPhraseIdx((i) => (i + 1) % ROTATING_PHRASES.length);
-        }, 220);
-      }
-    }
-    return () => clearTimeout(timeout);
-  }, [typed, phase, phraseIdx]);
-
-  // Stable widest phrase so the headline doesn't reflow as text grows/shrinks.
-  const widestPhrase = useMemo(
-    () => ROTATING_PHRASES.reduce((a, b) => (b.length > a.length ? b : a)),
-    [],
-  );
 
   return (
     <main className="signin-shell relative min-h-screen overflow-hidden">
@@ -139,21 +84,7 @@ export function SigninExperience({ configured, error, connectHref }: Props) {
 
           {/* Rotating headline */}
           <h1 className="text-hig-large leading-[1.05] text-ink">
-            <span
-              aria-hidden
-              className="pointer-events-none invisible block whitespace-pre-wrap"
-            >
-              {widestPhrase}
-            </span>
-            <span
-              className="absolute inset-x-8 top-[3.7rem] block whitespace-pre-wrap sm:inset-x-10"
-              aria-live="polite"
-            >
-              {typed}
-              <span className="signin-caret" aria-hidden>
-                |
-              </span>
-            </span>
+            <Typewriter phrases={ROTATING_PHRASES} className="block" />
           </h1>
 
           {/* Supporting copy */}

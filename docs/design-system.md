@@ -529,7 +529,146 @@ caret, sheen) defer to that rule automatically.
 
 ---
 
-## 11. Skill set / Getting started
+## 11. Interaction primitives
+
+The "alive layer" — a small set of reusable interaction hooks and decorative
+components that give surfaces atmosphere (cursor-following glow, magnetic CTAs,
+rotating headlines, self-drawing wireframes, a success burst, a reactive
+aurora). They were **extracted from the sign-in page**, the canonical exemplar:
+the spotlight and typewriter began as bespoke sign-in code and were generalised
+so the rest of the app reuses the exact same behaviour rather than re-rolling it.
+
+Three rules govern every primitive here:
+
+- **Reuse-first.** These are the shared vocabulary for interaction — compose
+  them; do not hand-roll glows, magnetic pulls, or typewriter state machines at a
+  call site. Sign-in now consumes `useSpotlight` + `Typewriter` itself, proving
+  the extraction.
+- **Reduced-motion safe.** Every one degrades gracefully under
+  `prefers-reduced-motion: reduce` — the hooks become no-ops (glow stays centered,
+  no magnetic pull), and the decorative components render their static end-state
+  (first phrase, completed wireframe, neutralised flourish). This is checked at
+  the source so call sites get it for free.
+- **Pointer handlers are passive + rAF-throttled.** The pointer hooks attach
+  `pointermove` with `{ passive: true }` and coalesce work into a single
+  `requestAnimationFrame`, so cursor tracking never blocks scrolling or thrashes
+  layout.
+
+All of these are demoed live on `/styleguide` ("Interaction primitives").
+
+### Hooks — `lib/interaction`
+
+| Hook | Returns | Behaviour | Reduced-motion |
+| --- | --- | --- | --- |
+| `useSpotlight<T>()` | a `ref` for the element | On pointer move sets `--spot-x`/`--spot-y` (percent) on the element; pair with the `.spotlight` class (`globals.css`), whose `::before` draws a cursor-following accent glow. | No tracking — glow stays centered |
+| `useMagneticHover<T>()` | a `ref` for the element | While hovered, translates the element toward the cursor by a damped amount capped at **6px**; eases back to `0` on leave. For prominent CTAs only — barely-there pull. | No-op (no transform) |
+
+Both are client hooks, both attach a passive + rAF-throttled `pointermove`
+listener, and both clean up on unmount. Attach the returned `ref` to the target
+element — do **not** read `ref.current` during render (the
+`react-hooks/refs` lint rule forbids it).
+
+```tsx
+import { useSpotlight } from "@/lib/interaction/useSpotlight";
+
+const cardRef = useSpotlight<HTMLDivElement>();
+<Card ref={cardRef} className="spotlight p-6">…</Card>
+```
+
+```tsx
+import { useMagneticHover } from "@/lib/interaction/useMagneticHover";
+
+const ctaRef = useMagneticHover<HTMLButtonElement>();
+<button ref={ctaRef} className="… transition-transform">Export to Jira</button>
+```
+
+### Components — `components/ui`
+
+- **`Typewriter`** (`components/ui/Typewriter.tsx`) — a rotating type → hold →
+  delete → next headline, extracted from sign-in. Props
+  `{ phrases: string[]; onPick?: (phrase) => void; className? }`. The live region
+  is `role="status"`. With `onPick` it renders the phrase as a clickable
+  `<button>` (used for the editor's clickable idea-prompts). Reduced-motion:
+  renders the first phrase statically (no typing).
+
+  ```tsx
+  import { Typewriter } from "@/components/ui/Typewriter";
+
+  <Typewriter phrases={["Export users as CSV", "Add a payments dashboard"]} />
+  <Typewriter phrases={IDEA_PROMPTS} onPick={(p) => applyIdea(p)} className="text-accent-link" />
+  ```
+
+- **`GhostDiagram`** (`components/ui/GhostDiagram.tsx`) — a decorative,
+  `aria-hidden` wireframe that self-draws on a loop (`.ghost-diagram` in
+  `globals.css`), hinting at the diagrams "Create diagrams" will produce. Takes
+  `HTMLAttributes<HTMLDivElement>`; size it via `className`. Reduced-motion:
+  renders the completed static wireframe.
+
+  ```tsx
+  import { GhostDiagram } from "@/components/ui/GhostDiagram";
+
+  <GhostDiagram className="mx-auto h-28 w-48" />
+  ```
+
+- **`SuccessFlourish`** (`components/ui/SuccessFlourish.tsx`) — a one-shot
+  (~600ms) expanding accent ring + a few sparks, for success beats. Decorative,
+  `aria-hidden`, `pointer-events-none`, and absolutely positioned (`absolute
+  inset-0`) — drop it inside a `relative` success surface. It replays by being
+  re-mounted, so key it on the success event (or a counter). Reduced-motion: the
+  global rule neutralises the burst; pair with the `celebrate` motion beat
+  (Section 10) on the content.
+
+  ```tsx
+  import { SuccessFlourish } from "@/components/ui/SuccessFlourish";
+
+  <div className="relative …">
+    {success && <SuccessFlourish key={successId} />}
+  </div>
+  ```
+
+### `AmbientBackground` `tone` prop
+
+`AmbientBackground` (Section 8) now takes `tone?: "idle" | "running" | "success"`
+(default `"idle"`), reflected as a `data-tone` attribute. The CSS transitions the
+aurora tint between states (`globals.css`): `running` warms/brightens the layer
+slightly, `success` adds a brief one-shot wash. Wire it from app state — e.g.
+`"running"` while a task runs, a transient `"success"` after a finalize/export.
+Reduced-motion: the transition/burst are neutralised.
+
+```tsx
+<AmbientBackground tone={auroraTone} />   // "idle" | "running" | "success"
+```
+
+### `readinessScore` — `lib/draft/readiness.ts`
+
+`readinessScore(draft): number` returns a client-side completeness score from `0`
+to `READINESS_MAX` (`3`): +1 for a title, +1 for a description of at least 40
+visible characters, +1 for at least one non-empty acceptance criterion. No AI, no
+network — a cheap signal for an editor readiness hint.
+
+```tsx
+import { readinessScore, READINESS_MAX } from "@/lib/draft/readiness";
+
+const score = readinessScore(draft); // 0..READINESS_MAX
+```
+
+### Icon-hover micro-animations
+
+Two opt-in CSS classes in `app/globals.css` add a tiny transform to inline SVG
+glyphs on hover. They respond to hover on the element itself **or** on an
+ancestor `.group` (Tailwind's `group` pattern), so a glyph can lift/nudge when
+its button is hovered:
+
+| Class | Effect |
+| --- | --- |
+| `.icon-hover-rise` | lifts the glyph `1px` (`translateY(-1px)`) |
+| `.icon-hover-nudge` | nudges the glyph `2px` right (`translateX(2px)`) — e.g. an export arrow |
+
+Both use the HIG ease and are zeroed under reduced motion.
+
+---
+
+## 12. Skill set / Getting started
 
 ### Tools
 
@@ -571,7 +710,7 @@ caret, sheen) defer to that rule automatically.
 
 ---
 
-## 12. Living reference
+## 13. Living reference
 
 The `/styleguide` route renders every token swatch and primitive (buttons,
 cards, alerts, fields, type ramp) in both light and dark mode. It is the living,

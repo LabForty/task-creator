@@ -22,6 +22,16 @@ All notable changes to this project are documented here.
   panels, prominent export/epic CTAs, success beat on export/finalize, single↔epic
   crossfade transition, and unified error text (Alert / danger-strong). Added a
   `hig-glass-edge` material for full-height edge panels.
+- **Interaction primitives ("Interactive Atmosphere" foundation).** A reusable
+  "alive layer" extracted from the sign-in page: `useSpotlight` (cursor-following
+  accent glow) and `useMagneticHover` (≤6px CTA pull) hooks; `Typewriter`
+  (rotating headline / clickable idea-prompts), `GhostDiagram` (self-drawing
+  wireframe), and `SuccessFlourish` (one-shot success burst) components; an
+  `AmbientBackground` `tone` prop (`idle`/`running`/`success`) for a reactive
+  aurora; `readinessScore` (0–3 draft completeness); and `.icon-hover-rise` /
+  `.icon-hover-nudge` glyph micro-animations. All reduced-motion safe with passive,
+  rAF-throttled pointer handlers; demoed on `/styleguide` and documented in
+  `docs/design-system.md`.
 
 ### Changed
 - Task-creator surfaces (header, editor, drafts, diagram nodes, error states)
