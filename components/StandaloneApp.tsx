@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { Editor } from "@/components/Editor";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { KneadingPanel } from "@/components/epic/KneadingPanel";
@@ -25,7 +24,8 @@ import { RunSheet } from "@/components/RunSheet";
 import { Preview } from "@/components/Preview";
 import { HelpPanel } from "@/components/HelpPanel";
 import { EditReviewSheet } from "@/components/EditReviewSheet";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import { JiraChip, type JiraSessionInfo } from "@/components/JiraChip";
 import { JiraExport } from "@/components/JiraExport";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -1077,12 +1077,9 @@ export function StandaloneApp({ initialSession }: Props) {
             </p>
           </div>
           <span className="flex-1" />
-          <Link
-            href="/drafts"
-            className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium h-9 px-3.5 text-hig-subhead bg-surface-muted text-ink border border-rule hover:bg-surface-inset"
-          >
+          <ButtonLink href="/drafts" variant="secondary">
             Drafts
-          </Link>
+          </ButtonLink>
           {epicMode && epicTasks.length > 0 && mode.kind === "idle" && (
             <Button variant="secondary" onClick={saveEpicDraft}>
               Save as draft
@@ -1216,9 +1213,7 @@ export function StandaloneApp({ initialSession }: Props) {
           })() : (
           <div className="px-6 py-4 flex-1 min-h-0 flex flex-col w-full">
             {submitErr && (
-              <div className="mb-3 rounded-md bg-danger/5 border border-danger/30 px-4 py-2.5 shrink-0" role="alert">
-                <p className="text-hig-footnote text-danger">{submitErr}</p>
-              </div>
+              <Alert className="mb-3 shrink-0">{submitErr}</Alert>
             )}
             {draftSavedNote && (
               <div className="mb-3 rounded-md bg-accent-tint border border-accent/30 px-4 py-2.5 shrink-0" role="status">
@@ -1281,9 +1276,7 @@ export function StandaloneApp({ initialSession }: Props) {
         ) : (
           <div className="flex-1 min-h-0 flex flex-col">
             {diagramsErr && (
-              <div className="mx-6 mt-3 rounded-md bg-danger/5 border border-danger/30 px-4 py-2 shrink-0" role="alert">
-                <p className="text-hig-footnote text-danger">Diagram error: {diagramsErr}</p>
-              </div>
+              <Alert className="mx-6 mt-3 shrink-0">Diagram error: {diagramsErr}</Alert>
             )}
             {mode.kind === "exporting" ? (
               <JiraExport
