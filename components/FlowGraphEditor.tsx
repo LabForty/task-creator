@@ -82,8 +82,8 @@ function DiamondNode({ data, sourcePosition, targetPosition }: NodeProps) {
       >
         <polygon
           points={`${DIAMOND_W / 2},0 ${DIAMOND_W},${DIAMOND_H / 2} ${DIAMOND_W / 2},${DIAMOND_H} 0,${DIAMOND_H / 2}`}
-          fill="#fff"
-          stroke="#cbd5e1"
+          fill="var(--color-surface)"
+          stroke="var(--color-rule-strong)"
           strokeWidth={1.5}
         />
       </svg>
@@ -163,8 +163,8 @@ function graphToRf(
         ? undefined
         : {
             padding: "8px 14px",
-            background: "#fff",
-            border: "1.5px solid #cbd5e1",
+            background: "var(--color-surface)",
+            border: "1.5px solid var(--color-rule-strong)",
             fontSize: 13,
             ...SHAPE_STYLE[n.shape],
           },
@@ -350,8 +350,8 @@ function FlowGraphEditorInner({ source, onChange }: Props) {
       position: { x: 80, y: maxY + 120 },
       style: {
         padding: "8px 14px",
-        background: "#fff",
-        border: "1.5px solid #cbd5e1",
+        background: "var(--color-surface)",
+        border: "1.5px solid var(--color-rule-strong)",
         fontSize: 13,
         ...SHAPE_STYLE.rect,
       },
@@ -408,8 +408,8 @@ function FlowGraphEditorInner({ source, onChange }: Props) {
                 ? undefined
                 : {
                     padding: "8px 14px",
-                    background: "#fff",
-                    border: "1.5px solid #cbd5e1",
+                    background: "var(--color-surface)",
+                    border: "1.5px solid var(--color-rule-strong)",
                     fontSize: 13,
                     ...SHAPE_STYLE[shape],
                   },
