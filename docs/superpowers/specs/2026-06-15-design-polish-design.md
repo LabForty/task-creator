@@ -48,17 +48,25 @@ the Apple-HIG palette and the sign-in page shares them.
 
 | Token | Light | Dark | Used for |
 | --- | --- | --- | --- |
-| `--color-accent-strong` (new) | `#0064d6` (5.54) | `#0a72ec` (4.53) | primary + `prominent` button background (white labels), accent-as-text (ghost buttons, links) |
+| `--color-accent-strong` (new) | `#0064d6` (white-on-fill 5.54) | `#0a72ec` (white-on-fill 4.53) | primary + `prominent` button background (white labels) |
+| `--color-accent-link` (new) | `#0064d6` (text-on-surface 5.54) | `#0a84ff` (text-on-surface 4.66) | accent-as-text (ghost buttons, links) |
 | `--color-danger-strong` (new) | `#d70015` (5.38) | `#ff453a` (4.99) | error text (`Alert`, field errors) |
 | `--color-ink-tertiary` (changed, light only) | `#76767b` (4.52) | `#8e8e93` (unchanged, 5.22) | eyebrow/caption labels |
 
+The accent splits into **two** tokens because in dark mode no single value clears
+*both* white-on-fill AA (which needs a darker blue, `#0a72ec`) and accent-as-text
+AA on the surface (which needs a lighter blue, `#0a84ff`). `accent-strong` carries
+fills; `accent-link` carries colour-as-text. (In light mode both are `#0064d6`,
+but they stay distinct tokens so the dark split is expressible.)
+
 Vivid `accent` (#007aff / #0a84ff) and `danger` (#ff3b30 / #ff453a) are retained
 for **fills, tints, borders, icons, focus rings, and the aurora**. Only
-colour-as-text and white-on-accent button fills move to the `*-strong` values.
-The sign-in CTA adopts `accent-strong` too (still clearly brand-blue, now AA).
+colour-as-text moves to `accent-link` / `danger-strong`, and white-on-accent
+button fills move to `accent-strong`. The sign-in CTA adopts `accent-strong` too
+(still clearly brand-blue, now AA).
 
 Tailwind mapping (in `tailwind.config.ts`): `accent.strong → var(--color-accent-strong)`,
-`danger.strong → var(--color-danger-strong)`.
+`accent.link → var(--color-accent-link)`, `danger.strong → var(--color-danger-strong)`.
 
 ## Architecture / phased plan
 
@@ -126,7 +134,7 @@ One spec, six phases. Foundation (Phase 1) ships first; surfaces follow.
 | `AmbientBackground` | `components/AmbientBackground.tsx` | Static dim aurora layer for the app shell |
 | `BrandMark` | `components/BrandMark.tsx` | Shared LabForty diamond mark (extracted) |
 | `prominent` variant | `components/ui/Button.tsx` | Marquee CTA treatment (sheen) |
-| `accent-strong` / `danger-strong` | `globals.css` + `tailwind.config.ts` | AA-compliant colour-as-text / button fills |
+| `accent-strong` / `accent-link` / `danger-strong` | `globals.css` + `tailwind.config.ts` | AA-compliant button fills (`accent-strong`), accent-as-text (`accent-link`), error text (`danger-strong`) |
 | `celebrate` / transition helpers | `lib/motion.ts` | Signature motion beats |
 
 ## Testing strategy

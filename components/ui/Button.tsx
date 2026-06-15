@@ -4,7 +4,7 @@ import { AnchorHTMLAttributes, ButtonHTMLAttributes, forwardRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "success" | "warning";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "success" | "warning" | "prominent";
 type Size = "sm" | "md" | "lg";
 
 // HIG: corner-rounded "pill-shape-lite", subtle elevation on primary, no chrome on secondary.
@@ -22,12 +22,14 @@ const sizes: Record<Size, string> = {
 };
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-white shadow-card hover:bg-accent-hover active:bg-accent-pressed",
+  primary: "bg-accent-strong text-white shadow-card hover:bg-accent active:bg-accent-pressed",
   secondary: "bg-surface-muted text-ink border border-rule hover:bg-surface-inset",
-  ghost: "bg-transparent text-accent hover:bg-accent-tint",
+  ghost: "bg-transparent text-accent-link hover:bg-accent-tint",
   danger: "bg-danger text-white hover:opacity-90",
   success: "bg-success text-white hover:opacity-90",
   warning: "bg-warning text-white hover:opacity-90",
+  // Marquee CTA: accent-strong fill, white label, hover sheen (see globals.css).
+  prominent: "cta-prominent relative overflow-hidden bg-accent-strong text-white shadow-card hover:bg-accent active:bg-accent-pressed",
 };
 
 export function buttonClasses(variant: Variant = "primary", size: Size = "md", className = "") {
@@ -40,10 +42,15 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", className = "", ...rest },
+  { variant = "primary", size = "md", className = "", children, ...rest },
   ref,
 ) {
-  return <button ref={ref} className={buttonClasses(variant, size, className)} {...rest} />;
+  return (
+    <button ref={ref} className={buttonClasses(variant, size, className)} {...rest}>
+      {children}
+      {variant === "prominent" && <span aria-hidden className="cta-sheen" />}
+    </button>
+  );
 });
 
 type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
@@ -58,8 +65,13 @@ type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
  * the header and drafts surfaces.
  */
 export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(function ButtonLink(
-  { href, variant = "secondary", size = "md", className = "", ...rest },
+  { href, variant = "secondary", size = "md", className = "", children, ...rest },
   ref,
 ) {
-  return <Link ref={ref} href={href} className={buttonClasses(variant, size, className)} {...rest} />;
+  return (
+    <Link ref={ref} href={href} className={buttonClasses(variant, size, className)} {...rest}>
+      {children}
+      {variant === "prominent" && <span aria-hidden className="cta-sheen" />}
+    </Link>
+  );
 });

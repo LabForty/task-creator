@@ -128,6 +128,35 @@ Values are CSS custom properties in `app/globals.css` (light in `:root`, dark in
 | `rule` | `rgba(0,0,0,0.10)` | `rgba(255,255,255,0.12)` |
 | `rule-strong` | `rgba(0,0,0,0.18)` | `rgba(255,255,255,0.22)` |
 
+### Accessible colour tokens (`*-strong` / `accent-link`)
+
+The vivid `accent`/`danger` values above are tuned for *fills* — they read
+beautifully as backgrounds, tints, and icons, but as **text** or as a **button
+fill under a white label** they fall short of WCAG AA (4.5:1 for normal text).
+A small set of darker/adjusted siblings carry those jobs:
+
+| Token (utility stem) | Light | Dark | Used for |
+| --- | --- | --- | --- |
+| `accent-strong` | `#0064d6` (white-on-fill 5.54) | `#0a72ec` (white-on-fill 4.53) | Button FILL with a white label — `bg-accent-strong` (`Button` `primary`/`prominent`) |
+| `accent-link` | `#0064d6` (text-on-surface 5.54) | `#0a84ff` (text-on-surface 4.66) | Accent-as-TEXT — `text-accent-link` (`Button` `ghost`, links) |
+| `danger-strong` | `#d70015` (text-on-surface 5.38) | `#ff453a` (text-on-surface 4.99) | Error TEXT — `Alert` danger tone + `TextField` error message |
+
+`ink-tertiary` was also darkened in **light** mode (`#86868b` → `#76767b`,
+4.52:1) so eyebrow/caption labels clear AA; the dark value (`#8e8e93`) was
+already fine.
+
+**The rule.** Use vivid `accent`/`danger` for **fills, tints, borders, icons,
+focus rings, and the aurora**. Use `*-strong` / `accent-link` for **colour-as-
+text and white-on-fill buttons**. You almost never reach for these directly —
+the primitives (`Button`, `Alert`, `TextField`) already do.
+
+**Why two accent tokens?** A single accent value can't satisfy both jobs in dark
+mode: a white label on the fill needs a *darker* blue to hit AA (`#0a72ec`),
+while accent text on a dark surface needs a *lighter* blue (`#0a84ff`). So the
+foundation splits them — `accent-strong` for fills, `accent-link` for text.
+(In light mode both happen to be `#0064d6`, but they stay separate tokens so the
+dark split is expressible.)
+
 ### Shadows (also tokenised)
 
 | Token (utility) | Light | Dark |
@@ -241,7 +270,12 @@ import { TextField, TextArea } from "@/components/ui/TextField";
 Use `Button` (and `ButtonLink` for navigations) from `components/ui/Button.tsx`.
 
 - **Variants:** `primary` (default), `secondary`, `ghost`, `danger`, `success`,
-  `warning`.
+  `warning`, `prominent`.
+- **`prominent`** is the **marquee CTA** treatment — the sign-in CTA language:
+  `accent-strong` fill, white label, `shadow-card`, and a sheen that drifts
+  across on hover (`.cta-prominent`/`.cta-sheen` in `globals.css`). Reserve it
+  for the single most important action on a surface (Finalize, Export to Jira,
+  the empty-state CTA); do not pepper a screen with it.
 - **Sizes:** `sm` (h-7), `md` (default, h-9), `lg` (h-11).
 - `ButtonLink` renders a Next.js `<Link>` that looks like a button (defaults to
   `secondary`); use it for links that should read as buttons (header nav, drafts
@@ -263,6 +297,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 <Button variant="danger" onClick={remove}>Delete</Button>
 <Button variant="success">Export to Jira</Button>
 <Button variant="warning">Discard changes</Button>
+<Button variant="prominent">Export to Jira</Button>  {/* marquee CTA only */}
 <Button disabled>Saving…</Button>
 
 <ButtonLink href="/drafts">Back to drafts</ButtonLink>
@@ -308,6 +343,56 @@ instead of wrapping:
 The class names (`.hig-card`, `.hig-glass`, `.hig-glass-strong`) are defined in
 the `@layer components` block of `app/globals.css`.
 
+### Depth — `AmbientBackground`
+
+`AmbientBackground` (`components/AmbientBackground.tsx`) is a static, dim,
+token-tinted aurora layer that gives an app shell atmospheric depth without
+stealing attention. It is the calm sibling of the sign-in aurora: derived from
+the same `.ambient-*` vocabulary in `globals.css`, but **dimmer and not
+animated**, so panels stay legible.
+
+- **One per app shell.** Render it once, as the first child of a `relative`
+  shell root. It positions itself `absolute inset-0 -z-10`, is `aria-hidden`,
+  and is `pointer-events-none`, so it sits behind content and never intercepts
+  clicks.
+- **Calm/static by design.** Reserve motion and brightness for the sign-in page;
+  the app shell wants depth, not spectacle. Keep working panels on `glass-strong`
+  (or `solid`) over the ambient layer so dense content stays readable — this is
+  the "calm surfaces" principle (Section 8) applied to depth.
+
+```tsx
+import { AmbientBackground } from "@/components/AmbientBackground";
+
+<div className="relative min-h-screen">
+  <AmbientBackground />
+  <Card tone="glass-strong" className="relative p-6">…panel…</Card>
+</div>
+```
+
+### Loading — `Skeleton` (shimmer)
+
+`Skeleton` (`components/ui/Skeleton.tsx`) is the shimmer loading placeholder. It
+**replaces static `animate-pulse`** blocks. Pass sizing/shape via `className`
+(e.g. `h-4 w-44`); the sweep is the `.hig-shimmer` CSS animation in
+`globals.css`, which reduced-motion neutralises to a flat tint.
+
+```tsx
+import { Skeleton } from "@/components/ui/Skeleton";
+
+<Card className="flex flex-col gap-2.5 p-6">
+  <Skeleton className="h-4 w-44" />
+  <Skeleton className="h-3 w-3/4" />
+</Card>
+```
+
+### Brand — `BrandMark`
+
+`BrandMark` (`components/BrandMark.tsx`) is the shared LabForty wordmark glyph,
+extracted so the sign-in page and the app header render the same mark. Strokes
+use `currentColor` (adapts to the theme); the diamond keeps the fixed brand red
+(`BRAND_RED` = `#ED3B3B`, carrying its `design-tokens-allow` marker). Takes an
+optional `size` prop (default `36`).
+
 ---
 
 ## 9. Error states
@@ -349,6 +434,8 @@ hover/press micro-states.
 | `DUR_FAST` | `0.15` (seconds) | Fast exits/transitions |
 | `fadeUp` | Variants: fade + rise (`y: 14`) in with `SPRING`; fade + shrink out fast | List/card entrances; stagger with `custom={index}` |
 | `scaleIn` | Variants: scale-in from 95%, faster scale-out | Menus and popovers |
+| `celebrate` | Variants: a quick scale pop (`0.9 → 1.04 → 1`) that settles | Success beats — export/finalize confirmation |
+| `crossFade` | Variants: gentle fade+rise in, fade+rise out the opposite way | View transitions (single↔epic); pair with `AnimatePresence mode="wait"` |
 | `staggerDelay(index)` | `min(index, 8) * 0.04` s | Per-item entrance delay; caps at the 8th item so long lists don't crawl in |
 
 ```tsx

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { staggerDelay, fadeUp, scaleIn, SPRING } from "@/lib/motion";
+import { staggerDelay, fadeUp, scaleIn, SPRING, celebrate, crossFade } from "@/lib/motion";
 
 describe("staggerDelay", () => {
   it("staggers the first items 40ms apart", () => {
@@ -23,5 +23,17 @@ describe("variants", () => {
   });
   it("spring is stiff and lightly damped (lively, not bouncy)", () => {
     expect(SPRING).toMatchObject({ type: "spring" });
+  });
+});
+
+describe("motion variants", () => {
+  it("celebrate defines hidden + visible with a scale beat", () => {
+    expect(celebrate.hidden).toMatchObject({ opacity: 0, scale: 0.9 });
+    expect(celebrate.visible).toMatchObject({ opacity: 1, scale: [0.9, 1.04, 1] });
+  });
+  it("crossFade defines hidden, visible, and exit", () => {
+    expect(crossFade.hidden).toMatchObject({ opacity: 0, y: 8 });
+    expect(crossFade.visible).toMatchObject({ opacity: 1, y: 0 });
+    expect(crossFade.exit).toMatchObject({ opacity: 0, y: -8 });
   });
 });

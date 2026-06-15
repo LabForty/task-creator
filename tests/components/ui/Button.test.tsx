@@ -15,6 +15,21 @@ describe("Button", () => {
     expect(btn.className).toContain("px-8");
     expect(btn.className).not.toContain("px-3.5");
   });
+  it("primary uses the accessible accent-strong fill", () => {
+    render(<Button>Go</Button>);
+    expect(screen.getByRole("button", { name: "Go" }).className).toContain("bg-accent-strong");
+  });
+  it("prominent renders a sheen element and the cta-prominent host", () => {
+    render(<Button variant="prominent">Finalize</Button>);
+    const btn = screen.getByRole("button", { name: "Finalize" });
+    expect(btn.className).toContain("cta-prominent");
+    expect(btn.className).toContain("bg-accent-strong");
+    expect(btn.querySelector(".cta-sheen")).not.toBeNull();
+  });
+  it("ghost text uses accent-link (AA accent-as-text)", () => {
+    render(<Button variant="ghost">Link</Button>);
+    expect(screen.getByRole("button", { name: "Link" }).className).toContain("text-accent-link");
+  });
 });
 
 describe("ButtonLink", () => {

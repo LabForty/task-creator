@@ -6,9 +6,12 @@ import { Alert } from "@/components/ui/Alert";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { TextField, TextArea } from "@/components/ui/TextField";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AmbientBackground } from "@/components/AmbientBackground";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const COLORS = [
-  "bg-accent", "bg-accent-tint", "bg-danger", "bg-warning", "bg-success",
+  "bg-accent", "bg-accent-strong", "bg-accent-link", "bg-accent-tint",
+  "bg-danger", "bg-danger-strong", "bg-warning", "bg-success",
   "bg-surface", "bg-surface-muted", "bg-surface-subtle", "bg-surface-inset",
   "bg-ink", "bg-ink-secondary", "bg-ink-tertiary",
 ];
@@ -19,7 +22,7 @@ const TYPE = [
   "text-hig-caption", "text-hig-footnote", "text-hig-subhead", "text-hig-body", "text-hig-headline",
   "text-hig-title3", "text-hig-title2", "text-hig-title1", "text-hig-large",
 ];
-const VARIANTS = ["primary", "secondary", "ghost", "danger", "success", "warning"] as const;
+const VARIANTS = ["primary", "secondary", "ghost", "danger", "success", "warning", "prominent"] as const;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -92,6 +95,23 @@ export default function StyleguidePage() {
             <Alert tone="success">Exported to Jira.</Alert>
             <Alert tone="accent">Auto-saved a moment ago.</Alert>
           </div>
+        </Section>
+
+        <Section title="Depth">
+          <div className="relative h-40 overflow-hidden rounded-xl border border-rule">
+            <AmbientBackground />
+            <Card tone="glass-strong" className="absolute inset-6 flex items-center justify-center p-5">
+              <p className="text-hig-subhead">glass-strong over AmbientBackground</p>
+            </Card>
+          </div>
+        </Section>
+
+        <Section title="Loading (shimmer)">
+          <Card className="flex flex-col gap-2.5 p-6">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </Card>
         </Section>
       </div>
     </main>

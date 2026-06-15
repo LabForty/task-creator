@@ -13,6 +13,10 @@ All notable changes to this project are documented here.
   helper, a living `/styleguide` reference, and the guide at `docs/design-system.md`.
 - `npm run check:tokens` — fails the build on raw hex or arbitrary colour/type
   values outside the documented brand/decorative allowlist.
+- Design polish foundation: accessible `accent-strong` (fill) / `accent-link`
+  (text) / `danger-strong` tokens, `prominent` Button variant, `AmbientBackground`
+  depth, `Skeleton` shimmer, shared `BrandMark`, and `celebrate`/`crossFade`
+  motion. WCAG AA locked by a contrast regression test.
 
 ### Changed
 - Task-creator surfaces (header, editor, drafts, diagram nodes, error states)

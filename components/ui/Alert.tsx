@@ -5,7 +5,7 @@ type Tone = "danger" | "warning" | "success" | "accent";
 
 // Mirrors the sign-in error chip language (border-danger/30 bg-danger/5 …).
 const tones: Record<Tone, string> = {
-  danger: "border-danger/30 bg-danger/5 text-danger",
+  danger: "border-danger/30 bg-danger/5 text-danger-strong",
   warning: "border-warning/30 bg-warning/5 text-warning",
   success: "border-success/30 bg-success/5 text-success",
   accent: "border-accent/30 bg-accent-tint text-accent",

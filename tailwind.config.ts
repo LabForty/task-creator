@@ -47,11 +47,14 @@ const config: Config = {
         accent: {
           DEFAULT: "var(--color-accent)",
           hover: "var(--color-accent-hover)",
+          link: "var(--color-accent-link)",
           pressed: "var(--color-accent-pressed)",
+          strong: "var(--color-accent-strong)",
           tint: "var(--color-accent-tint)",
         },
         danger: {
           DEFAULT: "var(--color-danger)",
+          strong: "var(--color-danger-strong)",
           tint: "var(--color-danger-tint)",
         },
         warning: {

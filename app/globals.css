@@ -13,8 +13,11 @@
   --color-accent-hover:   #0064d6;
   --color-accent-pressed: #0050a8;
   --color-accent-tint:    #e9f1ff;
+  --color-accent-strong:  #0064d6; /* AA white-on-fill + accent-as-text (5.54) */
+  --color-accent-link:    #0064d6; /* AA accent-as-text on light surface (5.54) */
 
   --color-danger:         #ff3b30;
+  --color-danger-strong:  #d70015; /* AA error text on surface (5.38) */
   --color-danger-tint:    #ffe7e6;
   --color-warning:        #ff9500;
   --color-warning-tint:   #fff3df;
@@ -29,7 +32,7 @@
 
   --color-ink:            #1d1d1f;
   --color-ink-secondary:  #6e6e73;
-  --color-ink-tertiary:   #86868b;
+  --color-ink-tertiary:   #76767b;
   --color-ink-quaternary: #c7c7cc;
 
   --color-rule:           rgba(0,0,0,0.10);
@@ -48,8 +51,11 @@ html.dark {
   --color-accent-hover:   #409cff;
   --color-accent-pressed: #1f6feb;
   --color-accent-tint:    rgba(10,132,255,0.18);
+  --color-accent-strong:  #0a72ec; /* AA white-on-fill / accent-as-text (4.53) */
+  --color-accent-link:    #0a84ff; /* AA accent-as-text on dark surface (4.66) */
 
   --color-danger:         #ff453a;
+  --color-danger-strong:  #ff453a; /* AA error text on dark surface (4.99) */
   --color-danger-tint:    rgba(255,69,58,0.18);
   --color-warning:        #ff9f0a;
   --color-warning-tint:   rgba(255,159,10,0.18);
@@ -453,4 +459,84 @@ html.dark .labforty-mark {
   pointer-events: none;
 }
 .signin-cta:hover .signin-cta-sheen { transform: translateX(110%); }
+
+/* ───────────────────────── Prominent CTA (shared) ─────────────────────────
+   The sign-in CTA treatment generalised for the `prominent` Button variant:
+   accent-strong fill + a sheen that drifts left→right on hover. Reduced-motion
+   neutralises the transition via the global rule in @layer base. */
+.cta-prominent { isolation: isolate; }
+.cta-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 70%
+  );
+  transform: translateX(-110%);
+  transition: transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  pointer-events: none;
+}
+.cta-prominent:hover .cta-sheen { transform: translateX(110%); }
+
+/* ───────────────────────── Ambient app-shell depth ─────────────────────────
+   A faint, STATIC aurora behind the app grid. Calm by design — panels stay
+   glass-strong and legible. Mirrors the sign-in vocabulary at much lower
+   intensity and with no motion. */
+.ambient-bg {
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--color-accent-tint) 0%, transparent 55%);
+}
+.ambient-blob {
+  position: absolute;
+  display: block;
+  border-radius: 9999px;
+  filter: blur(96px);
+  opacity: 0.22;
+  mix-blend-mode: screen;
+}
+html.dark .ambient-blob { opacity: 0.16; mix-blend-mode: lighten; }
+.ambient-blob--a {
+  width: 40rem; height: 40rem; left: -10rem; top: -12rem;
+  background: radial-gradient(closest-side, #6f8cff 0%, transparent 70%);
+}
+.ambient-blob--b {
+  width: 34rem; height: 34rem; right: -8rem; top: 25%;
+  background: radial-gradient(closest-side, #b07cff 0%, transparent 70%);
+}
+.ambient-blob--c {
+  width: 30rem; height: 30rem; left: 20%; bottom: -12rem;
+  background: radial-gradient(closest-side, #4ad6ff 0%, transparent 70%);
+}
+.ambient-grid {
+  background-image: radial-gradient(circle at 1px 1px, var(--color-rule) 1px, transparent 0);
+  background-size: 22px 22px;
+  opacity: 0.25;
+  mask-image: radial-gradient(ellipse at center, black 35%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 35%, transparent 80%);
+}
+.ambient-vignette {
+  background: radial-gradient(120% 90% at 50% 40%, transparent 45%, var(--color-surface-subtle) 95%);
+}
+
+/* ───────────────────────── Shimmer skeletons ─────────────────────────
+   Replaces static animate-pulse. A highlight sweeps across a base tint;
+   reduced-motion freezes it to the flat base via the global rule. */
+.hig-shimmer {
+  background-color: var(--color-surface-inset);
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--color-surface) 60%, transparent) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: hig-shimmer-sweep 1.4s ease-in-out infinite;
+}
+@keyframes hig-shimmer-sweep {
+  from { background-position: 150% 0; }
+  to   { background-position: -50% 0; }
+}
 

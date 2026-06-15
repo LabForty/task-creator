@@ -40,3 +40,21 @@ export const scaleIn: Variants = {
   visible: { opacity: 1, scale: 1, transition: { duration: DUR_FAST, ease: EASE_HIG } },
   exit: { opacity: 0, scale: 0.95, transition: { duration: 0.1, ease: EASE_HIG } },
 };
+
+// Success beat: a quick pop that settles. Used on export/finalize success.
+export const celebrate: Variants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    scale: [0.9, 1.04, 1],
+    transition: { duration: 0.4, ease: EASE_HIG, times: [0, 0.6, 1] },
+  },
+};
+
+// Single↔epic / view transition: gentle fade+rise in, fade+rise out the
+// opposite way. Pair with AnimatePresence mode="wait".
+export const crossFade: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_HIG } },
+  exit: { opacity: 0, y: -8, transition: { duration: DUR_FAST, ease: EASE_HIG } },
+};

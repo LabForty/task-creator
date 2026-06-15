@@ -18,4 +18,8 @@ describe("Alert", () => {
     render(<Alert tone="accent">info</Alert>);
     expect(screen.getByRole("alert").className).toContain("bg-accent-tint");
   });
+  it("uses danger-strong for danger-tone text", () => {
+    render(<Alert>broke</Alert>);
+    expect(screen.getByRole("alert").className).toContain("text-danger-strong");
+  });
 });

@@ -15,4 +15,8 @@ describe("TextField", () => {
     expect(input.className).toContain("border-danger");
     expect(input).toHaveAttribute("aria-invalid", "true");
   });
+  it("renders the error message in danger-strong", () => {
+    render(<TextField label="Title" error="Required" />);
+    expect(screen.getByText("Required").className).toContain("text-danger-strong");
+  });
 });

@@ -37,7 +37,7 @@ export const TextField = forwardRef<
         className={cn(fieldBase, "h-10 px-3", error && errorRing, className)}
         {...rest}
       />
-      {error && <span id={errorId} className="text-hig-footnote text-danger">{error}</span>}
+      {error && <span id={errorId} className="text-hig-footnote text-danger-strong">{error}</span>}
     </label>
   );
 });
@@ -65,7 +65,7 @@ export const TextArea = forwardRef<
         className={cn(fieldBase, "p-3 leading-relaxed resize-y", error && errorRing, className)}
         {...rest}
       />
-      {error && <span id={errorId} className="text-hig-footnote text-danger">{error}</span>}
+      {error && <span id={errorId} className="text-hig-footnote text-danger-strong">{error}</span>}
     </label>
   );
 });
