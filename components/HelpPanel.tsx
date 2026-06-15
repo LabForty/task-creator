@@ -186,7 +186,7 @@ export function HelpPanel({
   return (
     <aside
       aria-label="Help"
-      className="sticky top-0 self-start border-l border-rule min-w-[340px] max-w-[480px] flex-shrink-0 h-screen flex flex-col bg-surface overflow-hidden transition-[max-width,min-width] duration-150 ease-out"
+      className="sticky top-0 self-start border-l border-rule min-w-[340px] max-w-[480px] flex-shrink-0 h-screen flex flex-col bg-surface/85 backdrop-blur-xl overflow-hidden transition-[max-width,min-width] duration-150 ease-out"
     >
       <header className="px-5 py-4 border-b border-rule flex flex-col gap-2 shrink-0">
         <div className="flex items-center gap-2">

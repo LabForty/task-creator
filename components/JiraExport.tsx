@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { celebrate } from "@/lib/motion";
 import { JiraMetadata } from "@/components/jira-metadata/JiraMetadata";
 import { EMPTY_METADATA, type JiraMetadata as JiraMetadataValue } from "@/lib/jira/metadata";
 import { uploadDraftAttachment } from "@/lib/jira/upload-client";
@@ -237,10 +239,15 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
           <Button variant="secondary" onClick={onDone}>Done</Button>
         </header>
         <div className="px-6 py-6 flex-1 overflow-auto">
-          <div className="hig-card p-6 max-w-2xl flex flex-col gap-4">
-            <p className="text-hig-body">
+          <div className="hig-glass-strong p-6 max-w-2xl flex flex-col gap-4">
+            <motion.p
+              variants={celebrate}
+              initial="hidden"
+              animate="visible"
+              className="text-hig-body"
+            >
               Created issue <strong className="font-semibold">{result.key}</strong>.
-            </p>
+            </motion.p>
             <a href={result.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
               Open in Jira →
             </a>
@@ -254,7 +261,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
                       {result.attachments[f] === "ok" ? (
                         <span className="text-ink">uploaded</span>
                       ) : (
-                        <span className="text-danger">failed{result.attachmentErrors[f] ? `: ${result.attachmentErrors[f]}` : ""}</span>
+                        <span className="text-danger-strong">failed{result.attachmentErrors[f] ? `: ${result.attachmentErrors[f]}` : ""}</span>
                       )}
                     </li>
                   ))}
@@ -287,7 +294,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
                         ? `uploading${typeof r.pct === "number" ? ` (${r.pct}%)` : "…"}`
                         : r.status === "ok"
                         ? <span className="text-ink">uploaded</span>
-                        : <span className="text-danger">failed{r.error ? `: ${r.error}` : ""}</span>}
+                        : <span className="text-danger-strong">failed{r.error ? `: ${r.error}` : ""}</span>}
                     </li>
                   ))}
                 </ul>
@@ -301,13 +308,13 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
                     <li key={k} className="text-ink">{k} linked</li>
                   ))}
                   {result.linkResults.failed.map((f) => (
-                    <li key={f.key} className="text-danger">{f.key}: {f.error}</li>
+                    <li key={f.key} className="text-danger-strong">{f.key}: {f.error}</li>
                   ))}
                 </ul>
               </div>
             )}
             {result.flagCommentResult === "failed" && (
-              <p className="text-hig-footnote text-danger">Flag comment failed: {result.flagCommentError ?? "unknown"}</p>
+              <p className="text-hig-footnote text-danger-strong">Flag comment failed: {result.flagCommentError ?? "unknown"}</p>
             )}
             {result.epicCreated && (
               <p className="text-hig-footnote text-ink-secondary">Epic created: <code>{result.epicCreated.key}</code></p>
@@ -325,14 +332,14 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
         <h2 className="text-hig-title3">Export to Jira</h2>
         <span className="flex-1" />
         <Button variant="ghost" onClick={onCancel} disabled={exporting}>Cancel</Button>
-        <Button onClick={submit} disabled={!canSubmit}>
+        <Button variant="prominent" onClick={submit} disabled={!canSubmit}>
           {exporting ? "Creating…" : "Create issue"}
         </Button>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-6 py-4 flex-1 min-h-0 overflow-hidden">
         {/* LEFT: form */}
-        <div className="hig-card p-5 flex flex-col gap-4 min-h-0 overflow-auto">
+        <div className="hig-glass-strong p-5 flex flex-col gap-4 min-h-0 overflow-auto">
           {sitesErr && (
             <Alert>{sitesErr}</Alert>
           )}
@@ -370,7 +377,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
                   disabled={projectsLoading}
                 />
                 {projectsErr && (
-                  <span className="text-hig-footnote text-danger">{projectsErr}</span>
+                  <span className="text-hig-footnote text-danger-strong">{projectsErr}</span>
                 )}
                 {projects && filteredProjects.length > 0 && (
                   <div className="max-h-64 overflow-auto rounded-md border border-rule divide-y divide-rule">
@@ -401,7 +408,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
                 <label className="flex flex-col gap-1.5">
                   <span className="text-hig-subhead font-medium text-ink">Issue type</span>
                   {issueTypesErr && (
-                    <span className="text-hig-footnote text-danger">{issueTypesErr}</span>
+                    <span className="text-hig-footnote text-danger-strong">{issueTypesErr}</span>
                   )}
                   {issueTypesLoading && (
                     <span className="text-hig-footnote text-ink-secondary">Loading issue types…</span>
@@ -438,7 +445,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
         </div>
 
         {/* RIGHT: preview of what Jira will receive */}
-        <div className="hig-card p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
+        <div className="hig-glass-strong p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
           <header className="shrink-0">
             <span className="hig-section-label">Preview</span>
             <h3 className="text-hig-title3 truncate">{payload.story.title}</h3>

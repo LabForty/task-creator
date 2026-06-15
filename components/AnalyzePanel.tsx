@@ -36,7 +36,7 @@ export function AnalyzePanel({ findings, onApply, onDismiss, applying = false }:
   }
 
   return (
-    <section className="hig-card p-6 flex flex-col gap-4" aria-label="Diagram analysis">
+    <section className="hig-glass-strong p-6 flex flex-col gap-4" aria-label="Diagram analysis">
       <header className="flex items-start flex-wrap gap-3">
         <div className="flex flex-col">
           <span className="hig-section-label">Analysis</span>

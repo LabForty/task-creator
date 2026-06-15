@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { subscribeToJob } from "@/lib/sse/client";
+import { celebrate } from "@/lib/motion";
 import type { JobEvent, FinalizedPayload } from "@/lib/jobs/types";
 
 type Props = {
@@ -38,7 +40,7 @@ function isChatter(e: JobEvent): boolean {
   return e.type === "role_progress" || e.type === "role_token";
 }
 
-function lineFor(e: JobEvent): { icon: IconKind; text: string } {
+function lineFor(e: JobEvent): { icon: IconKind; text: string; pop?: boolean } {
   switch (e.type) {
     case "role_started": {
       const label = ROLE_LABEL[e.role] ?? e.role;
@@ -61,7 +63,7 @@ function lineFor(e: JobEvent): { icon: IconKind; text: string } {
       return { icon: "check", text: `${label} done` };
     }
     case "finalized":
-      return { icon: "check", text: "Finalized — the task is ready below" };
+      return { icon: "check", text: "Finalized — the task is ready below", pop: true };
     case "gates_failed":
       return { icon: "warn", text: "Validation issues — showing partial result" };
     case "diagrams_created":
@@ -142,7 +144,7 @@ export function RunSheet({ jobId, onFinalized, onGatesFailed, onError, onRetry }
   return (
     <aside
       aria-label="Finalize progress"
-      className="sticky top-0 self-start border-l border-rule w-[420px] h-screen bg-surface flex flex-col"
+      className="sticky top-0 self-start border-l border-rule w-[420px] h-screen bg-surface/85 backdrop-blur-xl flex flex-col"
     >
       <header className="px-6 pt-6 pb-4 border-b border-rule shrink-0 flex flex-col gap-2">
         <div className="flex items-center gap-2">
@@ -161,17 +163,26 @@ export function RunSheet({ jobId, onFinalized, onGatesFailed, onError, onRetry }
         className="flex-1 min-h-0 overflow-y-auto px-6 py-4 flex flex-col gap-2.5"
       >
         {events.filter((e) => !isChatter(e)).map((e, i) => {
-          const { icon, text } = lineFor(e);
+          const { icon, text, pop } = lineFor(e);
+          const badgeClass =
+            "shrink-0 mt-0.5 h-5 w-5 rounded-full inline-flex items-center justify-center text-hig-caption font-bold " +
+            ICON_CLASS[icon];
           return (
             <li key={i} className="flex items-start gap-2.5 text-hig-footnote">
-              <span
-                className={
-                  "shrink-0 mt-0.5 h-5 w-5 rounded-full inline-flex items-center justify-center text-hig-caption font-bold " +
-                  ICON_CLASS[icon]
-                }
-              >
-                {ICON_GLYPH[icon]}
-              </span>
+              {pop ? (
+                // The terminal "Finalized" badge pops with the celebrate beat
+                // as it appears — the one earned moment in the run.
+                <motion.span
+                  variants={celebrate}
+                  initial="hidden"
+                  animate="visible"
+                  className={badgeClass}
+                >
+                  {ICON_GLYPH[icon]}
+                </motion.span>
+              ) : (
+                <span className={badgeClass}>{ICON_GLYPH[icon]}</span>
+              )}
               <span className={icon === "error" ? "text-danger" : "text-ink"}>{text}</span>
             </li>
           );

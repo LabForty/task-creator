@@ -32,7 +32,7 @@ function statusDot(status?: ReviewStatus): { cls: string; label: string } {
 
 export function BakeNav(props: Props) {
   return (
-    <aside className="w-[280px] shrink-0 border-r border-rule bg-surface flex flex-col h-full min-h-0">
+    <aside className="w-[280px] shrink-0 border-r border-rule bg-surface/85 backdrop-blur-xl flex flex-col h-full min-h-0">
       <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-1">
         <button
           type="button"
@@ -70,7 +70,7 @@ export function BakeNav(props: Props) {
         })}
       </div>
       <div className="p-3 border-t border-rule flex flex-col gap-2">
-        <Button onClick={props.onUploadAll} disabled={props.uploadDisabled}>Upload all to Jira</Button>
+        <Button variant="prominent" onClick={props.onUploadAll} disabled={props.uploadDisabled}>Upload all to Jira</Button>
         {props.uploadDisabled && (
           <p className="text-hig-footnote text-ink-secondary">
             You need to review all the tasks and resolve requested changes.

@@ -168,7 +168,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epi
   }
 
   return (
-    <aside className="fixed right-0 top-0 h-screen w-[480px] bg-surface border-l border-rule shadow-lg z-30 flex flex-col">
+    <aside className="fixed right-0 top-0 h-screen w-[480px] bg-surface/85 backdrop-blur-xl border-l border-rule shadow-lg z-30 flex flex-col">
       <header className="px-6 py-4 border-b border-rule flex items-center gap-3 shrink-0">
         <h2 className="text-hig-title3">Upload to Jira</h2>
         <span className="flex-1" />
@@ -184,7 +184,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epi
             {denied.length > 0 && ` ${denied.length} denied task${denied.length === 1 ? "" : "s"} will be excluded.`}
           </p>
 
-          {sitesErr && <p className="text-hig-footnote text-danger">{sitesErr}</p>}
+          {sitesErr && <p className="text-hig-footnote text-danger-strong">{sitesErr}</p>}
           <label className="flex flex-col gap-1.5">
             <span className="text-hig-subhead font-medium text-ink">Jira site</span>
             <select
@@ -198,7 +198,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epi
             </select>
           </label>
 
-          {projectsErr && <p className="text-hig-footnote text-danger">{projectsErr}</p>}
+          {projectsErr && <p className="text-hig-footnote text-danger-strong">{projectsErr}</p>}
           <label className="flex flex-col gap-1.5">
             <span className="text-hig-subhead font-medium text-ink">Project</span>
             <select
@@ -212,7 +212,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epi
             </select>
           </label>
 
-          {issueTypesErr && <p className="text-hig-footnote text-danger">{issueTypesErr}</p>}
+          {issueTypesErr && <p className="text-hig-footnote text-danger-strong">{issueTypesErr}</p>}
           <label className="flex flex-col gap-1.5">
             <span className="text-hig-subhead font-medium text-ink">Issue type</span>
             <select
@@ -257,7 +257,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epi
                 <span className="block text-hig-body text-ink">Attach to an existing epic</span>
                 {epicMode === "existing" && (
                   <span className="block mt-1.5">
-                    {epicsErr && <span className="text-hig-footnote text-danger">{epicsErr}</span>}
+                    {epicsErr && <span className="text-hig-footnote text-danger-strong">{epicsErr}</span>}
                     <select
                       value={existingEpicKey}
                       onChange={(e) => setExistingEpicKey(e.target.value)}
@@ -276,7 +276,7 @@ export function UploadSheet({ tasks, denied, epicTitle, epicDescriptionHtml, epi
           </fieldset>
 
           <div className="mt-auto pt-4 border-t border-rule flex justify-end">
-            <Button onClick={startUpload} disabled={!canStart}>Start upload</Button>
+            <Button variant="prominent" onClick={startUpload} disabled={!canStart}>Start upload</Button>
           </div>
         </div>
       )}
@@ -345,7 +345,7 @@ function UploadResults({
       )}
       {failed && (
         <div className="rounded-md bg-danger/5 border border-danger/30 px-3 py-2">
-          <h4 className="text-hig-subhead font-medium text-danger mb-1">Failed</h4>
+          <h4 className="text-hig-subhead font-medium text-danger-strong mb-1">Failed</h4>
           <p className="text-hig-body">{failed.draft.title || "(untitled)"}</p>
           <p className="text-hig-footnote text-ink-secondary">{result.failedReason}</p>
           <div className="mt-2">

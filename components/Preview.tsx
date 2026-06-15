@@ -71,7 +71,7 @@ export function Preview({
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-6 py-4 flex-1 min-h-0 overflow-hidden">
         {/* LEFT: output (editable markdown) */}
-        <div className="hig-card p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
+        <div className="hig-glass-strong p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
           <header className="flex items-start flex-wrap gap-3 shrink-0">
             <div className="flex flex-col min-w-0">
               <span className="hig-section-label">Finalized</span>
@@ -81,7 +81,7 @@ export function Preview({
             {jiraConfigured && (
               jiraConnected ? (
                 <Button
-                  variant="secondary"
+                  variant="prominent"
                   size="sm"
                   onClick={onExportToJira}
                   disabled={!gatesOk || !onExportToJira}
@@ -128,7 +128,7 @@ export function Preview({
         </div>
 
         {/* RIGHT: diagram */}
-        <div className="hig-card flex flex-col gap-3 min-h-0 overflow-hidden p-5">
+        <div className="hig-glass-strong flex flex-col gap-3 min-h-0 overflow-hidden p-5">
           <header className="flex items-start flex-wrap gap-2 shrink-0">
             <div className="flex flex-col">
               <span className="hig-section-label">Diagrams</span>

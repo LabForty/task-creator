@@ -355,7 +355,6 @@ export function Editor({
         {!hideSubmit && (mode === "epic" ? (
           <Button
             type="submit"
-            variant="prominent"
             size="lg"
             disabled={kneadDisabled || !hasEpicDescription(draft.description)}
           >

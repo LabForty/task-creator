@@ -65,7 +65,7 @@ export function TaskReviewBar({ status, comment, onStatusChange, onCommentChange
         className="w-full min-h-[60px] rounded-md border border-rule bg-surface px-3 py-2 text-hig-body resize-y"
       />
       {commentError && (
-        <p className="text-hig-footnote text-danger">A comment is required to request changes.</p>
+        <p className="text-hig-footnote text-danger-strong">A comment is required to request changes.</p>
       )}
     </div>
   );

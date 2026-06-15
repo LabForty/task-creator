@@ -73,7 +73,7 @@ export function EpicEditingView(props: Props) {
         <Button type="button" size="sm" variant="secondary" onClick={props.onAnalyzeAll} disabled={baking || props.tasks.length === 0}>
           Analyze all
         </Button>
-        <Button type="button" size="sm" onClick={props.onBake} disabled={baking || props.tasks.length === 0}>
+        <Button type="button" size="sm" variant="prominent" onClick={props.onBake} disabled={baking || props.tasks.length === 0}>
           Bake
         </Button>
       </div>
