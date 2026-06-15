@@ -111,14 +111,19 @@ html.dark {
     @apply text-hig-caption uppercase tracking-wider text-ink-tertiary font-semibold;
   }
   /* Sign-in card treatment, named once. Use on spacious / light-touch
-     surfaces (headers, empty states, dialogs). */
+     surfaces (headers, empty states, dialogs). The translucent background is
+     set via color-mix rather than `@apply bg-surface/70` — Tailwind's opacity
+     modifier works as an inline utility but not inside @apply for a
+     CSS-variable colour. color-mix re-evaluates --color-surface per theme. */
   .hig-glass {
-    @apply rounded-xl border border-rule bg-surface/70 shadow-elevated backdrop-blur-xl;
+    @apply rounded-xl border border-rule shadow-elevated backdrop-blur-xl;
+    background-color: color-mix(in srgb, var(--color-surface) 70%, transparent);
   }
   /* Higher-opacity glass for dense working surfaces where legibility wins
      (editor, panels). Same language, calmer. */
   .hig-glass-strong {
-    @apply rounded-xl border border-rule bg-surface/85 shadow-elevated backdrop-blur-xl;
+    @apply rounded-xl border border-rule shadow-elevated backdrop-blur-xl;
+    background-color: color-mix(in srgb, var(--color-surface) 85%, transparent);
   }
 }
 
