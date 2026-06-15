@@ -47,12 +47,13 @@ function buildPopupHtml(
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>${htmlEscape(status)}</title>
 <style>
-  body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 2rem; color: #1d1d1f; background: #f5f5f7; }
+  :root{--ink:#1d1d1f;--surface:#f5f5f7;--danger:#bf2828;--rule:#d2d2d7;} /* design-tokens-allow: standalone OAuth popup mirrors globals.css tokens */
+  body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 2rem; color: var(--ink); background: var(--surface); }
   .card { max-width: 36rem; margin: 0 auto; background: white; border-radius: 12px; padding: 1.5rem 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-  h1 { font-size: 1.25rem; margin: 0 0 0.75rem; color: ${isErr ? "#bf2828" : "#1d1d1f"}; }
-  pre { white-space: pre-wrap; word-break: break-word; margin: 0 0 1rem; padding: 0.75rem 1rem; background: #f5f5f7; border-radius: 8px; font: 12px/1.5 Menlo, Consolas, monospace; }
-  button { font: inherit; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #d2d2d7; background: white; cursor: pointer; }
-  button:hover { background: #f5f5f7; }
+  h1 { font-size: 1.25rem; margin: 0 0 0.75rem; color: ${isErr ? "var(--danger)" : "var(--ink)"}; }
+  pre { white-space: pre-wrap; word-break: break-word; margin: 0 0 1rem; padding: 0.75rem 1rem; background: var(--surface); border-radius: 8px; font: 12px/1.5 Menlo, Consolas, monospace; }
+  button { font: inherit; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--rule); background: white; cursor: pointer; }
+  button:hover { background: var(--surface); }
 </style>
 </head><body>
   <div class="card">

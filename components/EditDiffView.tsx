@@ -77,7 +77,7 @@ export function EditDiffView({ before, after }: Props) {
         <div className="px-3 py-1.5 border-r border-rule text-ink-secondary">Current</div>
         <div className="px-3 py-1.5 text-ink-secondary">Proposed</div>
       </div>
-      <div className="grid grid-cols-2 font-mono text-[12px] leading-[1.45]">
+      <div className="grid grid-cols-2 font-mono text-hig-caption leading-[1.45]">
         <div className="border-r border-rule">
           {rows.map((r, i) => (
             <DiffCell key={`L${i}`} text={r.left} variant={leftVariant(r.state)} />

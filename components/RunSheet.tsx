@@ -165,7 +165,7 @@ export function RunSheet({ jobId, onFinalized, onGatesFailed, onError, onRetry }
             <li key={i} className="flex items-start gap-2.5 text-hig-footnote">
               <span
                 className={
-                  "shrink-0 mt-0.5 h-5 w-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold " +
+                  "shrink-0 mt-0.5 h-5 w-5 rounded-full inline-flex items-center justify-center text-hig-caption font-bold " +
                   ICON_CLASS[icon]
                 }
               >

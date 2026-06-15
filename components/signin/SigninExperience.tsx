@@ -9,6 +9,8 @@ type Props = {
   connectHref: string;
 };
 
+const BRAND_RED = "#ED3B3B"; // design-tokens-allow: LabForty brand mark
+
 const ROTATING_PHRASES = [
   "Turn ideas into stories.",
   "Generate diagrams.",
@@ -260,7 +262,7 @@ function LabFortyMark({ size = 36 }: { size?: number }) {
         <path
           className="labforty-mark__diamond"
           d="M 50 22 L 60 50 L 50 78 L 40 50 Z"
-          fill="#ED3B3B"
+          fill={BRAND_RED}
         />
       </svg>
     </span>

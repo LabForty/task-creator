@@ -26,7 +26,7 @@ export function buildTaskGraphMermaid(input: TaskGraphInput): string {
     "%%{init: { 'flowchart': { 'nodeSpacing': 28, 'rankSpacing': 40, 'curve': 'basis', 'padding': 12, 'useMaxWidth': true } } }%%",
     "graph TD",
     // Single neutral classDef — reviewer status coloring is gone (no more reviews map).
-    "  classDef task fill:#e2e8f0,stroke:#475569,stroke-width:1.5px,color:#0f172a;",
+    "  classDef task fill:#e2e8f0,stroke:#475569,stroke-width:1.5px,color:#0f172a;", // design-tokens-allow: epic graph fixed palette
   ];
 
   for (const t of input.tasks) {

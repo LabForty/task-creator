@@ -41,7 +41,7 @@ export function BakeNav(props: Props) {
         >
           <span className="flex items-center gap-2">
             <span className="flex-1 truncate">Epic overview</span>
-            {props.finalizedIds.has("epic") && <span className="text-success text-[12px]" aria-label="baked">✓</span>}
+            {props.finalizedIds.has("epic") && <span className="text-success text-hig-caption" aria-label="baked">✓</span>}
           </span>
         </button>
         <div className="mt-2 px-3 hig-section-label">Tasks</div>
@@ -60,10 +60,10 @@ export function BakeNav(props: Props) {
                 <span className={`h-2 w-2 rounded-full shrink-0 ${dot.cls}`} aria-label={dot.label} />
                 <span className="flex-1 truncate">{t.title || "(untitled)"}</span>
                 {t.reviewComment && t.reviewComment.trim().length > 0 && (
-                  <span className="text-ink-secondary text-[12px]" aria-label="has comment" title="Has a review comment">💬</span>
+                  <span className="text-ink-secondary text-hig-caption" aria-label="has comment" title="Has a review comment">💬</span>
                 )}
-                {baked && <span className="text-success text-[12px]" aria-label="baked">✓</span>}
-                {failed && <span title={failed} className="text-danger text-[12px]" aria-label="failed">⨯</span>}
+                {baked && <span className="text-success text-hig-caption" aria-label="baked">✓</span>}
+                {failed && <span title={failed} className="text-danger text-hig-caption" aria-label="failed">⨯</span>}
               </span>
             </button>
           );

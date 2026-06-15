@@ -76,7 +76,7 @@ export function EpicTaskCard({
         className="block w-full text-left"
       >
         {/* Metadata top line: type · key */}
-        <div className="text-[10px] uppercase tracking-wide text-ink-tertiary font-semibold mb-1.5 flex items-center gap-2">
+        <div className="text-hig-caption uppercase tracking-wide text-ink-tertiary font-semibold mb-1.5 flex items-center gap-2">
           <span>{kind === "epic" ? "Epic" : typeLabel(taskType)}</span>
           {uploadedIssueKey && (
             <>
@@ -122,7 +122,7 @@ export function EpicTaskCard({
           <div className="mt-2">
             <span
               title={bakeError}
-              className={"inline-flex items-center px-1.5 rounded-sm text-[10px] font-medium " + bakeChipClass(bakeState)}
+              className={"inline-flex items-center px-1.5 rounded-sm text-hig-caption font-medium " + bakeChipClass(bakeState)}
             >
               {bakeChipLabel(bakeState)}
             </span>

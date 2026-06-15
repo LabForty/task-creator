@@ -271,7 +271,7 @@ export function HelpPanel({
                       <div className="flex items-center gap-2 min-w-0">
                         <span
                           className={
-                            "inline-flex items-center text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap shrink-0 " +
+                            "inline-flex items-center text-hig-caption font-semibold uppercase tracking-wide whitespace-nowrap shrink-0 " +
                             "px-2 py-0.5 rounded-sm " +
                             SUGGESTION_KIND_CHIP[s.kind]
                           }

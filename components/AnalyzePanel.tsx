@@ -82,7 +82,7 @@ export function AnalyzePanel({ findings, onApply, onDismiss, applying = false }:
                 <header className="flex items-center gap-2">
                   <span
                     className={
-                      "inline-flex items-center text-[11px] font-semibold uppercase tracking-wide " +
+                      "inline-flex items-center text-hig-caption font-semibold uppercase tracking-wide " +
                       "px-2 py-0.5 rounded-sm " +
                       SEVERITY_CHIP[f.severity]
                     }
