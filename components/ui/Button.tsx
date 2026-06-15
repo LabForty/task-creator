@@ -1,14 +1,11 @@
 "use client";
 
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { AnchorHTMLAttributes, ButtonHTMLAttributes, forwardRef } from "react";
+import Link from "next/link";
+import { cn } from "@/lib/cn";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "success" | "warning";
 type Size = "sm" | "md" | "lg";
-
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
-  size?: Size;
-};
 
 // HIG: corner-rounded "pill-shape-lite", subtle elevation on primary, no chrome on secondary.
 const base =
@@ -25,31 +22,44 @@ const sizes: Record<Size, string> = {
 };
 
 const variants: Record<Variant, string> = {
-  primary:
-    "bg-accent text-white shadow-[0_1px_2px_rgba(0,0,0,0.06)] " +
-    "hover:bg-accent-hover active:bg-accent-pressed",
-  secondary:
-    "bg-surface-muted text-ink border border-rule " +
-    "hover:bg-surface-inset",
-  ghost:
-    "bg-transparent text-accent hover:bg-accent-tint",
-  danger:
-    "bg-danger text-white hover:opacity-90",
-  success:
-    "bg-success text-white hover:opacity-90",
-  warning:
-    "bg-warning text-white hover:opacity-90",
+  primary: "bg-accent text-white shadow-card hover:bg-accent-hover active:bg-accent-pressed",
+  secondary: "bg-surface-muted text-ink border border-rule hover:bg-surface-inset",
+  ghost: "bg-transparent text-accent hover:bg-accent-tint",
+  danger: "bg-danger text-white hover:opacity-90",
+  success: "bg-success text-white hover:opacity-90",
+  warning: "bg-warning text-white hover:opacity-90",
 };
 
-export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
+export function buttonClasses(variant: Variant = "primary", size: Size = "md", className = "") {
+  return cn(base, sizes[size], variants[variant], className);
+}
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  size?: Size;
+};
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = "primary", size = "md", className = "", ...rest },
   ref,
 ) {
-  return (
-    <button
-      ref={ref}
-      className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
-      {...rest}
-    />
-  );
+  return <button ref={ref} className={buttonClasses(variant, size, className)} {...rest} />;
+});
+
+type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
+  href: string;
+  variant?: Variant;
+  size?: Size;
+};
+
+/**
+ * A link rendered with button styling. Replaces the hand-rolled
+ * "link styled as a button" className strings that were duplicated across
+ * the header and drafts surfaces.
+ */
+export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(function ButtonLink(
+  { href, variant = "secondary", size = "md", className = "", ...rest },
+  ref,
+) {
+  return <Link ref={ref} href={href} className={buttonClasses(variant, size, className)} {...rest} />;
 });
