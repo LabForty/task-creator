@@ -7,6 +7,7 @@ import { TextField, TextArea } from "@/components/ui/TextField";
 import { ACList } from "@/components/ACList";
 import { ClearDraftButton } from "@/components/ClearDraftButton";
 import { TaskTypePicker } from "@/components/TaskTypePicker";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { applyEditToDraft } from "@/lib/draft/applyEdit";
 import type { ProposedEdit } from "@/lib/jobs/types";
 
@@ -241,7 +242,7 @@ export function Editor({
 
   return (
     <form
-      className={"hig-card p-5 flex flex-col gap-4 " + (nested ? "" : "h-full")}
+      className={"hig-glass-strong p-5 flex flex-col gap-4 " + (nested ? "" : "h-full")}
       onSubmit={(e) => {
         e.preventDefault();
         if (hideSubmit) return;
@@ -254,7 +255,7 @@ export function Editor({
       }}
     >
       <header className="flex flex-col gap-0.5">
-        <span className="hig-section-label">Draft</span>
+        <SectionLabel>Draft</SectionLabel>
         <h2 className="text-hig-title3">What needs to happen?</h2>
       </header>
 
