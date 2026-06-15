@@ -109,3 +109,13 @@ export function isDirty(draft: Draft): boolean {
       draft.acceptanceCriteria.some((c) => c.trim()),
   );
 }
+
+/** True when the draft has no user-entered content in any field. */
+export function isBlankDraft(d: Draft): boolean {
+  return (
+    !d.title.trim() &&
+    !d.description.trim() &&
+    !(d.constraints ?? "").trim() &&
+    (d.acceptanceCriteria ?? []).every((a) => !a.trim())
+  );
+}

@@ -26,7 +26,7 @@ const RichTextDescription = dynamic(
     ),
   },
 );
-import { Draft, EMPTY_DRAFT, isDirty, loadDraft, saveDraft } from "@/lib/draft/autosave";
+import { Draft, EMPTY_DRAFT, isBlankDraft, isDirty, loadDraft, saveDraft } from "@/lib/draft/autosave";
 import type { HelpFieldHint } from "@/lib/jobs/types";
 
 type Props = {
@@ -254,9 +254,18 @@ export function Editor({
         onFinalize(draft);
       }}
     >
-      <header className="flex flex-col gap-0.5">
+      <header className="flex flex-col gap-1">
         <SectionLabel>Draft</SectionLabel>
-        <h2 className="text-hig-title3">What needs to happen?</h2>
+        {isBlankDraft(draft) && !nested ? (
+          <>
+            <h1 className="text-hig-large leading-[1.1] text-ink">Turn an idea into a structured task</h1>
+            <p className="mt-1 text-hig-subhead text-ink-secondary">
+              Describe what needs to happen — we&apos;ll shape it into a Jira-ready story with diagrams.
+            </p>
+          </>
+        ) : (
+          <h2 className="text-hig-title3">What needs to happen?</h2>
+        )}
       </header>
 
       <TaskTypePicker
@@ -289,7 +298,7 @@ export function Editor({
           </Button>
         </div>
         {suggestErr && (
-          <p className="text-hig-footnote text-danger mt-1.5">{suggestErr}</p>
+          <p className="text-hig-footnote text-danger-strong mt-1.5">{suggestErr}</p>
         )}
       </div>
 
@@ -346,13 +355,14 @@ export function Editor({
         {!hideSubmit && (mode === "epic" ? (
           <Button
             type="submit"
+            variant="prominent"
             size="lg"
             disabled={kneadDisabled || !hasEpicDescription(draft.description)}
           >
             Knead tasks
           </Button>
         ) : (
-          <Button type="submit" size="lg" disabled={disabled || !draft.title.trim()}>
+          <Button type="submit" variant="prominent" size="lg" disabled={disabled || !draft.title.trim()}>
             Finalize task
           </Button>
         ))}
