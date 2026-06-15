@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Alert } from "@/components/ui/Alert";
 import { Button, ButtonLink } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { DraftCard } from "./DraftCard";
 import { fadeUp } from "@/lib/motion";
 import type { DraftListItem } from "@/lib/drafts/payload";
@@ -26,13 +27,13 @@ export function DraftsView({ state, onDelete, onRetry }: Props) {
     return (
       <div data-testid="drafts-loading" className="flex flex-col gap-3" aria-hidden>
         {[0, 1, 2].map((i) => (
-          <div key={i} className="hig-card p-4 pl-6 flex flex-col gap-2.5 animate-pulse">
+          <div key={i} className="hig-card p-4 pl-6 flex flex-col gap-2.5">
             <div className="flex items-center gap-3">
-              <div className="h-4 w-44 rounded bg-surface-inset" />
-              <div className="h-4 w-14 rounded-full bg-surface-inset" />
-              <div className="ml-auto h-3 w-12 rounded bg-surface-inset" />
+              <Skeleton className="h-4 w-44" />
+              <Skeleton className="h-4 w-14 rounded-full" />
+              <Skeleton className="ml-auto h-3 w-12" />
             </div>
-            <div className="h-3 w-3/4 rounded bg-surface-inset" />
+            <Skeleton className="h-3 w-3/4" />
           </div>
         ))}
       </div>
@@ -54,7 +55,7 @@ export function DraftsView({ state, onDelete, onRetry }: Props) {
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="hig-card p-8 flex flex-col items-center gap-3 text-center"
+        className="hig-glass-strong p-8 flex flex-col items-center gap-3 text-center"
       >
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-tint" aria-hidden>
           <svg
@@ -72,11 +73,11 @@ export function DraftsView({ state, onDelete, onRetry }: Props) {
             <path d="M9 13h6M9 17h4" />
           </svg>
         </span>
-        <h2 className="text-hig-title3">No drafts yet</h2>
+        <h2 className="text-hig-large leading-tight">No drafts yet</h2>
         <p className="text-hig-footnote text-ink-secondary">
           Drafts you save will show up here so you can pick them back up anytime.
         </p>
-        <ButtonLink href="/" variant="primary">
+        <ButtonLink href="/" variant="prominent">
           Create a task
         </ButtonLink>
       </motion.div>

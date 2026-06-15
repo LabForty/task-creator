@@ -18,6 +18,18 @@ describe("DraftsView", () => {
     expect(screen.getByText(/no drafts yet/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /create a task/i })).toHaveAttribute("href", "/");
   });
+  it("empty state shows the hero headline and a prominent CTA", () => {
+    render(<DraftsView state={{ kind: "empty" }} onDelete={() => {}} onRetry={() => {}} />);
+    const h = screen.getByRole("heading", { name: /no drafts yet/i });
+    expect(h.className).toContain("text-hig-large");
+    const cta = screen.getByRole("link", { name: /create a task/i });
+    expect(cta.className).toContain("cta-prominent");
+  });
+  it("loading state uses shimmer, not animate-pulse", () => {
+    const { container } = render(<DraftsView state={{ kind: "loading" }} onDelete={() => {}} onRetry={() => {}} />);
+    expect(container.querySelector(".hig-shimmer")).not.toBeNull();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+  });
   it("shows an error state with a Retry button", async () => {
     const onRetry = vi.fn();
     render(

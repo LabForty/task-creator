@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AmbientBackground } from "@/components/AmbientBackground";
 import { ButtonLink } from "@/components/ui/Button";
 import { DraftsView, type DraftsState } from "./DraftsView";
 import { deleteDraftRequest } from "@/lib/drafts/client";
@@ -61,20 +62,23 @@ export function DraftsDashboard() {
   }, []);
 
   return (
-    <div className="max-w-3xl w-full mx-auto px-6 py-8 flex flex-col gap-5">
-      <header className="flex items-center gap-4">
-        <div className="flex flex-col">
-          <h1 className="text-hig-title2 leading-tight">Your drafts</h1>
-          <p className="text-hig-footnote text-ink-secondary mt-0.5">
-            Pick up where you left off, or start something new.
-          </p>
-        </div>
-        <span className="flex-1" />
-        <ButtonLink href="/" variant="secondary">
-          Back to creator
-        </ButtonLink>
-      </header>
-      <DraftsView state={state} onDelete={onDelete} onRetry={load} />
+    <div className="relative min-h-screen">
+      <AmbientBackground />
+      <div className="relative max-w-3xl w-full mx-auto px-6 py-8 flex flex-col gap-5">
+        <header className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <h1 className="text-hig-title2 leading-tight">Your drafts</h1>
+            <p className="text-hig-footnote text-ink-secondary mt-0.5">
+              Pick up where you left off, or start something new.
+            </p>
+          </div>
+          <span className="flex-1" />
+          <ButtonLink href="/" variant="secondary">
+            Back to creator
+          </ButtonLink>
+        </header>
+        <DraftsView state={state} onDelete={onDelete} onRetry={load} />
+      </div>
     </div>
   );
 }
