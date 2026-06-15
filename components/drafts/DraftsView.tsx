@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { DraftCard } from "./DraftCard";
 import { fadeUp } from "@/lib/motion";
 import type { DraftListItem } from "@/lib/drafts/payload";
@@ -41,9 +41,7 @@ export function DraftsView({ state, onDelete, onRetry }: Props) {
   if (state.kind === "error") {
     return (
       <motion.div variants={fadeUp} initial="hidden" animate="visible" className="flex flex-col items-start gap-3">
-        <div className="rounded-md bg-danger/5 border border-danger/30 px-4 py-2.5 w-full" role="alert">
-          <p className="text-hig-footnote text-danger">{state.message}</p>
-        </div>
+        <Alert className="w-full">{state.message}</Alert>
         <Button type="button" variant="secondary" onClick={onRetry}>
           Retry
         </Button>
@@ -78,12 +76,9 @@ export function DraftsView({ state, onDelete, onRetry }: Props) {
         <p className="text-hig-footnote text-ink-secondary">
           Drafts you save will show up here so you can pick them back up anytime.
         </p>
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium h-9 px-3.5 text-hig-subhead bg-accent text-white hover:bg-accent-hover transition-colors"
-        >
+        <ButtonLink href="/" variant="primary">
           Create a task
-        </Link>
+        </ButtonLink>
       </motion.div>
     );
   }

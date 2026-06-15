@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
 import { formatRelativeTime } from "@/lib/drafts/time";
 import type { DraftListItem } from "@/lib/drafts/payload";
@@ -101,12 +101,9 @@ export function DraftCard({ item, now, onDelete }: Props) {
             onCancel={() => setConfirming(false)}
           />
         </div>
-        <Link
-          href={`/?draft=${item.id}`}
-          className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium h-7 px-2.5 text-hig-footnote bg-accent text-white hover:bg-accent-hover transition-colors"
-        >
+        <ButtonLink href={`/?draft=${item.id}`} variant="primary" size="sm">
           Open
-        </Link>
+        </ButtonLink>
       </div>
     </div>
   );
