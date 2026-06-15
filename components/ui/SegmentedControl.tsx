@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/cn";
+
 type Item<T extends string> = { value: T; label: string };
 
 type Props<T extends string> = {
@@ -26,12 +28,10 @@ export function SegmentedControl<T extends string>({ value, items, onChange, ari
             role="tab"
             aria-selected={active}
             onClick={() => onChange(it.value)}
-            className={
-              "px-3 h-7 rounded-[7px] text-hig-footnote font-medium transition-all duration-150 ease-hig " +
-              (active
-                ? "bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.10)]"
-                : "text-ink-secondary hover:text-ink")
-            }
+            className={cn(
+              "px-3 h-7 rounded-sm text-hig-footnote font-medium transition-all duration-150 ease-hig",
+              active ? "bg-surface text-ink shadow-card" : "text-ink-secondary hover:text-ink",
+            )}
           >
             {it.label}
           </button>
