@@ -116,6 +116,15 @@ task-creator/
 └─ e2e/                       Playwright smoke
 ```
 
+## Design system
+
+The UI follows a shared, HIG-based token system (colours, type ramp, spacing,
+shadows) defined in `tailwind.config.ts` + `app/globals.css`. See the design
+pattern guide at **[`docs/design-system.md`](docs/design-system.md)** for tokens,
+conventions, and a getting-started section, and the live reference at
+**`/styleguide`** (run `npm run dev`, open `/styleguide`). Run `npm run check:tokens`
+to verify no raw hex or arbitrary values have crept in.
+
 ## Scripts
 
 | Script | What |
@@ -197,3 +206,4 @@ link.
 | Change the API contract | `lib/api/schemas.ts` + the matching `app/api/.../route.ts` |
 | Change the Requirement / Story Zod schemas | `lib/pipeline/types.ts` |
 | Tweak the flow editor | `components/FlowGraphEditor.tsx` + `lib/mermaid-flow/{parse,serialize,layout}.ts` |
+| Understand or extend the design system | `docs/design-system.md` + `/styleguide` |
