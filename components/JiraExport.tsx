@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { celebrate } from "@/lib/motion";
 import { JiraMetadata } from "@/components/jira-metadata/JiraMetadata";
+import { useSpotlight } from "@/lib/interaction/useSpotlight";
 import { EMPTY_METADATA, type JiraMetadata as JiraMetadataValue } from "@/lib/jira/metadata";
 import { uploadDraftAttachment } from "@/lib/jira/upload-client";
 import type { Diagrams, FinalizedPayload, MermaidFormat } from "@/lib/jobs/types";
@@ -65,6 +66,12 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
   const [attachmentResults, setAttachmentResults] = useState<Array<{
     name: string; status: "uploading" | "ok" | "failed"; error?: string; pct?: number;
   }>>([]);
+
+  // Spotlight refs for the glass panels. Hooks run unconditionally; each ref is
+  // attached to its panel in whichever return branch renders (success vs form).
+  const successRef = useSpotlight<HTMLDivElement>();
+  const formRef = useSpotlight<HTMLDivElement>();
+  const previewRef = useSpotlight<HTMLDivElement>();
 
   // Load sites once.
   useEffect(() => {
@@ -239,7 +246,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
           <Button variant="secondary" onClick={onDone}>Done</Button>
         </header>
         <div className="px-6 py-6 flex-1 overflow-auto">
-          <div className="hig-glass-strong p-6 max-w-2xl flex flex-col gap-4">
+          <div ref={successRef} className="hig-glass-strong spotlight p-6 max-w-2xl flex flex-col gap-4">
             <motion.p
               variants={celebrate}
               initial="hidden"
@@ -248,8 +255,8 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
             >
               Created issue <strong className="font-semibold">{result.key}</strong>.
             </motion.p>
-            <a href={result.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-              Open in Jira →
+            <a href={result.url} target="_blank" rel="noreferrer" className="group text-accent hover:underline">
+              Open in Jira <span className="inline-block icon-hover-nudge">→</span>
             </a>
             {presentDiagrams.length > 0 && (
               <div className="rounded-md bg-surface-muted p-3">
@@ -339,7 +346,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-6 py-4 flex-1 min-h-0 overflow-hidden">
         {/* LEFT: form */}
-        <div className="hig-glass-strong p-5 flex flex-col gap-4 min-h-0 overflow-auto">
+        <div ref={formRef} className="hig-glass-strong spotlight p-5 flex flex-col gap-4 min-h-0 overflow-auto">
           {sitesErr && (
             <Alert>{sitesErr}</Alert>
           )}
@@ -445,7 +452,7 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
         </div>
 
         {/* RIGHT: preview of what Jira will receive */}
-        <div className="hig-glass-strong p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
+        <div ref={previewRef} className="hig-glass-strong spotlight p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
           <header className="shrink-0">
             <span className="hig-section-label">Preview</span>
             <h3 className="text-hig-title3 truncate">{payload.story.title}</h3>

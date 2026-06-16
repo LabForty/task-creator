@@ -10,6 +10,7 @@ import { TaskTypePicker } from "@/components/TaskTypePicker";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { applyEditToDraft } from "@/lib/draft/applyEdit";
+import { useSpotlight } from "@/lib/interaction/useSpotlight";
 import type { ProposedEdit } from "@/lib/jobs/types";
 
 // TipTap + ProseMirror weighs ~110 KB gzipped. Split it out of the initial
@@ -241,9 +242,12 @@ export function Editor({
   const cls = (field: HelpFieldHint) =>
     highlight === field ? "task-highlight-field" : "";
 
+  const formRef = useSpotlight<HTMLFormElement>();
+
   return (
     <form
-      className={"hig-glass-strong p-5 flex flex-col gap-4 " + (nested ? "" : "h-full")}
+      ref={formRef}
+      className={"hig-glass-strong spotlight p-5 flex flex-col gap-4 " + (nested ? "" : "h-full")}
       onSubmit={(e) => {
         e.preventDefault();
         if (hideSubmit) return;

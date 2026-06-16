@@ -59,9 +59,12 @@ function EmbedInner() {
     }
   }
 
+  // Reactive aurora: embed has no export, so only running vs idle.
+  const auroraTone: "idle" | "running" = mode.kind === "running" ? "running" : "idle";
+
   return (
     <main className="relative isolate min-h-screen overflow-hidden p-6 bg-surface-subtle">
-      <AmbientBackground />
+      <AmbientBackground tone={auroraTone} />
       <header className="mb-4 flex items-center gap-2.5">
         <BrandMark size={26} />
         <span className="text-hig-subhead font-semibold tracking-tight text-ink">Task Creator</span>

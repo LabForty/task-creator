@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 
 describe("Button", () => {
@@ -25,6 +25,18 @@ describe("Button", () => {
     expect(btn.className).toContain("cta-prominent");
     expect(btn.className).toContain("bg-accent-strong");
     expect(btn.querySelector(".cta-sheen")).not.toBeNull();
+  });
+  it("prominent still renders and fires its click handler (magnetic hook is inert in jsdom)", () => {
+    const onClick = vi.fn();
+    render(
+      <Button variant="prominent" onClick={onClick}>
+        Finalize
+      </Button>,
+    );
+    const btn = screen.getByRole("button", { name: "Finalize" });
+    expect(btn.className).toContain("cta-prominent");
+    fireEvent.click(btn);
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
   it("ghost text uses accent-link (AA accent-as-text)", () => {
     render(<Button variant="ghost">Link</Button>);

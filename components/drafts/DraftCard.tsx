@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmPopover } from "@/components/ui/ConfirmPopover";
 import { formatRelativeTime } from "@/lib/drafts/time";
+import { useSpotlight } from "@/lib/interaction/useSpotlight";
 import type { DraftListItem } from "@/lib/drafts/payload";
 
 type Props = {
@@ -24,6 +25,7 @@ export function DraftCard({ item, now, onDelete, onConfirmingChange }: Props) {
   const [fallbackNow] = useState(() => Date.now());
   const [confirming, setConfirming] = useState(false);
   const deleteAnchorRef = useRef<HTMLDivElement>(null);
+  const cardRef = useSpotlight<HTMLDivElement>();
   const effectiveNow = now ?? fallbackNow;
   const epic = item.mode === "epic";
 
@@ -35,8 +37,9 @@ export function DraftCard({ item, now, onDelete, onConfirmingChange }: Props) {
 
   return (
     <div
+      ref={cardRef}
       className={
-        "group relative hig-card border p-4 pl-6 flex flex-col gap-2 " +
+        "group relative hig-card spotlight border p-4 pl-6 flex flex-col gap-2 " +
         "transition-all duration-150 ease-hig " +
         // While the delete confirm is open, NOTHING may depend on :hover.
         // The hover lift moves the card's own hit area, so a pointer resting

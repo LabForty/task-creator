@@ -1062,6 +1062,25 @@ export function StandaloneApp({ initialSession }: Props) {
     adoptDraftId(null);
   }
 
+  // Reactive aurora: tint the ambient background to reflect what the app is
+  // doing. "running" while a finalize run is in progress; a brief "success"
+  // wash when a finalize or Jira export genuinely succeeds; otherwise idle.
+  // Keyed on an explicit success counter — bumped only at the real success
+  // callsites — rather than `mode.kind === "done"`, because cancelling an
+  // export also returns to "done" and must NOT trigger a false celebration.
+  const [successTick, setSuccessTick] = useState(0);
+  const [showSuccessTone, setShowSuccessTone] = useState(false);
+  useEffect(() => {
+    if (successTick === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowSuccessTone(true);
+    const t = setTimeout(() => setShowSuccessTone(false), 1500);
+    return () => clearTimeout(t);
+  }, [successTick]);
+
+  const auroraTone: "idle" | "running" | "success" =
+    mode.kind === "running" ? "running" : showSuccessTone ? "success" : "idle";
+
   // Layout rule: the editor pane caps + centers ONLY when no side panel is on
   // screen. Help, kneading, captured-context, and analyze panels all qualify.
   const hasSidePanel =
@@ -1088,7 +1107,7 @@ export function StandaloneApp({ initialSession }: Props) {
 
   return (
     <main className="relative isolate h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
-      <AmbientBackground />
+      <AmbientBackground tone={auroraTone} />
       <div className="flex flex-col min-w-0 min-h-0">
         <header className="px-8 py-5 border-b border-rule hig-glass-edge flex items-center gap-4 sticky top-0 z-10">
           <BrandMark size={32} />
@@ -1316,9 +1335,10 @@ export function StandaloneApp({ initialSession }: Props) {
                 onCancel={() =>
                   setMode({ kind: "done", payload: mode.payload, lastDraft: mode.lastDraft })
                 }
-                onDone={() =>
-                  setMode({ kind: "done", payload: mode.payload, lastDraft: mode.lastDraft })
-                }
+                onDone={() => {
+                  setSuccessTick((n) => n + 1);
+                  setMode({ kind: "done", payload: mode.payload, lastDraft: mode.lastDraft });
+                }}
               />
             ) : (
               <Preview
@@ -1362,6 +1382,7 @@ export function StandaloneApp({ initialSession }: Props) {
         <RunSheet
           jobId={mode.jobId}
           onFinalized={(p) => {
+            setSuccessTick((n) => n + 1);
             setMode({ kind: "done", payload: p, lastDraft: mode.lastDraft });
             if (draftId) {
               const { url, method } = deleteDraftRequest(draftId);

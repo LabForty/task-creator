@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { openJiraConnectPopup } from "@/components/JiraChip";
 import { DiagramView } from "@/components/DiagramView";
 import { AnalyzePanel } from "@/components/AnalyzePanel";
+import { useSpotlight } from "@/lib/interaction/useSpotlight";
 import type { AnalyzeFinding, Diagrams, FinalizedPayload, MermaidFormat } from "@/lib/jobs/types";
 
 type Props = {
@@ -64,6 +65,9 @@ export function Preview({
 
   const hasFindings = analysisFindings !== null && analysisFindings !== undefined;
 
+  const outputRef = useSpotlight<HTMLDivElement>();
+  const diagramRef = useSpotlight<HTMLDivElement>();
+
   return (
     <section
       aria-label="Finalized result"
@@ -71,7 +75,7 @@ export function Preview({
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-6 py-4 flex-1 min-h-0 overflow-hidden">
         {/* LEFT: output (editable markdown) */}
-        <div className="hig-glass-strong p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
+        <div ref={outputRef} className="hig-glass-strong spotlight p-5 flex flex-col gap-3 min-h-0 overflow-hidden">
           <header className="flex items-start flex-wrap gap-3 shrink-0">
             <div className="flex flex-col min-w-0">
               <span className="hig-section-label">Finalized</span>
@@ -128,7 +132,7 @@ export function Preview({
         </div>
 
         {/* RIGHT: diagram */}
-        <div className="hig-glass-strong flex flex-col gap-3 min-h-0 overflow-hidden p-5">
+        <div ref={diagramRef} className="hig-glass-strong spotlight flex flex-col gap-3 min-h-0 overflow-hidden p-5">
           <header className="flex items-start flex-wrap gap-2 shrink-0">
             <div className="flex flex-col">
               <span className="hig-section-label">Diagrams</span>
