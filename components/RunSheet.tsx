@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { SuccessFlourish } from "@/components/ui/SuccessFlourish";
 import { subscribeToJob } from "@/lib/sse/client";
 import { celebrate } from "@/lib/motion";
 import type { JobEvent, FinalizedPayload } from "@/lib/jobs/types";
@@ -171,13 +172,16 @@ export function RunSheet({ jobId, onFinalized, onGatesFailed, onError, onRetry }
             <li key={i} className="flex items-start gap-2.5 text-hig-footnote">
               {pop ? (
                 // The terminal "Finalized" badge pops with the celebrate beat
-                // as it appears — the one earned moment in the run.
+                // as it appears — the one earned moment in the run. The soft
+                // one-shot flourish rides the same terminal beat (gated by
+                // `pop`, so it never fires on intermediate checks).
                 <motion.span
                   variants={celebrate}
                   initial="hidden"
                   animate="visible"
-                  className={badgeClass}
+                  className={badgeClass + " relative"}
                 >
+                  <SuccessFlourish />
                   {ICON_GLYPH[icon]}
                 </motion.span>
               ) : (

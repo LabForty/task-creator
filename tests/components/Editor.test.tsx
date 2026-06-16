@@ -113,4 +113,42 @@ describe("<Editor>", () => {
     render(<Editor namespace="standalone:test:editor-no-clear" onFinalize={() => {}} />);
     expect(screen.queryByRole("button", { name: /^clear$/i })).toBeNull();
   });
+
+  it("shows 'Ready to finalize' once the draft is complete", () => {
+    // A complete draft: title + a description of >= 40 visible chars + >= 1 AC.
+    window.localStorage.setItem(
+      "task-creator:draft:r1",
+      JSON.stringify({
+        title: "Export users",
+        description: "Allow operators to export the full user list as a downloadable CSV file.",
+        acceptanceCriteria: ["The endpoint returns 200 with a CSV body"],
+        constraints: "",
+      }),
+    );
+    render(<Editor namespace="r1" onFinalize={vi.fn()} />);
+    expect(screen.getByText(/ready to finalize/i)).toBeInTheDocument();
+  });
+
+  it("shows a partial readiness state (no 'Ready to finalize') for an incomplete draft", () => {
+    // Title only — score 1/3, so the completion label must not appear yet.
+    window.localStorage.setItem(
+      "task-creator:draft:r2",
+      JSON.stringify({
+        title: "Export users",
+        description: "",
+        acceptanceCriteria: [],
+        constraints: "",
+      }),
+    );
+    render(<Editor namespace="r2" onFinalize={vi.fn()} />);
+    expect(screen.queryByText(/ready to finalize/i)).toBeNull();
+    // The editor is non-blank, so the (genuinely wired) Enter-to-finalize
+    // shortcut chip is present. Its text is split across a <kbd> ("↵") and a
+    // trailing text node ("Finalize"), so match on the element's content.
+    expect(
+      screen.getByText(
+        (_content, el) => el?.tagName === "SPAN" && el.textContent?.trim() === "↵ Finalize",
+      ),
+    ).toBeInTheDocument();
+  });
 });

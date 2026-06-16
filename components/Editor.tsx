@@ -11,6 +11,7 @@ import { TaskTypePicker } from "@/components/TaskTypePicker";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { applyEditToDraft } from "@/lib/draft/applyEdit";
+import { readinessScore, READINESS_MAX } from "@/lib/draft/readiness";
 import { useSpotlight } from "@/lib/interaction/useSpotlight";
 import type { ProposedEdit } from "@/lib/jobs/types";
 
@@ -261,6 +262,13 @@ export function Editor({
 
   const formRef = useSpotlight<HTMLFormElement>();
 
+  // Readiness hint + shortcut chips live in the footer for the non-blank,
+  // top-level single editor. `nested` editors (epic subtask cards) and the
+  // blank-state hero get neither — they'd be noise there.
+  const showFooterHints = !isBlankDraft(draft) && !nested && mode !== "epic" && !hideSubmit;
+  const readiness = readinessScore(draft);
+  const isReady = readiness >= READINESS_MAX;
+
   return (
     <form
       ref={formRef}
@@ -363,6 +371,37 @@ export function Editor({
             className="min-h-[96px]"
           />
         </div>
+      </div>
+
+      {/* Readiness hint (Task 19) + shortcut chips (Task 20). A fixed-height
+          row reserves space so appearing/filling causes no layout shift; the
+          content fades in only for the non-blank, top-level single editor. */}
+      <div
+        className={
+          "flex h-5 items-center justify-between gap-3 transition-opacity duration-300 ease-hig " +
+          (showFooterHints ? "opacity-100" : "opacity-0")
+        }
+        aria-hidden={!showFooterHints}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1" role="presentation">
+            {Array.from({ length: READINESS_MAX }, (_, i) => (
+              <span
+                key={i}
+                className={
+                  "h-1 w-6 rounded-full transition-colors duration-300 ease-hig " +
+                  (i < readiness ? "bg-accent-strong" : "bg-surface-inset")
+                }
+              />
+            ))}
+          </div>
+          {isReady && (
+            <span className="text-hig-caption text-ink-tertiary">Ready to finalize</span>
+          )}
+        </div>
+        <span className="text-hig-caption text-ink-tertiary">
+          <kbd className="font-sans">↵</kbd> Finalize
+        </span>
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-rule">

@@ -666,6 +666,30 @@ its button is hovered:
 
 Both use the HIG ease and are zeroed under reduced motion.
 
+### Per-surface application
+
+Where the primitives above are actually wired. This is the "where it's used"
+companion to the API docs above — it does not re-document the primitives, only
+the surfaces that consume them. The three cross-cutting guarantees still hold
+everywhere they appear: **reduced-motion safe**, **passive + rAF-throttled**
+pointer handlers, and **reuse-first** (compose the primitive, never re-roll it
+at the call site).
+
+| Surface | Primitive(s) | Behaviour at that surface |
+| --- | --- | --- |
+| Editor form, draft cards, Preview's two working cards, JiraExport's panels, sign-in card | `useSpotlight` + `.spotlight` | Cursor-following accent glow on the working surfaces |
+| All `prominent` CTAs (via `Button` / `ButtonLink`) | `useMagneticHover` | ≤6px magnetic pull, wired once inside the primitive — every `variant="prominent"` gets it for free |
+| `StandaloneApp` shell | `AmbientBackground` `tone` | `running` while a finalize run is in flight; a brief `success` wash on a genuine finalize/export success (not on export cancel); `idle` otherwise |
+| `EmbedApp` shell | `AmbientBackground` `tone` | `running`/`idle` only |
+| "Open in Jira" arrow | `.icon-hover-nudge` | Arrow nudges right on hover |
+| Blank-editor hero | `Typewriter` (with `onPick`) | Clickable rotating idea-prompts that prefill the draft description |
+| Preview no-diagrams empty state | `GhostDiagram` | Self-drawing wireframe hinting at the diagrams to come |
+| `DiagramView` diagram-type segments | GhostDiagram-style sketch | Hovering a type segment floats a tiny per-type sketch preview |
+| Draft cards (single / epic) | Hover-peek | On hover/focus reveals a fuller content peek — single → description excerpt; epic → task-count line |
+| Editor footer | `readinessScore` | 3-segment readiness meter; "Ready to finalize" at 3/3 |
+| Editor footer | Shortcut hint | A faint `↵ Finalize` chip — the only wired shortcut |
+| JiraExport success, RunSheet finalized beat | `SuccessFlourish` | Plays once on the success beat |
+
 ---
 
 ## 12. Skill set / Getting started

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { SuccessFlourish } from "@/components/ui/SuccessFlourish";
 import { celebrate } from "@/lib/motion";
 import { JiraMetadata } from "@/components/jira-metadata/JiraMetadata";
 import { useSpotlight } from "@/lib/interaction/useSpotlight";
@@ -246,12 +247,16 @@ export function JiraExport({ payload, diagrams, onCancel, onDone }: Props) {
           <Button variant="secondary" onClick={onDone}>Done</Button>
         </header>
         <div className="px-6 py-6 flex-1 overflow-auto">
-          <div ref={successRef} className="hig-glass-strong spotlight p-6 max-w-2xl flex flex-col gap-4">
+          <div ref={successRef} className="hig-glass-strong spotlight relative p-6 max-w-2xl flex flex-col gap-4">
+            {/* Soft one-shot flourish — decorative, behind the confirmation
+                content. Keyed on the issue key so it plays once per export
+                success, alongside the celebrate beat on the confirmation. */}
+            <SuccessFlourish key={result.key} />
             <motion.p
               variants={celebrate}
               initial="hidden"
               animate="visible"
-              className="text-hig-body"
+              className="relative text-hig-body"
             >
               Created issue <strong className="font-semibold">{result.key}</strong>.
             </motion.p>

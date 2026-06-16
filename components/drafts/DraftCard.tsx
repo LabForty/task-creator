@@ -84,8 +84,31 @@ export function DraftCard({ item, now, onDelete, onConfirmingChange }: Props) {
           {formatRelativeTime(item.updatedAt, effectiveNow)}
         </span>
       </div>
-      {!epic && item.preview && (
-        <p className="text-hig-footnote text-ink-secondary line-clamp-2">{item.preview}</p>
+      {/* Hover-peek: a mini content preview that expands under the title on
+          pointer hover / keyboard focus. MIRRORS the action-row reveal below —
+          same group-hover / group-focus-within gate — but adds a height reveal
+          via the grid-rows [0fr→1fr] trick so the card grows within itself
+          (no list-wide layout jank) instead of just fading. On touch (no hover)
+          it stays open, and while the confirm popover is open it's pinned open
+          so it never flickers with pointer position. The global reduced-motion
+          rule zeroes the transition-duration, so this becomes instant. */}
+      {(item.preview || epic) && (
+        <div
+          className={
+            "grid transition-all duration-150 ease-hig " +
+            (confirming
+              ? "grid-rows-[1fr] opacity-100"
+              : "[@media(hover:hover)]:grid-rows-[0fr] [@media(hover:hover)]:opacity-0 " +
+                "group-hover:grid-rows-[1fr] group-hover:opacity-100 " +
+                "group-focus-within:grid-rows-[1fr] group-focus-within:opacity-100")
+          }
+        >
+          {/* min-h-0 lets the grid row collapse fully to 0fr; overflow-hidden
+              clips the content while the row height animates. */}
+          <p className="min-h-0 overflow-hidden text-hig-footnote text-ink-secondary line-clamp-3">
+            {epic ? `Epic with ${item.preview}` : item.preview}
+          </p>
+        </div>
       )}
       <div
         className={

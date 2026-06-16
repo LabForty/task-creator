@@ -32,6 +32,25 @@ All notable changes to this project are documented here.
   `.icon-hover-nudge` glyph micro-animations. All reduced-motion safe with passive,
   rAF-throttled pointer handlers; demoed on `/styleguide` and documented in
   `docs/design-system.md`.
+- **Alive layer applied across surfaces ("Interactive Atmosphere" phase 2).**
+  Cursor-following spotlight glow (`useSpotlight` + `.spotlight`) on the editor
+  form, draft cards, Preview's two working cards, JiraExport's panels, and the
+  sign-in card; a ≤6px magnetic pull wired once inside `Button`/`ButtonLink` so
+  every `prominent` CTA gets it for free; a reactive aurora driven from app state
+  (`StandaloneApp` sets `running` during a finalize run and a brief `success`
+  wash on a genuine finalize/export success — not on export cancel; `EmbedApp`
+  does running/idle only); and an `.icon-hover-nudge` on the "Open in Jira" arrow.
+- **Empty-state heroes ("Interactive Atmosphere" phase 3).** The blank-editor
+  hero shows clickable rotating idea-prompts (`Typewriter`) that prefill the
+  draft description; Preview's no-diagrams empty state shows a self-drawing
+  `GhostDiagram`; and hovering a diagram-type segment in `DiagramView` floats a
+  tiny per-type GhostDiagram-style sketch preview.
+- **Functional delight ("Interactive Atmosphere" phase 4).** Draft cards reveal
+  a fuller content peek on hover/focus (single → description excerpt; epic →
+  task-count line); the editor footer shows a 3-segment `readinessScore` meter
+  ("Ready to finalize" at 3/3) and a faint `↵ Finalize` shortcut chip; and a
+  one-shot `SuccessFlourish` plays on JiraExport success and on the RunSheet
+  finalized beat.
 
 ### Changed
 - Task-creator surfaces (header, editor, drafts, diagram nodes, error states)

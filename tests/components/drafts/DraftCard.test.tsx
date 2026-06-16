@@ -69,14 +69,31 @@ describe("DraftCard", () => {
     expect(actionsRow.className).not.toContain("group-hover");
     expect(cardRoot.className).not.toContain("hover:-translate-y-0.5");
   });
-  it("merges the task count into the Epic chip and hides the redundant preview", () => {
+  it("folds the task count into the Epic chip", () => {
     render(<DraftCard item={EPIC} now={new Date("2026-06-03T12:00:00Z").getTime()} onDelete={() => {}} />);
     expect(screen.getByText("Epic · 3 tasks")).toBeInTheDocument();
-    // preview text "3 tasks" must not ALSO render as a paragraph
-    expect(screen.getAllByText(/3 tasks/)).toHaveLength(1);
   });
   it("renders a Single chip for single drafts", () => {
     render(<DraftCard item={ITEM} now={Date.now()} onDelete={() => {}} />);
     expect(screen.getByText("Single")).toBeInTheDocument();
+  });
+  // Task 18 — hover-peek. The peek is revealed purely via CSS (group-hover /
+  // group-focus-within), so the assertion is presence-in-DOM, not visibility.
+  it("renders a single draft's preview as a hover-peek (present in the DOM)", () => {
+    render(<DraftCard item={ITEM} now={Date.now()} onDelete={() => {}} />);
+    const peek = screen.getByText("We need a CSV export");
+    expect(peek).toBeInTheDocument();
+    // The peek mirrors the action-row reveal: gated on group-hover/focus-within.
+    const reveal = peek.closest("div");
+    expect(reveal?.className).toContain("group-hover:opacity-100");
+    expect(reveal?.className).toContain("group-focus-within:opacity-100");
+  });
+  it("renders an epic's task-count line as a hover-peek (present in the DOM)", () => {
+    render(<DraftCard item={EPIC} now={Date.now()} onDelete={() => {}} />);
+    // Distinct from the chip's "Epic · 3 tasks"; this is the fuller peek line.
+    const peek = screen.getByText("Epic with 3 tasks");
+    expect(peek).toBeInTheDocument();
+    const reveal = peek.closest("div");
+    expect(reveal?.className).toContain("group-hover:grid-rows-[1fr]");
   });
 });
