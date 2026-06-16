@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { openJiraConnectPopup } from "@/components/JiraChip";
 import { DiagramView } from "@/components/DiagramView";
 import { AnalyzePanel } from "@/components/AnalyzePanel";
+import { GhostDiagram } from "@/components/ui/GhostDiagram";
 import { useSpotlight } from "@/lib/interaction/useSpotlight";
 import type { AnalyzeFinding, Diagrams, FinalizedPayload, MermaidFormat } from "@/lib/jobs/types";
 
@@ -164,10 +165,13 @@ export function Preview({
           <div className="flex-1 min-h-0 overflow-auto">
             {!diagrams && !creatingDiagrams && (
               <div className="h-full flex items-center justify-center">
-                <p className="m-auto max-w-sm rounded-xl bg-surface-muted px-5 py-6 text-center text-hig-footnote text-ink-secondary">
-                  No diagrams yet. Click <strong className="font-semibold">Create diagrams</strong>{" "}
-                  to generate the flow / sequence / interaction views.
-                </p>
+                <div className="m-auto max-w-sm rounded-xl bg-surface-muted px-5 py-6 text-center text-hig-footnote text-ink-secondary">
+                  <GhostDiagram className="mx-auto mb-4 h-28 w-48" />
+                  <p>
+                    No diagrams yet. Click <strong className="font-semibold">Create diagrams</strong>{" "}
+                    to generate the flow / sequence / interaction views.
+                  </p>
+                </div>
               </div>
             )}
 

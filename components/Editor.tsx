@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import dynamic from "next/dynamic";
 import { TextField, TextArea } from "@/components/ui/TextField";
 import { ACList } from "@/components/ACList";
+import { Typewriter } from "@/components/ui/Typewriter";
 import { ClearDraftButton } from "@/components/ClearDraftButton";
 import { TaskTypePicker } from "@/components/TaskTypePicker";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -57,6 +58,15 @@ type Props = {
 
 const HIGHLIGHT_EVENT = "task:highlight-field";
 const HIGHLIGHT_MS = 2500;
+
+// Clickable seed ideas for the blank-editor hero. Picking one prefills the
+// description, which makes the draft non-blank and reveals the full form.
+const IDEA_PROMPTS = [
+  "Export users as CSV",
+  "Add a payments dashboard",
+  "Rate-limit the public API",
+  "Dark mode for the settings page",
+];
 
 // TipTap stores rich text as HTML; strip tags to decide whether the epic
 // description has real content.
@@ -194,6 +204,13 @@ export function Editor({
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Seed the description from a clicked idea-prompt. Goes through the same
+  // `set` path the text inputs use, so autosave fires and the now non-blank
+  // draft hides the hero (isBlankDraft checks the description field).
+  function applyIdea(prompt: string) {
+    set("description", prompt);
+  }
+
   // When the picker is locked (epic mode), keep draft.taskType in sync so the
   // persisted draft reflects the lock rather than whatever stale value was there.
   // This is a legitimate "sync external prop into local state" pattern: the
@@ -266,6 +283,14 @@ export function Editor({
             <h1 className="text-hig-large leading-[1.1] text-ink">Turn an idea into a structured task</h1>
             <p className="mt-1 text-hig-subhead text-ink-secondary">
               Describe what needs to happen — we&apos;ll shape it into a Jira-ready story with diagrams.
+            </p>
+            <p className="mt-3 flex items-baseline gap-1.5 text-hig-subhead text-ink-tertiary">
+              <span>Try</span>
+              <Typewriter
+                phrases={IDEA_PROMPTS}
+                onPick={applyIdea}
+                className="text-hig-subhead text-accent-link hover:underline"
+              />
             </p>
           </>
         ) : (
