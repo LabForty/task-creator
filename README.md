@@ -59,6 +59,30 @@ npm run start
 npm run finalize:demo
 ```
 
+## Mac Studio production hosting
+
+For the simple Mac Studio setup, put the repo on the machine and run:
+
+```bash
+npm run prod
+```
+
+That command installs dependencies with `npm ci`, builds the app, starts `next start`
+in the background with `nohup`, writes `.task-creator/prod.pid`, and waits until
+`/api/health` responds. You can exit SSH after it prints `Health check passed.`
+
+Useful commands:
+
+```bash
+npm run prod:status
+npm run prod:logs
+npm run prod:restart
+npm run prod:stop
+```
+
+By default it listens on `127.0.0.1:3000`. Override with `TASK_CREATOR_HOST` and
+`TASK_CREATOR_PORT` if needed. Logs live at `.task-creator/logs/prod.log`.
+
 ## Architecture at a glance
 
 Next.js App Router monolith. **Six** AI interactions, each implemented as a Skill / role markdown file driven through the Claude Agent SDK:
@@ -132,6 +156,11 @@ to verify no raw hex or arbitrary values have crept in.
 | `npm run dev` | Next dev server at `:3000` (prefer `build` + `start` on Windows) |
 | `npm run build` | Production build |
 | `npm run start` | Run the production build |
+| `npm run prod` | Mac Studio install + build + detached start + health check |
+| `npm run prod:status` | Show whether the detached production process is running |
+| `npm run prod:logs` | Tail `.task-creator/logs/prod.log` |
+| `npm run prod:restart` | Restart the detached production process |
+| `npm run prod:stop` | Stop the detached production process |
 | `npm run test` | Vitest unit + integration |
 | `npm run test:e2e` | Playwright smoke (uses `TASK_AGENT_MODE=stub`) |
 | `npm run typecheck` | `tsc --noEmit` |
