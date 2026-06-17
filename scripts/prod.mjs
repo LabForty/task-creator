@@ -277,7 +277,7 @@ async function installedDomainCandidates() {
   }
   try {
     const stored = (await readFile(DOMAIN_FILE, "utf8")).trim();
-    if (stored) candidates.push(stored);
+    if (stored && stored !== "legacy") candidates.push(stored);
   } catch {
     // No stored domain yet.
   }
@@ -287,8 +287,84 @@ async function installedDomainCandidates() {
 
 async function bootoutAll() {
   for (const domain of await installedDomainCandidates()) {
-    await run("launchctl", ["bootout", domain, PLIST_PATH], { allowFailure: true });
+    // Try both forms. Booting out by path can fail when the service was loaded
+    // from an older plist path; booting out by label catches that case.
+    await run("launchctl", ["bootout", `${domain}/${LABEL}`], {
+      capture: true,
+      allowFailure: true,
+    });
+    await run("launchctl", ["bootout", domain, PLIST_PATH], {
+      capture: true,
+      allowFailure: true,
+    });
   }
+  // Deprecated, but still useful as a compatibility cleanup for services
+  // previously loaded with `launchctl load -w`.
+  await run("launchctl", ["unload", "-w", PLIST_PATH], {
+    capture: true,
+    allowFailure: true,
+  });
+}
+
+async function validatePlist() {
+  const result = await run("plutil", ["-lint", PLIST_PATH], {
+    capture: true,
+    allowFailure: true,
+  });
+  if (result.code !== 0) {
+    die([
+      `Generated plist is invalid: ${PLIST_PATH}`,
+      (result.stderr || result.stdout).trim(),
+    ].join("\n"));
+  }
+}
+
+async function legacyLoad() {
+  await run("launchctl", ["unload", "-w", PLIST_PATH], {
+    capture: true,
+    allowFailure: true,
+  });
+  const result = await run("launchctl", ["load", "-w", PLIST_PATH], {
+    capture: true,
+    allowFailure: true,
+  });
+  if (result.code === 0) {
+    await writeFile(DOMAIN_FILE, "legacy\n", "utf8");
+    return true;
+  }
+  return `${result.stderr || result.stdout}`.trim() || "(none)";
+}
+
+async function bootstrapDiagnostics(lastError, legacyError) {
+  const lines = [
+    "Failed to bootstrap launchd service.",
+    "",
+    "Generated plist:",
+    `  ${PLIST_PATH}`,
+  ];
+
+  const plistStat = await run("ls", ["-l", PLIST_PATH], {
+    capture: true,
+    allowFailure: true,
+  });
+  if (plistStat.stdout.trim()) lines.push(plistStat.stdout.trim());
+
+  lines.push("", "Last bootstrap output:", lastError || "(none)");
+  if (legacyError) {
+    lines.push("", "Legacy load fallback output:", legacyError);
+  }
+
+  lines.push("", "launchctl domain probes:");
+  for (const domain of await installedDomainCandidates()) {
+    const result = await run("launchctl", ["print", domain], {
+      capture: true,
+      allowFailure: true,
+    });
+    const firstLine = (result.stderr || result.stdout).trim().split(/\r?\n/)[0] || "(no output)";
+    lines.push(`  ${domain}: exit ${result.code}; ${firstLine}`);
+  }
+
+  return lines.join("\n");
 }
 
 async function bootstrap() {
@@ -307,7 +383,11 @@ async function bootstrap() {
     }
     lastError = `${result.stderr || result.stdout}`.trim();
   }
-  die(`Failed to bootstrap launchd service. Last launchctl output:\n${lastError || "(none)"}`);
+
+  const legacyResult = await legacyLoad();
+  if (legacyResult === true) return "legacy launchctl load";
+
+  die(await bootstrapDiagnostics(lastError, legacyResult));
 }
 
 async function loadedDomain() {
@@ -318,6 +398,13 @@ async function loadedDomain() {
     });
     if (result.code === 0) return { domain, output: result.stdout };
   }
+  const legacy = await run("launchctl", ["list", LABEL], {
+    capture: true,
+    allowFailure: true,
+  });
+  if (legacy.code === 0) {
+    return { domain: "legacy", output: legacy.stdout };
+  }
   return null;
 }
 
@@ -326,6 +413,7 @@ async function writePlist(env) {
   await mkdir(LOG_DIR, { recursive: true });
   await writeFile(PLIST_PATH, plistFor(env), "utf8");
   await chmod(PLIST_PATH, 0o644);
+  await validatePlist();
 }
 
 async function healthCheck() {
@@ -398,7 +486,12 @@ async function up() {
 async function restart() {
   const loaded = await loadedDomain();
   if (!loaded) die(`Service is not loaded. Run npm run prod first.`);
-  await run("launchctl", ["kickstart", "-k", `${loaded.domain}/${LABEL}`]);
+  if (loaded.domain === "legacy") {
+    const result = await legacyLoad();
+    if (result !== true) die(`Failed to restart legacy launchd service:\n${result}`);
+  } else {
+    await run("launchctl", ["kickstart", "-k", `${loaded.domain}/${LABEL}`]);
+  }
   await healthCheck();
 }
 
