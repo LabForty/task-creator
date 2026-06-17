@@ -59,6 +59,41 @@ npm run start
 npm run finalize:demo
 ```
 
+## Mac Studio production hosting
+
+For a simple always-on Mac Studio deployment, copy the repo to the Mac, create an ignored
+`.env.production.local` (or `.env`) with the production secrets, then run:
+
+```bash
+npm run prod
+```
+
+`npm run prod` is macOS-only. It runs `npm ci`, builds the Next.js production bundle,
+writes a user `launchd` service, starts it, and polls `/api/health` before returning.
+The service keeps running after the SSH session exits and is restarted by `launchd` if
+the process crashes.
+
+Useful commands:
+
+| Script | What |
+|---|---|
+| `npm run prod` | Install, build, register/start the `launchd` service, and health-check it |
+| `npm run prod -- --skip-install` | Rebuild/reload without reinstalling dependencies |
+| `npm run prod -- --skip-build` | Reload an already-built checkout |
+| `npm run prod:status` | Print `launchd` status for the service |
+| `npm run prod:logs` | Tail production stdout/stderr logs |
+| `npm run prod:restart` | Restart the running service and health-check it |
+| `npm run prod:stop` | Stop and unload the service |
+
+By default the service binds Next to `127.0.0.1:3000`. Override with
+`TASK_CREATOR_HOST` / `TASK_CREATOR_PORT` when running `npm run prod`, then put Caddy,
+nginx, or another reverse proxy in front for HTTPS. For HTTPS deployments, set
+`JIRA_REDIRECT_URI` to the public callback URL and `JIRA_SECURE_COOKIE=true`.
+
+The production runner intentionally does **not** copy secret shell variables into the
+`launchd` plist. Put required secrets in `.env.production.local` or `.env` so `next start`
+can load them after SSH exits.
+
 ## Architecture at a glance
 
 Next.js App Router monolith. **Six** AI interactions, each implemented as a Skill / role markdown file driven through the Claude Agent SDK:
@@ -132,6 +167,11 @@ to verify no raw hex or arbitrary values have crept in.
 | `npm run dev` | Next dev server at `:3000` (prefer `build` + `start` on Windows) |
 | `npm run build` | Production build |
 | `npm run start` | Run the production build |
+| `npm run prod` | Mac Studio/macOS production install + `launchd` start + health check |
+| `npm run prod:status` | Show the loaded `launchd` service state |
+| `npm run prod:logs` | Tail production service logs |
+| `npm run prod:restart` | Restart the `launchd` service |
+| `npm run prod:stop` | Stop and unload the `launchd` service |
 | `npm run test` | Vitest unit + integration |
 | `npm run test:e2e` | Playwright smoke (uses `TASK_AGENT_MODE=stub`) |
 | `npm run typecheck` | `tsc --noEmit` |
