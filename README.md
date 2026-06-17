@@ -80,7 +80,7 @@ npm run prod:restart
 npm run prod:stop
 ```
 
-By default it listens on `127.0.0.1:3000`. Override with `TASK_CREATOR_HOST` and
+By default it listens on `0.0.0.0:3000`. Override with `TASK_CREATOR_HOST` and
 `TASK_CREATOR_PORT` if needed. Logs live at `.task-creator/logs/prod.log`.
 
 ## Architecture at a glance

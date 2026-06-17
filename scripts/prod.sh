@@ -6,7 +6,7 @@ STATE_DIR="$ROOT/.task-creator"
 LOG_DIR="$STATE_DIR/logs"
 PID_FILE="$STATE_DIR/prod.pid"
 LOG_FILE="$LOG_DIR/prod.log"
-HOST="${TASK_CREATOR_HOST:-127.0.0.1}"
+HOST="${TASK_CREATOR_HOST:-0.0.0.0}"
 PORT="${TASK_CREATOR_PORT:-3000}"
 HEALTH_HOST="$HOST"
 if [[ "$HEALTH_HOST" == "0.0.0.0" || "$HEALTH_HOST" == "::" ]]; then
