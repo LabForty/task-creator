@@ -316,7 +316,13 @@ export function StandaloneApp({ initialSession }: Props) {
   const doughIsStale =
     knead.rounds.length > 0 &&
     knead.sourceDescription !== undefined &&
-    (liveDraft?.description ?? "") !== knead.sourceDescription;
+    (
+      (liveDraft?.description ?? "") !== knead.sourceDescription ||
+      (
+        knead.sourceContextLinks !== undefined &&
+        (liveDraft?.contextLinks ?? []).join("\n") !== knead.sourceContextLinks.join("\n")
+      )
+    );
 
   async function startBake() {
     if (bakeStatus === "baking") return;
@@ -813,7 +819,12 @@ export function StandaloneApp({ initialSession }: Props) {
       const res = await fetch("/api/knead", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ epicDescription, rounds, overrideCapApproved }),
+        body: JSON.stringify({
+          epicDescription,
+          rounds,
+          contextLinks: draftRef.current?.contextLinks ?? [],
+          overrideCapApproved,
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.kind) {
@@ -836,7 +847,7 @@ export function StandaloneApp({ initialSession }: Props) {
 
   function startKneading(draft: Draft) {
     if (doughIsStale) { setShowLostDough(true); return; }
-    const fresh = startInterview(EMPTY_KNEAD, draft.description);
+    const fresh = startInterview(EMPTY_KNEAD, draft.description, draft.contextLinks);
     setKnead(fresh);
     persistEpic(true, fresh);
     void callKnead([], false);
@@ -845,7 +856,11 @@ export function StandaloneApp({ initialSession }: Props) {
   function confirmReKnead(keepAnswers: boolean) {
     setShowLostDough(false);
     const kept = resetDough(kneadRef.current, keepAnswers);
-    const fresh = startInterview(kept, draftRef.current?.description ?? "");
+    const fresh = startInterview(
+      kept,
+      draftRef.current?.description ?? "",
+      draftRef.current?.contextLinks ?? [],
+    );
     const seeded: KneadState = keepAnswers ? { ...fresh, rounds: kept.rounds } : fresh;
     setKnead(seeded);
     persistEpic(true, seeded);
@@ -878,7 +893,11 @@ export function StandaloneApp({ initialSession }: Props) {
       const res = await fetch("/api/subtasks", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ epicDescription, rounds: kneadRef.current.rounds }),
+        body: JSON.stringify({
+          epicDescription,
+          rounds: kneadRef.current.rounds,
+          contextLinks: draftRef.current?.contextLinks ?? [],
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !Array.isArray(json.subtasks)) {

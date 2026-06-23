@@ -7,10 +7,12 @@ import {
   parseStory,
   buildAnalystInput,
   buildPlannerInput,
+  buildSourceContextBlock,
   hasAcceptanceCriteriaSection,
   type Requirement,
   type Story,
   type DraftInput,
+  type SourceContextItem,
 } from "@/lib/pipeline";
 import type { Draft } from "@/lib/draft/autosave";
 import { extractJsonObject } from "@/lib/json/extract";
@@ -383,6 +385,7 @@ export async function runHelp(args: {
 export async function runKnead(args: {
   epicDescription: string;
   rounds: KneadRound[];
+  sourceContext?: SourceContextItem[];
   overrideCapApproved?: boolean;
   transport: AgentTransport;
   signal?: AbortSignal;
@@ -396,6 +399,7 @@ export async function runKnead(args: {
       maxFreeRounds: 5,
       overrideCapApproved: Boolean(args.overrideCapApproved),
       mustAskFirstRound,
+      sourceContext: buildSourceContextBlock(args.sourceContext),
     });
 
   async function callModel(userMessage: string): Promise<string> {
@@ -441,11 +445,16 @@ export async function runKnead(args: {
 export async function runGenerateSubtasks(args: {
   epicDescription: string;
   rounds: KneadRound[];
+  sourceContext?: SourceContextItem[];
   transport: AgentTransport;
   signal?: AbortSignal;
 }): Promise<ProposedSubtask[]> {
   const systemPrompt = await loadSkillPrompt("task-generate-subtasks");
-  const userMessage = JSON.stringify({ epicDescription: args.epicDescription, rounds: args.rounds });
+  const userMessage = JSON.stringify({
+    epicDescription: args.epicDescription,
+    rounds: args.rounds,
+    sourceContext: buildSourceContextBlock(args.sourceContext),
+  });
 
   let buffer = "";
   let pending: Error | null = null;

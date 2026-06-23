@@ -10,9 +10,24 @@ export type DraftInput = {
   useCases?: string;
   acceptanceCriteria?: string[];
   constraints?: string;
+  // User-attached source links. These are persisted with the draft, but
+  // omitted from the ticket-draft object sent to model roles.
+  contextLinks?: string[];
+  // Server-resolved source material derived from contextLinks. This is prompt
+  // context only; render/export code must not copy it into the final ticket.
+  sourceContext?: SourceContextItem[];
   // Slug of the selected task-type template (matches a file in prompts/types/).
   // Optional — the planner falls back to the in-repo default when absent.
   taskType?: string;
+};
+
+export type SourceContextItem = {
+  url: string;
+  kind: "jira" | "confluence" | "github" | "web";
+  status: "resolved" | "unresolved";
+  title?: string;
+  content?: string;
+  error?: string;
 };
 
 // ---------------------------------------------------------------------------

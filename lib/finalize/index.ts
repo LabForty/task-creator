@@ -3,7 +3,8 @@ import { publish, getJob } from "@/lib/jobs";
 import { renderFinalized } from "@/lib/render";
 import { checkConsistency } from "@/lib/pipeline";
 import { readTemplate } from "@/lib/templates/sync";
-import type { DraftInput, Requirement, Story, GateResult } from "@/lib/pipeline";
+import { resolveSourceContext } from "@/lib/context/sources";
+import type { DraftInput, Requirement, Story, GateResult, SourceContextItem } from "@/lib/pipeline";
 import type { AgentTransport } from "@/lib/agent/types";
 import type { JobEvent } from "@/lib/jobs/types";
 
@@ -26,7 +27,10 @@ type AgentModule = {
   makeDefaultTransport?: () => AgentTransport;
 };
 
-export type FinalizeDeps = { agent?: AgentModule };
+export type FinalizeDeps = {
+  agent?: AgentModule;
+  resolveSourceContext?: (links: readonly string[] | undefined) => Promise<SourceContextItem[]>;
+};
 
 type RoleErr = Error & { gateErrors?: string[] };
 
@@ -80,6 +84,29 @@ async function runPlannerWithRetry(
   }
 }
 
+async function withResolvedSourceContext(
+  draft: DraftInput,
+  deps?: FinalizeDeps,
+): Promise<DraftInput> {
+  if (!draft.contextLinks?.length) return draft;
+  const resolver = deps?.resolveSourceContext ?? resolveSourceContext;
+  try {
+    const sourceContext = await resolver(draft.contextLinks);
+    return sourceContext.length ? { ...draft, sourceContext } : draft;
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return {
+      ...draft,
+      sourceContext: draft.contextLinks.map((url) => ({
+        url,
+        kind: "web",
+        status: "unresolved",
+        error,
+      })),
+    };
+  }
+}
+
 export async function runFinalize(opts: {
   jobId: string;
   draft: DraftInput;
@@ -91,9 +118,11 @@ export async function runFinalize(opts: {
   const publishEvent = (e: JobEvent) => publish(opts.jobId, e);
 
   try {
+    const draft = await withResolvedSourceContext(opts.draft, opts.deps);
+
     // --- ANALYST phase ---
     const { requirement, schema: analystSchema } = await runAnalystWithRetry(agent, {
-      draft: opts.draft,
+      draft,
       transport,
       publish: publishEvent,
     });
@@ -103,7 +132,7 @@ export async function runFinalize(opts: {
     // Load the selected task-type template (from prompts/types/<key>.md).
     // If the user didn't pick one or the file is missing, the planner falls
     // back to the in-repo default. taskType is optional on DraftInput.
-    const taskType = (opts.draft as DraftInput & { taskType?: string }).taskType?.trim();
+    const taskType = (draft as DraftInput & { taskType?: string }).taskType?.trim();
     const templateContent = taskType ? await readTemplate(taskType) : null;
     const template = taskType && templateContent
       ? { key: taskType, content: templateContent }
@@ -111,7 +140,7 @@ export async function runFinalize(opts: {
 
     const { story, schema: plannerSchema } = await runPlannerWithRetry(agent, {
       requirement,
-      draft: opts.draft,
+      draft,
       transport,
       publish: publishEvent,
       template,
@@ -130,7 +159,7 @@ export async function runFinalize(opts: {
     // --- Render markdown ---
     // Diagrams are embedded later (client-side) once they exist; the initial
     // finalize render produces the body only.
-    const markdown = renderFinalized(requirement, story, { constraints: opts.draft.constraints });
+    const markdown = renderFinalized(requirement, story, { constraints: draft.constraints });
 
     const payload = {
       requirement,

@@ -6,6 +6,7 @@ export const DraftSchema = z.object({
   description: z.string().min(1),
   acceptanceCriteria: z.array(z.string()).optional(),
   constraints: z.string().optional(),
+  contextLinks: z.array(z.string().trim().url().max(2048)).max(20).optional(),
   taskType: z.string().min(1).max(64).optional(),
 });
 
@@ -15,6 +16,7 @@ export const PartialDraftSchema = z.object({
   description: z.string().optional(),
   acceptanceCriteria: z.array(z.string()).optional(),
   constraints: z.string().optional(),
+  contextLinks: z.array(z.string().trim().url().max(2048)).max(20).optional(),
 });
 
 export const TitleSuggestBodySchema = z.object({
@@ -70,6 +72,7 @@ export const KneadRoundSchema = z.object({
 export const KneadBodySchema = z.object({
   epicDescription: z.string().min(1),
   rounds: z.array(KneadRoundSchema),
+  contextLinks: z.array(z.string().trim().url().max(2048)).max(20).optional(),
   overrideCapApproved: z.boolean().optional(),
 });
 
@@ -78,6 +81,7 @@ export type KneadBody = z.infer<typeof KneadBodySchema>;
 export const SubtasksBodySchema = z.object({
   epicDescription: z.string().min(1),
   rounds: z.array(KneadRoundSchema),
+  contextLinks: z.array(z.string().trim().url().max(2048)).max(20).optional(),
 });
 export type SubtasksBody = z.infer<typeof SubtasksBodySchema>;
 

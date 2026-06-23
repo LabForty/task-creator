@@ -7,6 +7,7 @@ export const DraftUpsertSchema = z.object({
   description: z.string().max(50_000).optional(),
   acceptanceCriteria: z.array(z.string().max(2_000)).max(100).optional(),
   constraints: z.string().max(20_000).optional(),
+  contextLinks: z.array(z.string().max(2048)).max(20).optional(),
   taskType: z.string().max(64).optional(),
   diagrams: z.unknown().optional(),
   chatHistory: z.unknown().optional(),

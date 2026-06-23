@@ -31,6 +31,9 @@ export type KneadState = {
   // The epic description captured when kneading first started this run. Used
   // to detect a later edit (lost-dough). Undefined until the first round.
   sourceDescription?: string;
+  // Context links captured at the same time. Changing source-of-truth links
+  // after kneading should force a re-knead just like editing the description.
+  sourceContextLinks?: string[];
 };
 
 // Raw, validated shape the model returns (before cap rules are applied).

@@ -7,6 +7,9 @@ export type Draft = {
   description: string;
   acceptanceCriteria: string[];
   constraints: string;
+  // Source-of-truth links that should inform task creation but not be copied
+  // into the rendered ticket body just because they were attached here.
+  contextLinks: string[];
   // Slug of the selected task-type template (matches a prompts/types/<slug>.md
   // file). Defaults to "story" when missing — see loadDraft.
   taskType: string;
@@ -28,6 +31,7 @@ export const EMPTY_DRAFT: Draft = {
   description: "",
   acceptanceCriteria: [],
   constraints: "",
+  contextLinks: [],
   taskType: "story",
   mode: "single",
 };
@@ -46,6 +50,9 @@ export function loadDraft(namespace: string): Draft {
       description: parsed.description ?? "",
       acceptanceCriteria: Array.isArray(parsed.acceptanceCriteria) ? parsed.acceptanceCriteria : [],
       constraints: parsed.constraints ?? "",
+      contextLinks: Array.isArray(parsed.contextLinks)
+        ? parsed.contextLinks.filter((v): v is string => typeof v === "string")
+        : [],
       taskType: typeof parsed.taskType === "string" && parsed.taskType.trim() ? parsed.taskType : "story",
       diagrams: parsed.diagrams,
       chatHistory: Array.isArray(parsed.chatHistory) ? parsed.chatHistory : undefined,
@@ -106,6 +113,7 @@ export function isDirty(draft: Draft): boolean {
     draft.title.trim() ||
       draft.description.trim() ||
       draft.constraints.trim() ||
+      draft.contextLinks.some((link) => link.trim()) ||
       draft.acceptanceCriteria.some((c) => c.trim()),
   );
 }
@@ -116,6 +124,7 @@ export function isBlankDraft(d: Draft): boolean {
     !d.title.trim() &&
     !d.description.trim() &&
     !(d.constraints ?? "").trim() &&
+    (d.contextLinks ?? []).every((link) => !link.trim()) &&
     (d.acceptanceCriteria ?? []).every((a) => !a.trim())
   );
 }

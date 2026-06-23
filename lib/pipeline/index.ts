@@ -6,6 +6,7 @@ import {
   type Story,
   type GateResult,
   type DraftInput,
+  type SourceContextItem,
 } from "./types";
 
 export type ParseResult<T> =
@@ -137,15 +138,40 @@ export function checkConsistency(req: Requirement, story: Story): GateResult {
     : { gate: "consistency", ok: false, errors };
 }
 
+function ticketDraftOnly(draft: DraftInput): Omit<DraftInput, "contextLinks" | "sourceContext"> {
+  const { contextLinks: _contextLinks, sourceContext: _sourceContext, ...ticketDraft } = draft;
+  return ticketDraft;
+}
+
+export function buildSourceContextBlock(sourceContext: SourceContextItem[] | undefined) {
+  if (!sourceContext?.length) return undefined;
+  return {
+    contract: [
+      "These attachments were added through Attach to context and are source-of-truth context.",
+      "If they conflict with the ordinary draft fields, prefer the resolved attachment content.",
+      "Do not add an attachment/source-links section, cite these URLs, or copy these URLs into the ticket unless the user explicitly asked for that in the title, description, acceptance criteria, or constraints.",
+      "Links pasted inside draft.description are ordinary ticket content; only the attachments below follow this source-context contract.",
+    ],
+    attachments: sourceContext,
+  };
+}
+
 // Build the user message that the planner skill receives.
 export function buildPlannerInput(requirement: Requirement, draft: DraftInput): string {
-  return JSON.stringify({ requirement, draft });
+  return JSON.stringify({
+    requirement,
+    draft: ticketDraftOnly(draft),
+    sourceContext: buildSourceContextBlock(draft.sourceContext),
+  });
 }
 
 // Build the user message that the analyst skill receives.
 export function buildAnalystInput(draft: DraftInput): string {
-  return JSON.stringify({ draft });
+  return JSON.stringify({
+    draft: ticketDraftOnly(draft),
+    sourceContext: buildSourceContextBlock(draft.sourceContext),
+  });
 }
 
-export type { Requirement, Story, GateResult, DraftInput } from "./types";
+export type { Requirement, Story, GateResult, DraftInput, SourceContextItem } from "./types";
 export { RequirementSchema, StorySchema } from "./types";

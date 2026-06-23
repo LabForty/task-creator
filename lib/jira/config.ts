@@ -13,6 +13,7 @@ const SCOPES = [
   "read:jira-work",
   "write:jira-work",
   "read:jira-user",
+  "read:confluence-content.all",
   "offline_access",
 ];
 

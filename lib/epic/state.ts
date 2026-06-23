@@ -13,8 +13,12 @@ export function currentRound(state: KneadState): KneadRound | undefined {
   return state.rounds[state.rounds.length - 1];
 }
 
-export function startInterview(_state: KneadState, sourceDescription: string): KneadState {
-  return { status: "interviewing", rounds: [], sourceDescription };
+export function startInterview(
+  _state: KneadState,
+  sourceDescription: string,
+  sourceContextLinks: string[] = [],
+): KneadState {
+  return { status: "interviewing", rounds: [], sourceDescription, sourceContextLinks };
 }
 
 export function appendRound(state: KneadState, questions: KneadQuestion[]): KneadState {
@@ -82,5 +86,5 @@ export function resetDough(state: KneadState, keepAnswers: boolean): KneadState 
   if (!keepAnswers) return { ...EMPTY_KNEAD };
   // Copy the array so the returned state shares no mutable structure with the
   // input — keeps every helper uniformly immutable.
-  return { status: "idle", rounds: [...state.rounds], sourceDescription: undefined };
+  return { status: "idle", rounds: [...state.rounds], sourceDescription: undefined, sourceContextLinks: undefined };
 }

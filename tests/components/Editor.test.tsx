@@ -37,6 +37,24 @@ describe("<Editor>", () => {
     );
   });
 
+  it("adds attached context links to the draft separately from description", async () => {
+    const onFinalize = vi.fn();
+    render(<Editor namespace="context-links" onFinalize={onFinalize} />);
+    await userEvent.type(screen.getByLabelText(/task title/i), "Export users");
+    await userEvent.type(screen.getByLabelText(/attach to context/i), "https://example.com/spec");
+    await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    expect(screen.getByRole("link", { name: /example\.com/i })).toHaveAttribute(
+      "href",
+      "https://example.com/spec",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /finalize task/i }));
+    expect(onFinalize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextLinks: ["https://example.com/spec"],
+      }),
+    );
+  });
+
   it("does not call onFinalize when title is whitespace-only", async () => {
     const onFinalize = vi.fn();
     render(<Editor namespace="t4" onFinalize={onFinalize} />);

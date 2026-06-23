@@ -34,6 +34,11 @@ describe("DraftUpsertSchema", () => {
       expect(r.data.subtaskDrafts).toEqual(input.subtaskDrafts);
     }
   });
+  it("accepts attached context links", () => {
+    const r = DraftUpsertSchema.safeParse({ contextLinks: ["https://example.com/spec"] });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.contextLinks).toEqual(["https://example.com/spec"]);
+  });
   it("strips genuinely unknown top-level keys", () => {
     const r = DraftUpsertSchema.safeParse({ title: "x", bogus: 1 });
     expect(r.success).toBe(true);

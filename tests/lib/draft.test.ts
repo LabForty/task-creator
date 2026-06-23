@@ -18,8 +18,20 @@ describe("lib/draft/autosave", () => {
   });
 
   it("saveDraft + loadDraft round-trips", () => {
-    saveDraft("ns2", { ...EMPTY_DRAFT, title: "T", description: "D", acceptanceCriteria: ["a", "b"] });
-    expect(loadDraft("ns2")).toEqual({ ...EMPTY_DRAFT, title: "T", description: "D", acceptanceCriteria: ["a", "b"] });
+    saveDraft("ns2", {
+      ...EMPTY_DRAFT,
+      title: "T",
+      description: "D",
+      acceptanceCriteria: ["a", "b"],
+      contextLinks: ["https://example.com/spec"],
+    });
+    expect(loadDraft("ns2")).toEqual({
+      ...EMPTY_DRAFT,
+      title: "T",
+      description: "D",
+      acceptanceCriteria: ["a", "b"],
+      contextLinks: ["https://example.com/spec"],
+    });
   });
 
   it("loadDraft tolerates corrupted JSON", () => {
@@ -67,6 +79,7 @@ describe("lib/draft/autosave", () => {
   it("isDirty is true when any field has content", () => {
     expect(isDirty({ ...EMPTY_DRAFT, title: "T" })).toBe(true);
     expect(isDirty({ ...EMPTY_DRAFT, acceptanceCriteria: ["x"] })).toBe(true);
+    expect(isDirty({ ...EMPTY_DRAFT, contextLinks: ["https://example.com/spec"] })).toBe(true);
   });
 
   it("loadDraft defaults mode to 'single' when missing", () => {

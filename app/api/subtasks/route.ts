@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { SubtasksBodySchema } from "@/lib/api/schemas";
 import { makeTransport, runGenerateSubtasks } from "@/lib/agent";
 import { requireSession } from "@/lib/auth/requireSession";
+import { resolveSourceContext } from "@/lib/context/sources";
+import type { SourceContextItem } from "@/lib/pipeline";
 
 export const runtime = "nodejs";
 
@@ -35,13 +37,25 @@ export async function POST(req: Request) {
 
   const transport = makeTransport();
   try {
+    const sourceContext = await resolveLinks(parsed.data.contextLinks);
     const subtasks = await runGenerateSubtasks({
       epicDescription: parsed.data.epicDescription,
       rounds: parsed.data.rounds,
+      sourceContext,
       transport,
     });
     return NextResponse.json({ subtasks });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
+}
+
+async function resolveLinks(links: readonly string[] | undefined): Promise<SourceContextItem[] | undefined> {
+  if (!links?.length) return undefined;
+  try {
+    return await resolveSourceContext(links);
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return links.map((url) => ({ url, kind: "web", status: "unresolved", error }));
   }
 }

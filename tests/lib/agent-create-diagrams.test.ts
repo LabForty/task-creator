@@ -26,6 +26,7 @@ const draft: Draft = {
   description: "x",
   acceptanceCriteria: [],
   constraints: "",
+  contextLinks: [],
   taskType: "story",
   mode: "single",
 };

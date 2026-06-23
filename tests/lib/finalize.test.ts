@@ -50,6 +50,36 @@ describe("runFinalize (orchestrator)", () => {
     expect(agent.runPlanner).toHaveBeenCalledOnce();
   });
 
+  it("resolves attached context links before analyst and planner run", async () => {
+    const job = createJob();
+    const agent = happyAgent();
+    const sourceContext = [{
+      url: "https://example.com/spec",
+      kind: "web" as const,
+      status: "resolved" as const,
+      title: "Spec",
+      content: "Authoritative source text.",
+    }];
+    const resolveSourceContext = vi.fn(async () => sourceContext);
+    await runFinalize({
+      jobId: job.id,
+      draft: {
+        title: "T",
+        description: "D",
+        contextLinks: ["https://example.com/spec"],
+      },
+      deps: { agent, resolveSourceContext },
+    });
+    expect(resolveSourceContext).toHaveBeenCalledWith(["https://example.com/spec"]);
+    expect(agent.runAnalyst).toHaveBeenCalledWith(expect.objectContaining({
+      draft: expect.objectContaining({ sourceContext }),
+    }));
+    expect(agent.runPlanner).toHaveBeenCalledWith(expect.objectContaining({
+      draft: expect.objectContaining({ sourceContext }),
+    }));
+    expect(getJob(job.id)?.result?.markdown).not.toContain("https://example.com/spec");
+  });
+
   it("schema failure from analyst retries once with a retryHint then succeeds", async () => {
     const job = createJob();
     const agent = happyAgent();

@@ -50,6 +50,37 @@ describe("lib/agent", () => {
     expect(types).toContain("role_finished");
   });
 
+  it("passes attached source context separately from ticket draft fields", async () => {
+    let sent = "";
+    const transport: AgentTransport = {
+      async runRole({ userMessage, onEvent }) {
+        sent = userMessage;
+        onEvent({ type: "token", text: validRequirementJson });
+      },
+    };
+    await runAnalyst({
+      draft: {
+        title: "T",
+        description: "D",
+        contextLinks: ["https://example.com/spec"],
+        sourceContext: [{
+          url: "https://example.com/spec",
+          kind: "web",
+          status: "resolved",
+          title: "Spec",
+          content: "Authoritative behavior.",
+        }],
+      },
+      transport,
+      publish: vi.fn(),
+    });
+    const body = JSON.parse(sent);
+    expect(body.draft.contextLinks).toBeUndefined();
+    expect(body.draft.sourceContext).toBeUndefined();
+    expect(body.sourceContext.contract.join(" ")).toMatch(/source-of-truth/i);
+    expect(body.sourceContext.attachments[0].content).toBe("Authoritative behavior.");
+  });
+
   it("runAnalyst throws with gateErrors when the JSON fails Zod validation", async () => {
     const bad = JSON.stringify({ title: "x" }); // missing required fields
     const publish = vi.fn();

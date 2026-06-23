@@ -61,6 +61,35 @@ if (typeof window !== "undefined" && !window.matchMedia) {
   });
 }
 
+// ProseMirror/TipTap scrolls the current selection into view after text input.
+// jsdom does not implement selection geometry on Range/Text nodes, so provide
+// stable zero-sized rectangles for editor component tests.
+if (typeof window !== "undefined") {
+  const rect = () => new window.DOMRect(0, 0, 0, 0);
+  const rects = () => ({
+    length: 0,
+    item: () => null,
+    [Symbol.iterator]: function* iterator() {},
+  }) as DOMRectList;
+  const protos: object[] = [];
+  if (window.Range) protos.push(window.Range.prototype);
+  if (window.Text) protos.push(window.Text.prototype);
+  for (const proto of protos) {
+    if (!("getBoundingClientRect" in proto)) {
+      Object.defineProperty(proto, "getBoundingClientRect", {
+        configurable: true,
+        value: rect,
+      });
+    }
+    if (!("getClientRects" in proto)) {
+      Object.defineProperty(proto, "getClientRects", {
+        configurable: true,
+        value: rects,
+      });
+    }
+  }
+}
+
 // Framer Motion in jsdom: skip animations so AnimatePresence doesn't delay
 // unmounts behind rAF-driven exit animations — tests assert final states.
 MotionGlobalConfig.skipAnimations = true;

@@ -8,6 +8,7 @@ import { ACList } from "@/components/ACList";
 import { Typewriter } from "@/components/ui/Typewriter";
 import { ClearDraftButton } from "@/components/ClearDraftButton";
 import { TaskTypePicker } from "@/components/TaskTypePicker";
+import { ContextLinksField } from "@/components/ContextLinksField";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { applyEditToDraft } from "@/lib/draft/applyEdit";
@@ -371,6 +372,11 @@ export function Editor({
             className="min-h-[96px]"
           />
         </div>
+
+        <ContextLinksField
+          value={draft.contextLinks}
+          onChange={(next) => set("contextLinks", next)}
+        />
       </div>
 
       {/* Readiness hint (Task 19) + shortcut chips (Task 20). A fixed-height
