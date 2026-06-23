@@ -43,7 +43,7 @@ describe("<Editor>", () => {
     await userEvent.type(screen.getByLabelText(/task title/i), "Export users");
     await userEvent.type(screen.getByLabelText(/attach to context/i), "https://example.com/spec");
     await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
-    expect(screen.getByRole("link", { name: /example\.com/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "https://example.com/spec" })).toHaveAttribute(
       "href",
       "https://example.com/spec",
     );

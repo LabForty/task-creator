@@ -37,14 +37,6 @@ function extractUrls(input: string): string[] {
   return urls;
 }
 
-function hostnameOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
 export function ContextLinksField({ value, onChange }: Props) {
   const [pending, setPending] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +136,7 @@ export function ContextLinksField({ value, onChange }: Props) {
                 className="min-w-0 flex-1 truncate text-hig-footnote text-accent-link hover:underline"
                 title={url}
               >
-                {hostnameOf(url)}
+                {url}
               </a>
               <button
                 type="button"
