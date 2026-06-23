@@ -1205,7 +1205,7 @@ export function StandaloneApp({ initialSession }: Props) {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="flex flex-col"
+            className="flex flex-1 min-h-0 flex-col"
           >
         {mode.kind === "idle" || mode.kind === "running" ? (
           epicMode && bakeStatus === "baked" ? (
