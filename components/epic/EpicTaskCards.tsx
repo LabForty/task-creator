@@ -28,7 +28,7 @@ export function EpicTaskCards(props: Props) {
   const baking = props.bakeStatus === "baking";
 
   return (
-    <div className="flex flex-col gap-2 h-full min-h-0 overflow-y-auto p-3">
+    <div className="flex flex-col gap-2 p-3">
       {baking && (
         <div className="sticky top-0 z-10 -mt-3 -mx-3 px-3 py-2 bg-surface border-b border-rule flex items-center gap-2">
           <span className="text-hig-footnote font-medium text-ink">

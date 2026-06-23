@@ -55,6 +55,11 @@ describe("<Editor>", () => {
     );
   });
 
+  it("does not create an internal vertical scroll pane", () => {
+    const { container } = render(<Editor namespace="no-nested-scroll" onFinalize={vi.fn()} />);
+    expect(container.querySelector(".overflow-y-auto")).toBeNull();
+  });
+
   it("does not call onFinalize when title is whitespace-only", async () => {
     const onFinalize = vi.fn();
     render(<Editor namespace="t4" onFinalize={onFinalize} />);

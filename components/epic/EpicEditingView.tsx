@@ -61,7 +61,7 @@ export function EpicEditingView(props: Props) {
     : "flex-[0.8] min-w-[400px] max-w-[560px] shrink-0 transition-[flex-basis,max-width,min-width] duration-150 ease-out";
 
   return (
-    <div className="flex flex-col gap-3 h-full min-h-0 px-6 py-4">
+    <div className="flex flex-col gap-3 px-6 py-4">
       {/* Toolbar */}
       <div className="flex items-center gap-2 shrink-0">
         <BackBar
@@ -79,9 +79,9 @@ export function EpicEditingView(props: Props) {
       </div>
 
       {/* Body: editor (capped) + cards (flexible) + HelpPanel slot is rendered by the parent as a sibling next to this whole view */}
-      <div className={"flex-1 min-h-0 flex gap-4 " + (baking ? "[&_form]:pointer-events-none [&_form]:opacity-60" : "")}>
+      <div className={"flex gap-4 " + (baking ? "[&_form]:pointer-events-none [&_form]:opacity-60" : "")}>
         {/* Editor pane — fills its column from the left, no centering cap. */}
-        <div className="flex-1 min-w-0 overflow-y-auto transition-[flex-basis] duration-150 ease-out">
+        <div className="flex-1 min-w-0 transition-[flex-basis] duration-150 ease-out">
           {activeTask ? (
             <EpicTaskEditor
               taskId={activeTask.id}

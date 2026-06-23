@@ -1125,9 +1125,9 @@ export function StandaloneApp({ initialSession }: Props) {
         : "preview";
 
   return (
-    <main className="relative isolate h-screen grid grid-cols-[1fr_auto_auto] bg-surface-subtle overflow-hidden">
+    <main className="relative isolate min-h-screen grid grid-cols-[minmax(0,1fr)_auto_auto] bg-surface-subtle overflow-x-hidden">
       <AmbientBackground tone={auroraTone} />
-      <div className="flex flex-col min-w-0 min-h-0">
+      <div className="flex min-h-screen flex-col min-w-0">
         <header className="px-8 py-5 border-b border-rule hig-glass-edge flex items-center gap-4 sticky top-0 z-10">
           <BrandMark size={32} />
           <div className="flex flex-col">
@@ -1182,7 +1182,7 @@ export function StandaloneApp({ initialSession }: Props) {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="flex-1 min-h-0 flex flex-col"
+            className="flex flex-col"
           >
         {mode.kind === "idle" || mode.kind === "running" ? (
           epicMode && bakeStatus === "baked" ? (
@@ -1280,7 +1280,7 @@ export function StandaloneApp({ initialSession }: Props) {
             />
             );
           })() : (
-          <div className="px-6 py-4 flex-1 min-h-0 flex flex-col w-full">
+          <div className="px-6 py-4 w-full">
             {submitErr && (
               <Alert className="mb-3 shrink-0">{submitErr}</Alert>
             )}
@@ -1289,10 +1289,10 @@ export function StandaloneApp({ initialSession }: Props) {
                 <p className="text-hig-footnote text-accent">{draftSavedNote}</p>
               </div>
             )}
-            <div className="flex-1 min-h-0 flex gap-4">
+            <div className="flex gap-4">
               <div
                 className={
-                  "flex-1 min-w-0 overflow-y-auto transition-[max-width] duration-150 ease-out " +
+                  "flex-1 min-w-0 transition-[max-width] duration-150 ease-out " +
                   (hasSidePanel ? "" : "max-w-5xl mx-auto")
                 }
               >
@@ -1335,7 +1335,7 @@ export function StandaloneApp({ initialSession }: Props) {
                 )}
               </div>
               {epicMode && knead.rounds.length > 0 && (
-                <aside aria-label="Captured context" className="w-[320px] shrink-0 border-l border-rule pl-4 overflow-y-auto">
+                <aside aria-label="Captured context" className="sticky top-24 max-h-[calc(100vh-7rem)] w-[320px] shrink-0 border-l border-rule pl-4 overflow-y-auto">
                   <CapturedContext rounds={knead.rounds} />
                 </aside>
               )}

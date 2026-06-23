@@ -273,7 +273,7 @@ export function Editor({
   return (
     <form
       ref={formRef}
-      className={"hig-glass-strong spotlight p-5 flex flex-col gap-4 " + (nested ? "" : "h-full")}
+      className="hig-glass-strong spotlight p-5 flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (hideSubmit) return;
@@ -341,7 +341,7 @@ export function Editor({
         )}
       </div>
 
-      <div className={"flex flex-col gap-4 " + (nested ? "" : "flex-1 min-h-0 overflow-y-auto")}>
+      <div className="flex flex-col gap-4">
         <div data-editor-field="description" className={cls("description")}>
           <RichTextDescription
             label="Description"

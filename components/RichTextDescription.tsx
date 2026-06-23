@@ -140,7 +140,7 @@ export function RichTextDescription({
         class:
           // Prose-y but theme-aware. tw doesn't ship a dark prose by default
           // in this project; we colour explicitly via theme tokens.
-          "tiptap-prose min-h-[280px] max-h-[60vh] overflow-y-auto p-3 " +
+          "tiptap-prose min-h-[280px] p-3 " +
           "outline-none text-hig-body text-ink leading-relaxed",
       },
     },
