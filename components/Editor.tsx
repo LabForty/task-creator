@@ -262,13 +262,43 @@ export function Editor({
     highlight === field ? "task-highlight-field" : "";
 
   const formRef = useSpotlight<HTMLFormElement>();
+  const introHeaderRef = useRef<HTMLDivElement>(null);
+  const compactHeaderRef = useRef<HTMLDivElement>(null);
+  const [headerHeights, setHeaderHeights] = useState({ intro: 0, compact: 0 });
+
+  useEffect(() => {
+    const measure = () => {
+      const intro = introHeaderRef.current?.offsetHeight ?? 0;
+      const compact = compactHeaderRef.current?.offsetHeight ?? 0;
+      setHeaderHeights((prev) => (
+        prev.intro === intro && prev.compact === compact ? prev : { intro, compact }
+      ));
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    if (typeof ResizeObserver === "undefined") {
+      return () => window.removeEventListener("resize", measure);
+    }
+
+    const observer = new ResizeObserver(measure);
+    if (introHeaderRef.current) observer.observe(introHeaderRef.current);
+    if (compactHeaderRef.current) observer.observe(compactHeaderRef.current);
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer.disconnect();
+    };
+  }, []);
 
   // Readiness hint + shortcut chips live in the footer for the non-blank,
   // top-level single editor. `nested` editors (epic subtask cards) and the
   // blank-state hero get neither — they'd be noise there.
-  const showFooterHints = !isBlankDraft(draft) && !nested && mode !== "epic" && !hideSubmit;
+  const blankDraft = isBlankDraft(draft);
+  const showIntroHeader = blankDraft && !nested;
+  const showFooterHints = !blankDraft && !nested && mode !== "epic" && !hideSubmit;
   const readiness = readinessScore(draft);
   const isReady = readiness >= READINESS_MAX;
+  const headerBodyHeight = showIntroHeader ? headerHeights.intro : headerHeights.compact;
 
   return (
     <form
@@ -287,9 +317,19 @@ export function Editor({
     >
       <header className="flex flex-col gap-1">
         <SectionLabel>Draft</SectionLabel>
-        {isBlankDraft(draft) && !nested ? (
-          <>
-            <h1 className="text-hig-large leading-[1.1] text-ink">Turn an idea into a structured task</h1>
+        <div
+          className="relative overflow-hidden transition-[height] duration-300 ease-hig"
+          style={headerBodyHeight > 0 ? { height: headerBodyHeight } : undefined}
+        >
+          <div
+            ref={introHeaderRef}
+            aria-hidden={!showIntroHeader}
+            className={
+              "flex flex-col transition-all duration-300 ease-hig " +
+              (showIntroHeader ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0")
+            }
+          >
+            <h1 className="text-hig-title2 leading-tight text-ink">Turn an idea into a structured task</h1>
             <p className="mt-1 text-hig-subhead text-ink-secondary">
               Describe what needs to happen — we&apos;ll shape it into a Jira-ready story with diagrams.
             </p>
@@ -301,145 +341,155 @@ export function Editor({
                 className="text-hig-subhead text-accent-link hover:underline"
               />
             </p>
-          </>
-        ) : (
-          <h2 className="text-hig-title3">What needs to happen?</h2>
-        )}
+          </div>
+          <div
+            ref={compactHeaderRef}
+            aria-hidden={showIntroHeader}
+            className={
+              "absolute inset-x-0 top-0 transition-all duration-300 ease-hig " +
+              (showIntroHeader ? "pointer-events-none translate-y-1 opacity-0" : "translate-y-0 opacity-100")
+            }
+          >
+            <h2 className="text-hig-title2 leading-tight">What needs to happen?</h2>
+          </div>
+        </div>
       </header>
 
-      <TaskTypePicker
-        value={draft.taskType}
-        onValueChange={(next) => set("taskType", next)}
-        lockedTo={taskTypeLocked}
-      />
-
-      <div data-editor-field="title" className={cls("title")}>
-        <div className="flex items-end gap-2">
-          <div className="flex-1 min-w-0">
-            <TextField
-              label="Task title"
-              description="Short, action-oriented. e.g. 'Export users as CSV'."
-              value={draft.title}
-              onChange={(e) => set("title", e.target.value)}
-              placeholder="e.g. Export users as CSV"
-              autoFocus
-            />
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={suggestTitle}
-            disabled={suggesting}
-            title="Suggest a title from the description + acceptance criteria"
-          >
-            {suggesting ? "Suggesting…" : "Suggest"}
-          </Button>
-        </div>
-        {suggestErr && (
-          <p className="text-hig-footnote text-danger-strong mt-1.5">{suggestErr}</p>
-        )}
-      </div>
-
       <div className="flex flex-col gap-4">
-        <div data-editor-field="description" className={cls("description")}>
-          <RichTextDescription
-            label="Description"
-            description="What needs to happen, who triggers it, when, in what context, and why it matters. Pour in raw context — the planner extracts structure."
-            value={draft.description}
-            onValueChange={(next) => set("description", next)}
-            placeholder="What needs to happen, who triggers it, in what context, and why?"
-          />
-        </div>
-
-        <div data-editor-field="acceptanceCriteria" className={cls("acceptanceCriteria")}>
-          <ACList
-            label="Acceptance criteria"
-            description="One testable bullet per row. Outcomes the engineer/AI will verify against."
-            value={draft.acceptanceCriteria}
-            onItemsChange={(next) => set("acceptanceCriteria", next)}
-            placeholder="e.g. The endpoint returns 200 with a CSV body"
-          />
-        </div>
-
-        <div data-editor-field="constraints" className={`${cls("constraints")} flex flex-col`}>
-          <TextArea
-            label="Pay attention to"
-            description="Hard limits, dependencies, things to preserve."
-            value={draft.constraints}
-            onChange={(e) => set("constraints", e.target.value)}
-            placeholder="Reuse existing operator-session auth, no new permission system, …"
-            className="min-h-[96px]"
-          />
-        </div>
-
-        <ContextLinksField
-          value={draft.contextLinks}
-          onChange={(next) => set("contextLinks", next)}
+        <TaskTypePicker
+          value={draft.taskType}
+          onValueChange={(next) => set("taskType", next)}
+          lockedTo={taskTypeLocked}
         />
-      </div>
 
-      {/* Readiness hint (Task 19) + shortcut chips (Task 20). A fixed-height
-          row reserves space so appearing/filling causes no layout shift; the
-          content fades in only for the non-blank, top-level single editor. */}
-      <div
-        className={
-          "flex h-5 items-center justify-between gap-3 transition-opacity duration-300 ease-hig " +
-          (showFooterHints ? "opacity-100" : "opacity-0")
-        }
-        aria-hidden={!showFooterHints}
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1" role="presentation">
-            {Array.from({ length: READINESS_MAX }, (_, i) => (
-              <span
-                key={i}
-                className={
-                  "h-1 w-6 rounded-full transition-colors duration-300 ease-hig " +
-                  (i < readiness ? "bg-accent-strong" : "bg-surface-inset")
-                }
+        <div data-editor-field="title" className={cls("title")}>
+          <div className="flex items-end gap-2">
+            <div className="flex-1 min-w-0">
+              <TextField
+                label="Task title"
+                description="Short, action-oriented. e.g. 'Export users as CSV'."
+                value={draft.title}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder="e.g. Export users as CSV"
+                autoFocus
               />
-            ))}
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={suggestTitle}
+              disabled={suggesting}
+              title="Suggest a title from the description + acceptance criteria"
+            >
+              {suggesting ? "Suggesting…" : "Suggest"}
+            </Button>
           </div>
-          {isReady && (
-            <span className="text-hig-caption text-ink-tertiary">Ready to finalize</span>
+          {suggestErr && (
+            <p className="text-hig-footnote text-danger-strong mt-1.5">{suggestErr}</p>
           )}
         </div>
-        <span className="text-hig-caption text-ink-tertiary">
-          <kbd className="font-sans">↵</kbd> Finalize
-        </span>
-      </div>
 
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-rule">
-        {onHelp && (
-          <Button type="button" variant="ghost" onClick={onHelp}>
-            Help
-          </Button>
-        )}
-        {onClear && <ClearDraftButton onConfirm={onClear} />}
-        {onSaveDraft && (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => onSaveDraft(draft)}
-            disabled={disabled}
-          >
-            Save as draft
-          </Button>
-        )}
-        {!hideSubmit && (mode === "epic" ? (
-          <Button
-            type="submit"
-            size="lg"
-            disabled={kneadDisabled || !hasEpicDescription(draft.description)}
-          >
-            Knead tasks
-          </Button>
-        ) : (
-          <Button type="submit" variant="prominent" size="lg" disabled={disabled || !draft.title.trim()}>
-            Finalize task
-          </Button>
-        ))}
+        <div className="flex flex-col gap-4">
+          <div data-editor-field="description" className={cls("description")}>
+            <RichTextDescription
+              label="Description"
+              description="What needs to happen, who triggers it, when, in what context, and why it matters. Pour in raw context — the planner extracts structure."
+              value={draft.description}
+              onValueChange={(next) => set("description", next)}
+              placeholder="What needs to happen, who triggers it, in what context, and why?"
+            />
+          </div>
+
+          <div data-editor-field="acceptanceCriteria" className={cls("acceptanceCriteria")}>
+            <ACList
+              label="Acceptance criteria"
+              description="One testable bullet per row. Outcomes the engineer/AI will verify against."
+              value={draft.acceptanceCriteria}
+              onItemsChange={(next) => set("acceptanceCriteria", next)}
+              placeholder="e.g. The endpoint returns 200 with a CSV body"
+            />
+          </div>
+
+          <div data-editor-field="constraints" className={`${cls("constraints")} flex flex-col`}>
+            <TextArea
+              label="Pay attention to"
+              description="Hard limits, dependencies, things to preserve."
+              value={draft.constraints}
+              onChange={(e) => set("constraints", e.target.value)}
+              placeholder="Reuse existing operator-session auth, no new permission system, …"
+              className="min-h-[96px]"
+            />
+          </div>
+
+          <ContextLinksField
+            value={draft.contextLinks}
+            onChange={(next) => set("contextLinks", next)}
+          />
+        </div>
+
+        {/* Readiness hint (Task 19) + shortcut chips (Task 20). A fixed-height
+            row reserves space so appearing/filling causes no layout shift; the
+            content fades in only for the non-blank, top-level single editor. */}
+        <div
+          className={
+            "flex h-5 items-center justify-between gap-3 transition-opacity duration-300 ease-hig " +
+            (showFooterHints ? "opacity-100" : "opacity-0")
+          }
+          aria-hidden={!showFooterHints}
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1" role="presentation">
+              {Array.from({ length: READINESS_MAX }, (_, i) => (
+                <span
+                  key={i}
+                  className={
+                    "h-1 w-6 rounded-full transition-colors duration-300 ease-hig " +
+                    (i < readiness ? "bg-accent-strong" : "bg-surface-inset")
+                  }
+                />
+              ))}
+            </div>
+            {isReady && (
+              <span className="text-hig-caption text-ink-tertiary">Ready to finalize</span>
+            )}
+          </div>
+          <span className="text-hig-caption text-ink-tertiary">
+            <kbd className="font-sans">↵</kbd> Finalize
+          </span>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-rule">
+          {onHelp && (
+            <Button type="button" variant="ghost" onClick={onHelp}>
+              Help
+            </Button>
+          )}
+          {onClear && <ClearDraftButton onConfirm={onClear} />}
+          {onSaveDraft && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => onSaveDraft(draft)}
+              disabled={disabled}
+            >
+              Save as draft
+            </Button>
+          )}
+          {!hideSubmit && (mode === "epic" ? (
+            <Button
+              type="submit"
+              size="lg"
+              disabled={kneadDisabled || !hasEpicDescription(draft.description)}
+            >
+              Knead tasks
+            </Button>
+          ) : (
+            <Button type="submit" variant="prominent" size="lg" disabled={disabled || !draft.title.trim()}>
+              Finalize task
+            </Button>
+          ))}
+        </div>
       </div>
     </form>
   );
