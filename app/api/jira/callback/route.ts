@@ -77,6 +77,17 @@ function buildPopupHtml(
 
 type Outcome = "connected" | "error";
 
+function originFromUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "http:" || url.protocol === "https:") return url.origin;
+  } catch {
+    // Fall through to caller fallback.
+  }
+  return null;
+}
+
 function buildPopupResponse(
   origin: string,
   outcome: Outcome,
@@ -132,14 +143,18 @@ function parseStateCookie(value: string | null): {
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const requestOrigin = url.origin;
 
-  console.log(`[jira/callback] hit url=${url.pathname}${url.search} origin=${origin} host=${req.headers.get("host")}`);
+  console.log(`[jira/callback] hit url=${url.pathname}${url.search} origin=${requestOrigin} host=${req.headers.get("host")}`);
 
   const stateCookieValue = await readStateCookie();
   const parsedState = parseStateCookie(stateCookieValue);
   const isPopup = parsedState?.popup ?? false;
   const returnPath = parsedState?.returnPath ?? "/";
+  const responseOrigin =
+    originFromUrl(parsedState?.redirectUri) ??
+    originFromUrl(process.env.JIRA_REDIRECT_URI) ??
+    requestOrigin;
   console.log(`[jira/callback] stateCookie=${stateCookieValue ? "present" : "MISSING"} popup=${isPopup} returnPath=${returnPath}`);
 
   // Build response on demand and always clear the state cookie at the end.
@@ -149,8 +164,8 @@ export async function GET(req: Request) {
     session: JiraSession | null,
   ): Promise<NextResponse> => {
     const res = isPopup
-      ? buildPopupResponse(origin, outcome, reason)
-      : buildFullRedirect(origin, outcome, reason, returnPath);
+      ? buildPopupResponse(responseOrigin, outcome, reason)
+      : buildFullRedirect(responseOrigin, outcome, reason, returnPath);
     if (session) await setSessionCookieOnResponse(res, session);
     clearStateCookieOnResponse(res);
     const setCookieHeaders = res.headers.getSetCookie?.() ?? [];
