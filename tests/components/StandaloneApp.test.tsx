@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StandaloneApp } from "@/components/StandaloneApp";
 import { EMPTY_DRAFT } from "@/lib/draft/autosave";
@@ -76,6 +76,35 @@ describe("<StandaloneApp>", () => {
     const stored = JSON.parse(window.localStorage.getItem("task-creator:draft:standalone")!);
     expect(stored.knead.status).toBe("idle");
     expect(stored.knead.rounds).toEqual([]);
+  });
+
+  it("drops stale persisted knead rounds when a cleared epic draft is reopened", async () => {
+    window.localStorage.setItem(
+      "task-creator:draft:standalone",
+      JSON.stringify({
+        ...EMPTY_DRAFT,
+        mode: "epic",
+        taskType: "epic",
+        knead: {
+          status: "interviewing",
+          rounds: [{
+            questions: [{ id: "old-q", prompt: "Old refinement question?", section: "business", type: "text" }],
+            answers: {},
+            skipped: [],
+          }],
+          sourceDescription: "Old epic text",
+        },
+      }),
+    );
+
+    render(<StandaloneApp initialSession={{ configured: false, connected: false }} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Old refinement question?")).not.toBeInTheDocument();
+      const stored = JSON.parse(window.localStorage.getItem("task-creator:draft:standalone")!);
+      expect(stored.knead).toEqual({ status: "idle", rounds: [] });
+    });
+    expect(screen.queryByRole("button", { name: /back to editor/i })).toBeNull();
   });
 });
 

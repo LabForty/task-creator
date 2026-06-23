@@ -50,6 +50,19 @@ describe("applyEpicDraft", () => {
     expect(applied.subtaskDrafts).toEqual({});
     expect(applied.analyzeChatById).toEqual({});
   });
+  it("drops knead rounds from a blank epic payload", () => {
+    const staleKnead: KneadState = {
+      status: "interviewing",
+      rounds: [{
+        questions: [{ id: "old", prompt: "Old?", section: "business", type: "text" }],
+        answers: {},
+      }],
+      sourceDescription: "Old epic text",
+    };
+    const applied = applyEpicDraft({ ...EMPTY_DRAFT, mode: "epic", knead: staleKnead });
+    expect(applied.knead).toEqual(EMPTY_KNEAD);
+    expect(applied.mainDraft.knead).toEqual(EMPTY_KNEAD);
+  });
 });
 
 describe("shouldDeleteEpicDraftOnClose", () => {

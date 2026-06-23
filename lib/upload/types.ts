@@ -8,6 +8,7 @@ export type RowState =
   | { kind: "finalizing" }
   | { kind: "uploading" }
   | { kind: "uploaded"; issueKey: string; issueUrl: string }
+  | { kind: "already_uploaded"; issueKey: string; issueUrl?: string }
   | { kind: "failed"; reason: string };
 
 export type RowsState = Record<string, RowState>;
@@ -17,6 +18,10 @@ export type UploadTask = {
   draft: Draft;
   assignee?: string;
   labels: string[];
+  blocks: string[];
+  blockedBy: string[];
+  uploadedIssueKey?: string;
+  uploadedIssueUrl?: string;
   // PKO: when set, the orchestrator skips POST /api/finalize and uses this
   // cached payload (produced by the Bake step) for the export call.
   finalizedPayload?: FinalizedPayload;
@@ -33,8 +38,30 @@ export type UploadDestination = {
     | { kind: "existing"; key: string };
 };
 
+export type DependencyLinkBase = {
+  blockerId: string;
+  blockedId: string;
+};
+
+export type DependencyLinkResolved = DependencyLinkBase & {
+  blockerKey: string;
+  blockedKey: string;
+};
+
+export type DependencyLinkSkipped = DependencyLinkBase & {
+  reason: "missing_issue_key" | "missing_blocks_link_type" | "link_type_load_failed";
+};
+
+export type DependencyLinkSummary = {
+  ok: DependencyLinkResolved[];
+  skipped: DependencyLinkSkipped[];
+  failed: Array<DependencyLinkResolved & { error: string }>;
+  warning?: string;
+};
+
 export type BatchResult = {
   uploaded: string[];       // task ids that successfully finalized + uploaded
   failedId?: string;
   failedReason?: string;
+  dependencyLinks?: DependencyLinkSummary;
 };

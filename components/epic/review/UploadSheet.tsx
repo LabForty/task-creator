@@ -12,7 +12,7 @@ type IssueType = { id: string; name: string; iconUrl: string | null; description
 type Phase = "destination" | "running" | "results";
 
 export type UploadSheetProps = {
-  tasks: UploadTask[];                                  // pre-filtered (non-Denied, not already uploaded)
+  tasks: UploadTask[];                                  // approved tasks; already-uploaded rows are reused for dependency links
   denied: { id: string; title: string }[];              // shown in the results "Excluded" list
   epicTitle: string;             // from liveDraft.title — read-only confirmation for "Create new"
   epicDescriptionHtml: string;   // from liveDraft.description — passed to the new-epic endpoint
@@ -321,10 +321,20 @@ function UploadResults({
   onClose: () => void;
   onRetry: () => void;
 }) {
-  const uploaded = tasks.filter((t) => rows[t.id]?.kind === "uploaded").map((t) => ({
-    id: t.id, title: t.draft.title || "(untitled)", row: rows[t.id] as Extract<RowState, { kind: "uploaded" }>,
+  const uploaded = tasks.filter((t) => {
+    const kind = rows[t.id]?.kind;
+    return kind === "uploaded" || kind === "already_uploaded";
+  }).map((t) => ({
+    id: t.id,
+    title: t.draft.title || "(untitled)",
+    row: rows[t.id] as Extract<RowState, { kind: "uploaded" | "already_uploaded" }>,
   }));
   const failed = result.failedId ? tasks.find((t) => t.id === result.failedId) : undefined;
+  const dependencyLinks = result.dependencyLinks;
+  const dependencyTotal =
+    (dependencyLinks?.ok.length ?? 0) +
+    (dependencyLinks?.skipped.length ?? 0) +
+    (dependencyLinks?.failed.length ?? 0);
 
   return (
     <div className="px-6 py-6 flex-1 overflow-auto flex flex-col gap-4">
@@ -335,12 +345,47 @@ function UploadResults({
           <ul className="flex flex-col gap-1">
             {uploaded.map((u) => (
               <li key={u.id} className="text-hig-body">
-                <a href={u.row.issueUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                  {u.row.issueKey}
-                </a>{" "}— {u.title}
+                {u.row.issueUrl ? (
+                  <a href={u.row.issueUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                    {u.row.issueKey}
+                  </a>
+                ) : (
+                  <span className="font-mono">{u.row.issueKey}</span>
+                )}{" "}— {u.title}
+                {u.row.kind === "already_uploaded" && (
+                  <span className="text-hig-footnote text-ink-secondary"> (already uploaded)</span>
+                )}
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {dependencyLinks && dependencyTotal > 0 && (
+        <div>
+          <h4 className="text-hig-subhead font-medium text-ink mb-1">Dependency links</h4>
+          <ul className="flex flex-col gap-1 text-hig-body text-ink-secondary">
+            {dependencyLinks.ok.length > 0 && (
+              <li>{dependencyLinks.ok.length} created</li>
+            )}
+            {dependencyLinks.skipped.length > 0 && (
+              <li>{dependencyLinks.skipped.length} skipped</li>
+            )}
+            {dependencyLinks.failed.length > 0 && (
+              <li className="text-danger-strong">{dependencyLinks.failed.length} failed</li>
+            )}
+          </ul>
+          {dependencyLinks.warning && (
+            <p className="text-hig-footnote text-ink-secondary mt-1">{dependencyLinks.warning}</p>
+          )}
+          {dependencyLinks.failed.length > 0 && (
+            <ul className="mt-1 flex flex-col gap-1">
+              {dependencyLinks.failed.map((f) => (
+                <li key={`${f.blockerId}->${f.blockedId}`} className="text-hig-footnote text-danger-strong">
+                  {f.blockerKey} blocks {f.blockedKey}: {f.error}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       {failed && (
@@ -376,6 +421,7 @@ function labelFor(r: RowState): string {
     case "finalizing": return "finalizing…";
     case "uploading": return "uploading…";
     case "uploaded": return r.issueKey;
+    case "already_uploaded": return `${r.issueKey} already uploaded`;
     case "failed": return `failed: ${r.reason}`;
   }
 }

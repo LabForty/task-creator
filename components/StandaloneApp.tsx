@@ -42,6 +42,7 @@ import {
   saveDraftId,
   clearDraftId,
   isDirty,
+  isBlankDraft,
   EMPTY_DRAFT,
 } from "@/lib/draft/autosave";
 import { useIdleAutosave } from "@/lib/draft/useIdleAutosave";
@@ -75,6 +76,10 @@ type Mode =
   | { kind: "exporting"; payload: FinalizedPayload; lastDraft: Draft };
 
 const NAMESPACE = "standalone";
+
+function shouldResetPersistedKnead(draft: Draft): boolean {
+  return draft.mode === "epic" && Array.isArray(draft.knead?.rounds) && draft.knead.rounds.length > 0 && isBlankDraft(draft);
+}
 
 type Props = {
   // Seed value from the server-side gate so the JiraChip renders with the
@@ -151,6 +156,7 @@ export function StandaloneApp({ initialSession }: Props) {
 
   const kneadRef = useRef(knead);
   useEffect(() => { kneadRef.current = knead; }, [knead]);
+  const kneadRequestSeqRef = useRef(0);
   const draftRef = useRef<Draft | null>(liveDraft);
   useEffect(() => { draftRef.current = liveDraft; }, [liveDraft]);
   // Once the user explicitly flips the header switch we stop adopting the
@@ -158,7 +164,11 @@ export function StandaloneApp({ initialSession }: Props) {
   const modeTouchedRef = useRef(false);
 
   useEffect(() => {
-    const d = loadDraft(NAMESPACE);
+    const loaded = loadDraft(NAMESPACE);
+    const d = shouldResetPersistedKnead(loaded)
+      ? { ...loaded, knead: EMPTY_KNEAD }
+      : loaded;
+    if (d !== loaded) saveDraft(NAMESPACE, d);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setEpicMode(d.mode === "epic");
     if (d.knead) setKnead(d.knead);
@@ -200,6 +210,15 @@ export function StandaloneApp({ initialSession }: Props) {
     persistEpicTasks(next);
   }
 
+  function resetKneadState() {
+    kneadRequestSeqRef.current += 1;
+    setKnead(EMPTY_KNEAD);
+    setKneadLoading(false);
+    setKneadError(null);
+    setCapPrompt(null);
+    setShowLostDough(false);
+  }
+
   function addTask() {
     const next = addEpicTask(epicTasks);
     const created = next[next.length - 1];
@@ -219,15 +238,16 @@ export function StandaloneApp({ initialSession }: Props) {
 
     if (ns === NAMESPACE) {
       const existing = loadDraft(NAMESPACE);
-      // Preserve epic-mode metadata (mode/knead/epicTasks/chatHistory)
-      // so clearing the visible draft doesn't blow away surrounding state.
+      // Preserve epic-mode shell state while discarding the active knead
+      // interview; otherwise stale refinement questions remain visible.
       saveDraft(NAMESPACE, {
         ...EMPTY_DRAFT,
         mode: existing.mode,
-        knead: existing.knead,
+        knead: EMPTY_KNEAD,
         epicTasks: existing.epicTasks,
         chatHistory: existing.chatHistory,
       });
+      resetKneadState();
       setLiveDraft(loadDraft(NAMESPACE));
       // Clearing means "start fresh" — unbind from the server draft so new
       // content doesn't silently overwrite the previously saved one.
@@ -811,6 +831,7 @@ export function StandaloneApp({ initialSession }: Props) {
   }
 
   async function callKnead(rounds: KneadState["rounds"], overrideCapApproved: boolean) {
+    const requestSeq = ++kneadRequestSeqRef.current;
     const epicDescription = (draftRef.current?.description ?? "").replace(/<[^>]*>/g, "").trim();
     setKneadLoading(true);
     setKneadError(null);
@@ -827,6 +848,7 @@ export function StandaloneApp({ initialSession }: Props) {
         }),
       });
       const json = await res.json().catch(() => ({}));
+      if (requestSeq !== kneadRequestSeqRef.current) return;
       if (!res.ok || !json.kind) {
         setKneadError(typeof json.error === "string" ? json.error : `Request failed (${res.status}).`);
         return;
@@ -839,9 +861,10 @@ export function StandaloneApp({ initialSession }: Props) {
         setCapPrompt({ justification: json.justification });
       }
     } catch (e) {
+      if (requestSeq !== kneadRequestSeqRef.current) return;
       setKneadError(e instanceof Error ? e.message : "Network error");
     } finally {
-      setKneadLoading(false);
+      if (requestSeq === kneadRequestSeqRef.current) setKneadLoading(false);
     }
   }
 
@@ -1301,10 +1324,8 @@ export function StandaloneApp({ initialSession }: Props) {
                     label="Back to editor"
                     confirmMessage="Discard kneading rounds and return to the editor?"
                     onBack={() => {
-                      setKnead(EMPTY_KNEAD);
+                      resetKneadState();
                       persistEpic(true, EMPTY_KNEAD);
-                      setCapPrompt(null);
-                      setKneadError(null);
                     }}
                   />
                 )}
@@ -1496,6 +1517,10 @@ export function StandaloneApp({ initialSession }: Props) {
           id: t.id,
           draft: loadDraft(epicTaskNamespace(t.id)),
           labels: t.labels,
+          blocks: t.blocks,
+          blockedBy: t.blockedBy,
+          uploadedIssueKey: t.uploadedIssueKey,
+          uploadedIssueUrl: t.uploadedIssueUrl,
           finalizedPayload: finalizedById[t.id],
           diagrams: diagramsById[t.id],
         }));

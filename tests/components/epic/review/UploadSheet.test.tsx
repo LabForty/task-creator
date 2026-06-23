@@ -6,7 +6,7 @@ import type { UploadTask } from "@/lib/upload/types";
 import { EMPTY_DRAFT } from "@/lib/draft/autosave";
 
 const tasks: UploadTask[] = [
-  { id: "a", draft: { ...EMPTY_DRAFT, title: "Alpha" }, labels: [] },
+  { id: "a", draft: { ...EMPTY_DRAFT, title: "Alpha" }, labels: [], blocks: [], blockedBy: [] },
 ];
 const denied: { id: string; title: string }[] = [];
 
@@ -102,6 +102,18 @@ describe("<UploadSheet> running + results phases", () => {
         exportCount += 1;
         return Promise.resolve({ ok: true, json: async () => ({ key: `AI-${exportCount}`, url: `https://x/AI-${exportCount}` }) });
       }
+      if (typeof url === "string" && url.includes("/api/jira/link-types")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ linkTypes: [{ id: "10001", name: "Blocks", inward: "is blocked by", outward: "blocks" }] }),
+        });
+      }
+      if (typeof url === "string" && url.includes("/api/jira/issue-links")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ results: { ok: [{ outwardIssueKey: "AI-1", inwardIssueKey: "AI-2" }], failed: [] } }),
+        });
+      }
       return Promise.reject(new Error(`unexpected ${url}`));
     }) as unknown as typeof fetch;
   });
@@ -111,8 +123,8 @@ describe("<UploadSheet> running + results phases", () => {
     render(
       <UploadSheet
         tasks={[
-          { id: "a", draft: { ...EMPTY_DRAFT, title: "Alpha" }, labels: [] },
-          { id: "b", draft: { ...EMPTY_DRAFT, title: "Bravo" }, labels: [] },
+          { id: "a", draft: { ...EMPTY_DRAFT, title: "Alpha" }, labels: [], blocks: ["b"], blockedBy: [] },
+          { id: "b", draft: { ...EMPTY_DRAFT, title: "Bravo" }, labels: [], blocks: [], blockedBy: [] },
         ]}
         denied={[]}
         epicTitle="My Epic"
@@ -138,6 +150,8 @@ describe("<UploadSheet> running + results phases", () => {
     expect(await screen.findByRole("heading", { name: /^results$/i })).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: /AI-1/ })).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: /AI-2/ })).toBeInTheDocument();
+    expect(screen.getByText(/dependency links/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 created/i)).toBeInTheDocument();
     expect(onPersistUploaded).toHaveBeenCalledTimes(2);
     expect(onPersistUploaded).toHaveBeenCalledWith("a", "AI-1", "https://x/AI-1");
     expect(onPersistUploaded).toHaveBeenCalledWith("b", "AI-2", "https://x/AI-2");

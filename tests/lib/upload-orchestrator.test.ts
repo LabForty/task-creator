@@ -11,7 +11,13 @@ const dest: UploadDestination = {
 };
 
 function task(id: string): UploadTask {
-  return { id, draft: { ...EMPTY_DRAFT, title: `T-${id}`, description: `desc ${id}` }, labels: [] };
+  return {
+    id,
+    draft: { ...EMPTY_DRAFT, title: `T-${id}`, description: `desc ${id}` },
+    labels: [],
+    blocks: [],
+    blockedBy: [],
+  };
 }
 
 // Helper: stub subscribeToJob from @/lib/sse/client so the orchestrator's
@@ -204,6 +210,183 @@ describe("runBatchUpload", () => {
       onRow: () => {},
     });
     expect(body.diagrams).toEqual({ flow: "flowchart TD\nA-->B" });
+  });
+
+  it("creates Jira Blocks links after dependent tasks have Jira keys", async () => {
+    let exportCount = 0;
+    let issueLinksBody: { links?: Array<{ linkTypeId: string; outwardIssueKey: string; inwardIssueKey: string }> } = {};
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/api/jira/export")) {
+        exportCount += 1;
+        return Promise.resolve({ ok: true, json: async () => ({ key: `AI-${exportCount}`, url: `https://x/AI-${exportCount}` }) });
+      }
+      if (url.includes("/api/jira/link-types")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ linkTypes: [{ id: "10001", name: "Blocks", inward: "is blocked by", outward: "blocks" }] }),
+        });
+      }
+      if (url.includes("/api/jira/issue-links")) {
+        issueLinksBody = JSON.parse((init?.body as string) ?? "{}");
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            results: {
+              ok: [{ outwardIssueKey: "AI-1", inwardIssueKey: "AI-2" }],
+              failed: [],
+            },
+          }),
+        });
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const cachedPayload = { story: { title: "C", markdown: "" }, markdown: "", requirement: {}, gates: { schema: { ok: true }, consistency: { ok: true } } } as never;
+    const result = await runBatchUpload({
+      tasks: [
+        { ...task("a"), finalizedPayload: cachedPayload, blocks: ["b"] },
+        { ...task("b"), finalizedPayload: cachedPayload },
+      ],
+      destination: dest,
+      onRow: () => {},
+    });
+    expect(issueLinksBody.links).toEqual([
+      { linkTypeId: "10001", outwardIssueKey: "AI-1", inwardIssueKey: "AI-2" },
+    ]);
+    expect(result.dependencyLinks?.ok).toEqual([
+      { blockerId: "a", blockedId: "b", blockerKey: "AI-1", blockedKey: "AI-2" },
+    ]);
+  });
+
+  it("links newly uploaded tasks to already-uploaded dependency targets", async () => {
+    const calls: string[] = [];
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string) => {
+      calls.push(url);
+      if (url.includes("/api/jira/export")) {
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-2", url: "https://x/AI-2" }) });
+      }
+      if (url.includes("/api/jira/link-types")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ linkTypes: [{ id: "10001", name: "Blocks", inward: "is blocked by", outward: "blocks" }] }),
+        });
+      }
+      if (url.includes("/api/jira/issue-links")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            results: {
+              ok: [{ outwardIssueKey: "AI-1", inwardIssueKey: "AI-2" }],
+              failed: [],
+            },
+          }),
+        });
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const cachedPayload = { story: { title: "C", markdown: "" }, markdown: "", requirement: {}, gates: { schema: { ok: true }, consistency: { ok: true } } } as never;
+    const seen: Array<[string, RowState["kind"]]> = [];
+    const result = await runBatchUpload({
+      tasks: [
+        { ...task("a"), blocks: ["b"], uploadedIssueKey: "AI-1", uploadedIssueUrl: "https://x/AI-1" },
+        { ...task("b"), finalizedPayload: cachedPayload },
+      ],
+      destination: dest,
+      onRow: (id, state) => seen.push([id, state.kind]),
+    });
+    expect(calls.filter((u) => u.includes("/api/jira/export"))).toHaveLength(1);
+    expect(seen[0]).toEqual(["a", "already_uploaded"]);
+    expect(result.dependencyLinks?.ok).toEqual([
+      { blockerId: "a", blockedId: "b", blockerKey: "AI-1", blockedKey: "AI-2" },
+    ]);
+  });
+
+  it("skips dependency links whose target task has no uploaded issue key", async () => {
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string) => unknown) => void }).mockImplementation((url: string) => {
+      if (url.includes("/api/jira/export")) {
+        return Promise.resolve({ ok: true, json: async () => ({ key: "AI-1", url: "https://x/AI-1" }) });
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const cachedPayload = { story: { title: "C", markdown: "" }, markdown: "", requirement: {}, gates: { schema: { ok: true }, consistency: { ok: true } } } as never;
+    const result = await runBatchUpload({
+      tasks: [{ ...task("a"), finalizedPayload: cachedPayload, blocks: ["denied-task"] }],
+      destination: dest,
+      onRow: () => {},
+    });
+    expect(result.dependencyLinks?.skipped).toEqual([
+      { blockerId: "a", blockedId: "denied-task", reason: "missing_issue_key" },
+    ]);
+  });
+
+  it("skips resolvable links when Jira has no Blocks link type", async () => {
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string) => unknown) => void }).mockImplementation((url: string) => {
+      if (url.includes("/api/jira/link-types")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ linkTypes: [{ id: "10000", name: "Relates", inward: "relates to", outward: "relates to" }] }),
+        });
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const result = await runBatchUpload({
+      tasks: [
+        { ...task("a"), blocks: ["b"], uploadedIssueKey: "AI-1" },
+        { ...task("b"), uploadedIssueKey: "AI-2" },
+      ],
+      destination: dest,
+      onRow: () => {},
+    });
+    expect(result.dependencyLinks?.skipped).toEqual([
+      { blockerId: "a", blockedId: "b", reason: "missing_blocks_link_type" },
+    ]);
+    expect(result.dependencyLinks?.warning).toMatch(/blocks link type/i);
+  });
+
+  it("links completed dependencies even when a later task upload fails", async () => {
+    let exportCount = 0;
+    let linkCalled = false;
+    (global.fetch as unknown as { mockImplementation: (fn: (url: string, init?: RequestInit) => unknown) => void }).mockImplementation((url: string) => {
+      if (url.includes("/api/jira/export")) {
+        exportCount += 1;
+        if (exportCount === 3) return Promise.resolve({ ok: false, json: async () => ({ error: "boom" }) });
+        return Promise.resolve({ ok: true, json: async () => ({ key: `AI-${exportCount}`, url: `https://x/AI-${exportCount}` }) });
+      }
+      if (url.includes("/api/jira/link-types")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ linkTypes: [{ id: "10001", name: "Blocks", inward: "is blocked by", outward: "blocks" }] }),
+        });
+      }
+      if (url.includes("/api/jira/issue-links")) {
+        linkCalled = true;
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            results: {
+              ok: [{ outwardIssueKey: "AI-1", inwardIssueKey: "AI-2" }],
+              failed: [],
+            },
+          }),
+        });
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const cachedPayload = { story: { title: "C", markdown: "" }, markdown: "", requirement: {}, gates: { schema: { ok: true }, consistency: { ok: true } } } as never;
+    const result = await runBatchUpload({
+      tasks: [
+        { ...task("a"), finalizedPayload: cachedPayload, blocks: ["b"] },
+        { ...task("b"), finalizedPayload: cachedPayload },
+        { ...task("c"), finalizedPayload: cachedPayload },
+      ],
+      destination: dest,
+      onRow: () => {},
+    });
+    expect(result.uploaded).toEqual(["a", "b"]);
+    expect(result.failedId).toBe("c");
+    expect(linkCalled).toBe(true);
+    expect(result.dependencyLinks?.ok).toEqual([
+      { blockerId: "a", blockedId: "b", blockerKey: "AI-1", blockedKey: "AI-2" },
+    ]);
   });
 
   it("aborts the batch when epic pre-creation fails (no sub-tasks attempted)", async () => {

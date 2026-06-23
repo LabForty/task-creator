@@ -1,6 +1,14 @@
 import { subscribeToJob } from "@/lib/sse/client";
 import type { JobEvent, FinalizedPayload } from "@/lib/jobs/types";
-import type { BatchResult, RowState, UploadDestination, UploadTask } from "./types";
+import type {
+  BatchResult,
+  DependencyLinkResolved,
+  DependencyLinkSkipped,
+  DependencyLinkSummary,
+  RowState,
+  UploadDestination,
+  UploadTask,
+} from "./types";
 
 type Args = {
   tasks: UploadTask[];
@@ -90,8 +98,146 @@ async function exportOne(
   return { key: j.key, url: j.url };
 }
 
+type JiraLinkType = { id: string; name: string; inward: string; outward: string };
+type IssueLinkRouteItem = { outwardIssueKey: string; inwardIssueKey: string };
+type IssueLinkRouteResponse = {
+  results?: {
+    ok: IssueLinkRouteItem[];
+    failed: Array<IssueLinkRouteItem & { error: string }>;
+  };
+  error?: string;
+};
+
+function collectDependencyEdges(
+  tasks: UploadTask[],
+  issueKeyByTaskId: Map<string, string>,
+): { resolved: DependencyLinkResolved[]; skipped: DependencyLinkSkipped[] } {
+  const resolved: DependencyLinkResolved[] = [];
+  const skipped: DependencyLinkSkipped[] = [];
+  const seenTaskEdges = new Set<string>();
+  const seenIssueEdges = new Set<string>();
+
+  for (const task of tasks) {
+    for (const blockedId of task.blocks) {
+      if (blockedId === task.id) continue;
+      const taskEdgeKey = `${task.id}->${blockedId}`;
+      if (seenTaskEdges.has(taskEdgeKey)) continue;
+      seenTaskEdges.add(taskEdgeKey);
+
+      const blockerKey = issueKeyByTaskId.get(task.id);
+      const blockedKey = issueKeyByTaskId.get(blockedId);
+      if (!blockerKey || !blockedKey) {
+        skipped.push({ blockerId: task.id, blockedId, reason: "missing_issue_key" });
+        continue;
+      }
+
+      const issueEdgeKey = `${blockerKey}->${blockedKey}`;
+      if (seenIssueEdges.has(issueEdgeKey)) continue;
+      seenIssueEdges.add(issueEdgeKey);
+      resolved.push({ blockerId: task.id, blockedId, blockerKey, blockedKey });
+    }
+  }
+
+  return { resolved, skipped };
+}
+
+async function loadBlocksLinkTypeId(cloudId: string, signal?: AbortSignal): Promise<string | null> {
+  const res = await fetch(`/api/jira/link-types?cloudId=${encodeURIComponent(cloudId)}`, {
+    credentials: "same-origin",
+    signal,
+  });
+  const json = (await res.json().catch(() => ({}))) as { linkTypes?: JiraLinkType[]; error?: string };
+  if (!res.ok) throw new Error(json.error || `link types failed (${res.status})`);
+  const blocks = (json.linkTypes ?? []).find((t) => /^blocks$/i.test(t.name) || /^blocks$/i.test(t.outward));
+  return blocks?.id ?? null;
+}
+
+async function createDependencyLinks(
+  tasks: UploadTask[],
+  cloudId: string,
+  issueKeyByTaskId: Map<string, string>,
+  signal?: AbortSignal,
+): Promise<DependencyLinkSummary | undefined> {
+  const { resolved, skipped } = collectDependencyEdges(tasks, issueKeyByTaskId);
+  if (resolved.length === 0 && skipped.length === 0) return undefined;
+
+  const summary: DependencyLinkSummary = { ok: [], skipped: [...skipped], failed: [] };
+  if (resolved.length === 0) return summary;
+
+  let linkTypeId: string | null;
+  try {
+    linkTypeId = await loadBlocksLinkTypeId(cloudId, signal);
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    summary.warning = `Could not load Jira Blocks link type: ${reason}`;
+    summary.skipped.push(
+      ...resolved.map((l) => ({ blockerId: l.blockerId, blockedId: l.blockedId, reason: "link_type_load_failed" as const })),
+    );
+    return summary;
+  }
+
+  if (!linkTypeId) {
+    summary.warning = "Jira Blocks link type was not available for this site.";
+    summary.skipped.push(
+      ...resolved.map((l) => ({ blockerId: l.blockerId, blockedId: l.blockedId, reason: "missing_blocks_link_type" as const })),
+    );
+    return summary;
+  }
+
+  const byIssueEdge = new Map(resolved.map((l) => [`${l.blockerKey}->${l.blockedKey}`, l]));
+  let res: Response;
+  let json: IssueLinkRouteResponse;
+  try {
+    res = await fetch("/api/jira/issue-links", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      signal,
+      body: JSON.stringify({
+        cloudId,
+        links: resolved.map((l) => ({
+          linkTypeId,
+          outwardIssueKey: l.blockerKey,
+          inwardIssueKey: l.blockedKey,
+        })),
+      }),
+    });
+    json = (await res.json().catch(() => ({}))) as IssueLinkRouteResponse;
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    summary.failed.push(...resolved.map((l) => ({ ...l, error })));
+    return summary;
+  }
+  if (!res.ok || !json.results) {
+    const error = json.error || `dependency link failed (${res.status})`;
+    summary.failed.push(...resolved.map((l) => ({ ...l, error })));
+    return summary;
+  }
+
+  for (const ok of json.results.ok) {
+    const edge = byIssueEdge.get(`${ok.outwardIssueKey}->${ok.inwardIssueKey}`);
+    if (edge) summary.ok.push(edge);
+  }
+  for (const failed of json.results.failed) {
+    const edge = byIssueEdge.get(`${failed.outwardIssueKey}->${failed.inwardIssueKey}`);
+    if (edge) summary.failed.push({ ...edge, error: failed.error });
+  }
+  return summary;
+}
+
 export async function runBatchUpload(args: Args): Promise<BatchResult> {
   const uploaded: string[] = [];
+  const issueKeyByTaskId = new Map<string, string>();
+  for (const task of args.tasks) {
+    if (task.uploadedIssueKey) issueKeyByTaskId.set(task.id, task.uploadedIssueKey);
+  }
+  const linkCurrentDependencies = () =>
+    createDependencyLinks(
+      args.tasks,
+      args.destination.cloudId,
+      issueKeyByTaskId,
+      args.signal,
+    );
 
   // Step 1: resolve the epic key — either the user-picked existing one or
   // a freshly-created Epic in Jira. Failure here aborts before any sub-task
@@ -121,6 +267,14 @@ export async function runBatchUpload(args: Args): Promise<BatchResult> {
       args.onRow(task.id, { kind: "failed", reason: "cancelled" });
       return { uploaded, failedId: task.id, failedReason: "cancelled" };
     }
+    if (task.uploadedIssueKey) {
+      args.onRow(task.id, {
+        kind: "already_uploaded",
+        issueKey: task.uploadedIssueKey,
+        issueUrl: task.uploadedIssueUrl,
+      });
+      continue;
+    }
     try {
       args.onRow(task.id, { kind: "finalizing" });
       const payload = task.finalizedPayload ?? await finalizeOne(task, args.signal);
@@ -132,13 +286,17 @@ export async function runBatchUpload(args: Args): Promise<BatchResult> {
 
       args.onRow(task.id, { kind: "uploading" });
       const { key, url } = await exportOne(payload, task, args.destination, resolvedEpicKey, args.signal);
+      issueKeyByTaskId.set(task.id, key);
       args.onRow(task.id, { kind: "uploaded", issueKey: key, issueUrl: url });
       uploaded.push(task.id);
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
       args.onRow(task.id, { kind: "failed", reason });
-      return { uploaded, failedId: task.id, failedReason: reason };
+      const dependencyLinks = args.signal?.aborted ? undefined : await linkCurrentDependencies();
+      return { uploaded, failedId: task.id, failedReason: reason, dependencyLinks };
     }
   }
-  return { uploaded };
+
+  const dependencyLinks = await linkCurrentDependencies();
+  return { uploaded, dependencyLinks };
 }

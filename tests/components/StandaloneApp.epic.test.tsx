@@ -117,6 +117,23 @@ describe("StandaloneApp — epic mode", () => {
     });
   });
 
+  it("clears epic refinement questions when the epic draft is cleared", async () => {
+    vi.stubGlobal("fetch", mockKneadFetch());
+    render(<StandaloneApp initialSession={session} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /knead tasks/i }));
+    expect(await screen.findByText("Risk?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /^clear$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^yes$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Risk?")).not.toBeInTheDocument();
+      const stored = JSON.parse(localStorage.getItem("task-creator:draft:standalone") || "{}");
+      expect(stored.knead).toEqual({ status: "idle", rounds: [] });
+    });
+  });
+
   function mockEpicFetch() {
     let kneadCalls = 0;
     return vi.fn(async (url: string) => {
